@@ -1,0 +1,149 @@
+body, html {
+    height: 100%;
+    margin: 0;
+    min-height: -webkit-fill-available;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    padding: 0;
+    background-color: #333;
+}
+
+#chatContainer {
+    display: flex;
+    flex-direction: column;
+    max-height: 100vh; 
+    background-color: #e5e5ff;
+}
+
+h1 {
+    text-align: center;
+    margin: 0;
+    padding: 10px;
+    background-color: #333;
+    color: white;
+    font-size: 32px;
+}
+
+.jarvis-icon {
+    width: 32px;
+    height: 32px;
+    vertical-align: text-top;
+}
+
+#statusMsg {
+    color: #e0e0e0;
+    margin: auto;
+    width: fit-content;
+    font-size: 12px;
+    font-style: italic;
+}
+
+#statusMsg.error {
+    color: red;
+}
+
+#chat-log {
+    /*min-height: 70vh;*/
+    overflow-y: auto;
+    flex-grow: 1;
+    scroll-behavior: smooth;
+}
+
+#chat-log p img.inline-image,
+#imagePreview {
+    max-width: 50px;
+    max-height: 50px;
+}
+
+#chat-log p {
+    padding: 5px;
+}
+
+#chat-log p.darkBg {
+    background-color: #e0e0e0;
+    padding: 10px;
+}
+
+.you,
+.jarvis {
+    font-weight: bold;
+}
+
+.form-elements-container {
+    display: flex;
+    align-items: center; 
+    justify-content: flex-start; 
+    padding: 5px 12px 0 10px;
+    background: #333;
+}
+
+#form input,
+#form button,
+#form label {
+    margin: 5px;            
+}
+
+#image {
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    z-index: -1;
+}
+
+#prompt {
+    width: 100%;
+    padding: 10px 5px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    font-size: 16px;
+}
+
+label[for="file-upload"] {
+    cursor: pointer;
+    background-size: cover;
+    display: inline-block;
+    min-width: 40px; 
+    height: 35px; 
+    background-color: lightblue;
+    border-radius: 5px;
+}
+
+label[for="file-upload"]:hover {
+    opacity: 0.8;
+}
+
+#sendButton {
+    background-color: #4CAF50; 
+    color: white;
+    border: 2px solid #4CAF50; 
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: 900;
+    width: 15px;
+    height: 15px;
+    padding: 15px 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#sendButton:hover {
+    opacity: 0.8;
+    background-color: #45a049;
+}
+
+@media (max-width: 350px) {
+    .form-elements-container {
+        flex-direction: column; 
+    }
+    #prompt {
+        width: 90%;
+    }
+}

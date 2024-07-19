@@ -1,0 +1,12 @@
+[Unit]
+Description=2Mic Button
+
+[Service]
+Type=simple
+ExecStart=/home/user/scripts/JarvisChatBot/venv/bin/python3 /home/user/scripts/JarvisChatBot/gpio_button.py
+WorkingDirectory=/home/user/scripts/JarvisChatBot
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

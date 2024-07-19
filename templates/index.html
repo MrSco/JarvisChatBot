@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>J.A.R.V.I.S.</title>
+    <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+    <script>
+        var chatLogData = {{ chat_log|safe }};
+    </script>
+    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <!-- Apple Touch Icons for iOS and other devices -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicon-48x48.png')}}">
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json')}}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        label[for="file-upload"] {
+            background-image: url('{{ url_for("static", filename="images/image.png") }}');
+        }
+    </style>
+</head>
+<body>
+    <div id="chatContainer">
+        <h1 id="header" title="Just A Rather Very Intelligent System">
+            <img class="jarvis-icon" src="{{ url_for('static', filename='images/favicon-48x48.png')}}"/> J.A.R.V.I.S.
+            <div id="statusMsg"></div>
+        </h1>
+        <div id="chat-log"></div>
+        <form id="form" enctype="multipart/form-data">
+            <div class="form-elements-container">
+                <input type="text" id="prompt" name="prompt" placeholder="Enter a prompt" autocomplete="off">
+                <input type="file" id="image" name="image" accept="image/png, image/jpeg, image/gif">
+                <div id="imagePreviewContainer">
+                    <img id="imagePreview" />
+                </div>    
+                <label for="file-upload" title="Upload Image"></label>
+                <button type="submit" name="sendButton" id="sendButton" class="send-button" title="Submit Request">↑</button>
+            </div>
+        </form>
+    </div>
+    
+</body>
+</html>

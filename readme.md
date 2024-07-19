@@ -1,10 +1,17 @@
-# Raspberry Pi Voice Bot ChatGPT
+# JarvisChatBot - A Voice-Activated Chatbot using OpenAI and Raspberry Pi
 
-[Link to the demo video](https://youtube.com/shorts/6NRtFTbH-e0?feature=share)
+[Flask Web UI](https://i.imgur.com/2ZNodii.jpeg)
 
 ## Introduction
 
-This project is a voice-activated Raspberry Pi based system that listens for a wake word, "picovoice". Upon hearing the wake word, the system starts recording audio input until it detects silence. It then sends this audio input to OpenAI for transcription and further processing. The response from OpenAI is then converted to speech using Amazon Polly, a text-to-speech service, and played back to the user.
+This project is a voice-activated Raspberry Pi based system that listens for a wake word, "hey jarvis" or "jarvis". Upon hearing the wake word, the system starts recording audio input until it detects silence. It then sends this audio input to SpeechRecognition (google_recognizer) for transcription. Then it sends that transcription to OpenAI for further processing. The response from OpenAI is then converted to speech using ElevenLabs, a text-to-speech service, and played back to the user. 
+
+There is also a button service that can be used to start/stop the JarvisChatBot service with a quick press. And if held will shutdown the pi.
+
+Flask is used to create a web interface that can be used to interact with the chatbot using websockets. The web interface can be accessed by navigating to the IP address of the Raspberry Pi on port 5000 (e.g., `http://localhost:5000`).
+From there the chat log can be viewed and the chatbot can be sent text prompts along with images. Imgur is the default for storing the images and the link is sent to OpenAI for analysis.
+
+This was a quick hodge-podge project that still has lots of room for improvement. 
 
 ## Project Structure
 
@@ -12,38 +19,38 @@ The project is divided into four main python files:
 
 1. **main.py**: The main script that integrates all other modules, listens for the wake word, manages the audio recording, and handles the interaction with OpenAI and AWS Polly.
 
-2. **tts_service.py**: Handles the text-to-speech conversion using Amazon Polly.
+2. **tts_service.py**: Handles the text-to-speech conversion using ElevenLabs.
 
 3. **input_listener.py**: Handles the audio recording and silence detection.
 
 4. **chat_gpt_service.py**: Manages the interaction with OpenAI's GPT-3 model.
 
+5. **sound_effect_service.py**: Handles playing local sound effects.
+
+6. **led_service.py**: Handles controlling the LED lights on the ReSpeaker 2-Mics Pi HAT.
+
+7. **apa102.py**: A library for controlling the LED lights on the ReSpeaker 2-Mics Pi HAT.
+
+8. **jarvis_v2.tflite** and **jarvis_v2.onnx**: The wake word model(s) used by OpenWakeWord.
+
 There is also a configuration file, **config.json**, which stores important parameters and keys.
 
-## Prerequisites
+## Dependencies
+This project also uses:
 
-This project requires Python 3.8 or higher. It also requires specific Python packages which are listed in the `requirements.txt` file. Install the required packages with the command:
-
-```
-pip install -r requirements.txt
-```
-
-In addition to these packages, this project also uses:
-
-- [Porcupine](https://picovoice.ai/products/porcupine/) (Picovoice's wake word engine): This is used to listen for the wake word.
-- [OpenAI](https://openai.com/): This is used to transcribe and process the audio input. You will need an API key from OpenAI to use this service.
-- [Amazon Polly](https://aws.amazon.com/polly/): This is used to convert the response from OpenAI into speech. You will need AWS credentials to use this service.
+- [OpenWakeWord](https://github.com/dscripka/openWakeWord) (OpenWakeWord's wake word engine): This is used to listen for the wake word.
+- [SpeechRecognition](https://pypi.org/project/SpeechRecognition) (Google's legacy speech recognition engine)
+- [OpenAI](https://openai.com/): This is used to respond to requests. You will need an API key from OpenAI to use this service.
+- [ElevenLabs](https://elevenlabs.io/): This is used to convert the response from OpenAI into speech. You will need ElevenLabs credentials to use this service.
 
 ## Configuration
 
 All the keys and important parameters are stored in the `config.json` file. This includes:
 
-- OpenAI API key (`openai_key`): Used for interacting with OpenAI.
-- Porcupine Access Key (`pv_access_key`): Used for wake word detection.
-- AWS credentials (`aws_access_key_id`, `aws_secret_access_key`): Used for text-to-speech conversion with Amazon Polly.
-- Silence threshold (`silence_threshold`): The RMS threshold below which the input is considered silent.
-- Silence duration (`silence_duration`): The duration of silence (in seconds) after which the recording is stopped.
-- Sound card name (`sound_card_name`): The name of the sound card used for audio input.
+- OpenAI API key (`openai_key`, `openai_model`, `system_prompt`): Used for interacting with OpenAI.
+- ElevenLabs credentials (`elevenlabs_key`, `elevenlabs_voice_id`): Used for text-to-speech conversion with ElevenLabs.
+- SpeechRecognition (`slang`, `dynamic_energy_threshold`, `energy_threshold`, `timeout`, `phrase_time_limit`): The language code for the speech recognition engine.
+- OpenWakeWord (`oww_model_path`, `oww_inference_framework`): The wake word model and inference framework to use. For more models see [Home Assistant Wake-Word Collection](https://github.com/fwartner/home-assistant-wakewords-collection/)
 
 ## Running the Project
 
@@ -55,55 +62,31 @@ python main.py
 
 # Obtaining Required Keys
 
-This project requires keys from OpenAI, Picovoice, and AWS. Here is how to obtain them:
+This project requires keys from imgur, OpenAI and ElevenLabs. Here is how to obtain them:
 
 1. **OpenAI Key**: Sign up at [openai.com](https://www.openai.com/) and follow the instructions [here](https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key) to obtain your secret API key.
 
-2. **Picovoice Key**: Sign up for free at [picovoice.ai](https://picovoice.ai/) to obtain your key.
+2. **ElevenLabs Key**: Sign up at [ElevenLabs](https://elevenlabs.io/).
 
-3. **AWS Keys**: Sign up at [AWS](https://aws.amazon.com/). You need to create an IAM user and obtain the access key and secret. Make sure to assign a policy that allows the user to use the Polly service.
+3. **Imgur Key**: Sign up at [imgur.com](https://imgur.com/). Then go to [this page](https://api.imgur.com/oauth2/addclient) to create a new application and obtain your client ID.
 
 After obtaining these keys, add them to your `config.json` file.
 
-# Silence Detection
-
-The InputListener class is responsible for listening to the user's input and detecting silence. It uses the Root Mean Square (RMS) value of the audio signal to decide whether the user is speaking or not.
-
-The threshold for silence can be adjusted in the `config.json` file using the `silence_threshold` parameter. The `silence_duration` parameter determines how long the silence must continue before the system decides that the user has finished speaking.
-
-The correct values for these parameters may depend on the specific microphone and environment you are using. If you are unsure about the correct values, you can run the program and observe the RMS values that are printed to the console after the wake word is detected. Here is an example:
-
-```
-RMS: 347
-RMS: 452
-RMS: 458
-RMS: 575
-RMS: 392
-RMS: 444
-RMS: 474
-RMS: 552
-RMS: 304
-RMS: 535
-RMS: 456
-RMS: 417
-RMS: 226
-RMS: 516
-RMS: 523
-RMS: 219
-RMS: 296
-RMS: 508
-RMS: 375
-RMS: 229
-RMS: 439
-```
-
-By observing these values, you can get a sense of which RMS values correspond to speech and which correspond to silence, and adjust the `silence_threshold` and `silence_duration` parameters accordingly.
-
 # Tested Environment and Installation Instructions
 
-This project has been tested on a RaspberryPi 4 using Raspberry Pi OS 64 bit (version 6.1, released on May 3rd, 2023). The SHA of the release is e7c0c89db32d457298fbe93195e9d11e3e6b4eb9e0683a7beb1598ea39a0a7aa.
+This project has been tested on a RaspberryPi 3b+ and a windows 11 desktop. The following sections provide instructions on how to set up the project on these systems.
 
-We used the ReSpeaker 2-Mics Pi HAT as the sound card. More information about this sound card can be found [here](https://wiki.seeedstudio.com/ReSpeaker_2_Mics_Pi_HAT_Raspberry/).
+For raspberry pi, I used the ReSpeaker 2-Mics Pi HAT as the sound card. More information about this sound card can be found [here](https://wiki.seeedstudio.com/ReSpeaker_2_Mics_Pi_HAT_Raspberry/).
+
+For windows, I used a usb webcam mic and standard desktop speakers. (I had difficulty running the openwakeword engine using tflite on windows so onnx was used instead)
+
+To convert tflite models to onnx, you can use the following command:
+[tf2onnx](https://onnxruntime.ai/docs/tutorials/tf-get-started.html)
+
+```bash
+pip install tf2onnx
+python -m tf2onnx.convert --opset 13 --tflite path/to/your/model.tflite --output path/to/your/model.onnx
+```
 
 ## Raspberry Pi Setup
 
@@ -120,21 +103,33 @@ sudo ./install.sh
 sudo reboot now
 ```
 
-2. **Clone the VoiceBotChatGPT-RaspberryPI repository**
+2. **Clone the JarvisChatBot repository**
 
 ```bash
-git clone https://github.com/TamerinTECH/VoiceBotChatGPT-RaspberryPI.git
-cd VoiceBotChatGPT-RaspberryPI
+git clone https://github.com/MrSco/JarvisChatBot.git
+cd JarvisChatBot
 ```
 
-3. **Upgrade pip and install the required Python packages**
+3. **Upgrade pip and install the required Python packages in a virtual environment**
 
 ```bash
-pip install --upgrade pip setuptools wheel
-pip3 install -r requirements.txt
+chmod +x install.sh
+./install.sh
 ```
 
 Now, your Raspberry Pi is set up to run the project. Remember to add your API keys to the `config.json` file before running the `main.py` script.
+
+## Windows install requirements
+
+For Windows
+
+```bat
+install.bat
+```
+
+# Edit the config.json file
+
+Copy the `config.json.example` file to `config.json` and edit the file to include your OpenAI and ElevenLabs keys.
 
 # Setting Up the Default Audio Output Device
 
@@ -157,13 +152,64 @@ S2. Audio
 
 After you've selected the appropriate option, the system should use this device as the default for audio output.
 
+## Running as a Service
+
+1. **Create a jarvischatbot Service File**
+Use the included jarvischatbot.service file to create a service that will run the JarvisChatBot script on startup. Modify the file to include the correct path to the JarvisChatBot directory.
+
+```bash
+sudo cp jarvischatbot.service /etc/systemd/system/jarvischatbot.service
+```
+
+2. **Enable the Service**
+
+```bash
+sudo systemctl enable jarvischatbot.service
+```
+
+3. **Start the Service**
+
+```bash
+sudo systemctl start jarvischatbot.service
+```
+
+Now, the JarvisChatBot script will run as a service on startup.
+
+## Running Button Service
+
+1. **Create a button Service File**
+Use the included 2mic_button.service file to create a service that will run the button script on startup. The button will start/stop the JarvisChatBot service with a quick press. And if held will shutdown the pi.
+Modify the file to include the correct path to the JarvisChatBot directory.
+
+```bash
+sudo cp 2mic_button.service /etc/systemd/system/2mic_button.service
+```
+
+2. **Enable the Service**
+
+```bash
+sudo systemctl enable 2mic_button.service
+```
+
+3. **Start the Service**
+
+```bash
+sudo systemctl start 2mic_button.service
+```
+
+Now, the button script will run as a service on startup.
 
 ## Limitations
 
-Please note that this project was developed for hackathon and demo purposes. Therefore, there is no guarantee for its performance or functionality. For additional information, please contact the company [TamerinTECH](https://www.tamerin.tech) - [voicebot@tamerin.tech](mailto:voicebot@tamerin.tech)
+Please note that this project was forked from a project that was developed for hackathon and demo purposes. Therefore, there is no guarantee for its performance or functionality.
 
 ## Acknowledgements
 
 This documentation was written by ChatGPT with some supervision by the author
+
+## Disclaimer
+
+This project is a fan-made, non-commercial project and is not affiliated with, endorsed by, or associated with Marvel, Disney, or any of their subsidiaries. All characters, images, and other related materials are the property of their respective owners. No copyright infringement is intended. This project is for entertainment purposes only, and no monetary gain is being made from its distribution. If any copyright holder feels that their intellectual property has been used inappropriately, please contact me and the content will be removed immediately.
+
 
 

@@ -1,101 +1,44 @@
-import time
-import audioop
-import pyaudio
-import boto3
-import wave
-import uuid
-import os
-
+import speech_recognition as sr
 
 class InputListener:
-    def __init__(self, silence_threshold=75, silence_duration=1.5):
-        self.chunk = 1024
-        self.format = pyaudio.paInt16
-        self.channels = 1
-        self.rate = 16000
-        self.silence_threshold = silence_threshold
-        self.silence_duration = silence_duration
-        self.audio = pyaudio.PyAudio()
-        self.frames = []
+    def __init__(self, config):
+        self.rec = sr.Recognizer()
+        self.mic = sr.Microphone()
+        self.rec.dynamic_energy_threshold = config["dynamic_energy_threshold"]
+        self.rec.energy_threshold = config["energy_threshold"]
+        self.timeout = config["timeout"]
+        self.phrase_time_limit = config["phrase_time_limit"]
+        self.slang = config["slang"]
+        self.sound_effect = None
 
-    def start(self):
-        self.stream = self.audio.open(
-            format=self.format,
-            channels=self.channels,
-            rate=self.rate,
-            input=True,
-            frames_per_buffer=self.chunk,
-        )
-
-    def stop(self):
-        self.stream.stop_stream()
-        self.stream.close()
-        self.audio.terminate()
-
-    def save_audio_to_file(self, audio_data):
-        # Generate a random file name
-        file_name = str(uuid.uuid4()) + ".wav"
-        file_path = os.path.join("", file_name)  # /path/to/save/directory', file_name)
-
-        # if the file already exists, delete it
-        if os.path.exists(file_path):
-            os.remove(file_path)
-
-        # Save the audio data to the file
-        wf = wave.open(file_path, "wb")
-        wf.setnchannels(self.channels)
-        wf.setsampwidth(self.audio.get_sample_size(self.format))
-        wf.setframerate(self.rate)
-        wf.writeframes(audio_data)
-        wf.close()
-
-        return file_path
+        with self.mic as source:
+            print("Adjusting for ambient noise...")
+            self.rec.adjust_for_ambient_noise(source, duration=1)
 
     def listen(self):
-        self.start()
-        silence_start_time = None
-        print("Start recording...")
-        while True:
-            data = self.stream.read(self.chunk)
-            self.frames.append(data)
-            rms = audioop.rms(data, 2)
-            print(f"RMS: {rms}")  # Debugging print
-            if rms < self.silence_threshold:
-                if silence_start_time is None:
-                    silence_start_time = time.time()
-                elif time.time() - silence_start_time > self.silence_duration:
-                    print("Silence detected, stop recording")
-                    break
-            else:
-                silence_start_time = None
-        self.stop()
+        if self.sound_effect is not None:
+          self.sound_effect.stop_sound()
+        self.audio_data = None
+        with self.mic as source:
+            try:
+                print("Listening for request...")                    
+                self.audio_data = self.rec.listen(source, timeout = self.timeout, phrase_time_limit = self.phrase_time_limit)
+            except Exception:
+                pass
 
-        # Save the audio data to a file and return the file path
-        audio_data = b"".join(self.frames)
-        file_path = self.save_audio_to_file(audio_data)
-
-        # Clear out self.frames
-        self.frames = []
-
-        return file_path
-
-    def transcribe(self, audio_data):
-        client = boto3.client("transcribe")
-        response = client.start_transcription_job(
-            TranscriptionJobName="MyTranscriptionJob",
-            Media={"MediaFileUri": audio_data},
-            MediaFormat="wav",
-            LanguageCode="en-US",
-        )
-        while True:
-            status = client.get_transcription_job(
-                TranscriptionJobName="MyTranscriptionJob"
-            )
-            if status["TranscriptionJob"]["TranscriptionJobStatus"] in [
-                "COMPLETED",
-                "FAILED",
-            ]:
-                break
-            print("Not ready yet...")
-            time.sleep(5)
-        print(status)
+    def transcribe(self):
+        self.transcript = None
+        if self.audio_data is None:
+            print("No audio request detected.")
+            return None
+        try:
+            print("Processing speech request to text...")
+            self.transcript = self.rec.recognize_google(self.audio_data, language=self.slang)
+        except sr.UnknownValueError as e:
+                # Handle the case where the speech is unintelligible
+                print(f"Could not understand audio. {e}")
+        except sr.RequestError as e:
+            # Handle the case where the request to Google's API failed
+            print(f"Could not request results from STT service; {e}")
+        if self.sound_effect is not None:
+          self.sound_effect.stop_sound()
