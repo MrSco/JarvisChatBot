@@ -96,8 +96,9 @@ Below are the commands to set up the project on your Raspberry Pi:
 
 ```bash
 sudo apt-get update -y
-sudo apt-get install portaudio19-dev libatlas-base-dev -y
-git clone https://github.com/seeed-studio-projects/seeed-voicecard.git
+sudo apt-get upgrade -y
+sudo apt-get install git -y
+git clone https://github.com/HinTak/seeed-voicecard
 cd seeed-voicecard
 sudo ./install.sh
 sudo reboot now
@@ -148,7 +149,7 @@ sudo raspi-config
 S2. Audio
 ```
 
-3. Select the desired audio output option. In our case, it was the `bcm2835-i2s...` option corresponding to the ReSpeaker sound card.
+3. Select the desired audio output option. In our case, it was the `seeed-2mic-voicecard` option corresponding to the ReSpeaker sound card.
 
 After you've selected the appropriate option, the system should use this device as the default for audio output.
 

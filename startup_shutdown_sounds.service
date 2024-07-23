@@ -1,0 +1,11 @@
+[Unit]
+Description=Play startup and shutdown sounds
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=aplay -D plughw:CARD=seeed2micvoicec,DEV=0 /home/user/JarvisChatBot/sounds/winxp_startup.wav
+ExecStop=aplay -D plughw:CARD=seeed2micvoicec,DEV=0 /home/user/JarvisChatBot/sounds/winxp_shutdown.wav
+
+[Install]
+WantedBy=multi-user.target
