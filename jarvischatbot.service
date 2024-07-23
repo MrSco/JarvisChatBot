@@ -5,8 +5,8 @@ After=sys-devices-platform-soc-soc:sound-sound-card2-controlC2.device
 
 [Service]
 Type=simple
-ExecStart=/home/user/scripts/JarvisChatBot/venv/bin/python3 main.py
-WorkingDirectory=/home/user/scripts/JarvisChatBot
+ExecStart=/home/user/JarvisChatBot/venv/bin/python3 main.py
+WorkingDirectory=/home/user/JarvisChatBot
 Restart=on-failure
 RestartSec=1
 

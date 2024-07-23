@@ -97,8 +97,9 @@ Below are the commands to set up the project on your Raspberry Pi:
 ```bash
 sudo apt-get update -y
 sudo apt-get upgrade -y
-sudo apt-get install git -y
-git clone https://github.com/HinTak/seeed-voicecard
+sudo apt-get install portaudio19-dev libatlas-base-dev git python3-pip ffmpeg flac espeak -y
+KERNEL_VERSION=$(uname -r | cut -d'.' -f1,2)
+git clone --branch $KERNEL_VERSION https://github.com/HinTak/seeed-voicecard
 cd seeed-voicecard
 sudo ./install.sh
 sudo reboot now
@@ -132,6 +133,15 @@ install.bat
 
 Copy the `config.json.example` file to `config.json` and edit the file to include your OpenAI and ElevenLabs keys.
 
+
+```bash
+cp config.json.example config.json
+```
+
+```bash
+nano config.json
+```
+
 # Setting Up the Default Audio Output Device
 
 In some instances, you may need to manually select the default audio output device. Here is how you can do it:
@@ -159,6 +169,10 @@ After you've selected the appropriate option, the system should use this device 
 Use the included jarvischatbot.service file to create a service that will run the JarvisChatBot script on startup. Modify the file to include the correct path to the JarvisChatBot directory.
 
 ```bash
+nano jarvischatbot.service
+```
+
+```bash
 sudo cp jarvischatbot.service /etc/systemd/system/jarvischatbot.service
 ```
 
@@ -183,6 +197,10 @@ Use the included 2mic_button.service file to create a service that will run the 
 Modify the file to include the correct path to the JarvisChatBot directory.
 
 ```bash
+nano 2mic_button.service
+```
+
+```bash
 sudo cp 2mic_button.service /etc/systemd/system/2mic_button.service
 ```
 
@@ -199,6 +217,33 @@ sudo systemctl start 2mic_button.service
 ```
 
 Now, the button script will run as a service on startup.
+
+## Running the startup_shutdown_sounds Service
+
+1. **Create a startup_shutdown_sounds Service File**
+Use the included startup_shutdown_sounds.service file to create a service that will play a startup sound and a shutdown sound on startup and shutdown. Modify the file to include the correct path to the JarvisChatBot directory.
+
+```bash
+nano startup_shutdown_sounds.service
+```
+
+```bash
+sudo cp startup_shutdown_sounds.service /etc/systemd/system/startup_shutdown_sounds.service
+```
+
+2. **Enable the Service**
+
+```bash
+sudo systemctl enable startup_shutdown_sounds.service
+```
+
+3. **Start the Service**
+
+```bash
+sudo systemctl start startup_shutdown_sounds.service
+```
+
+Now, the startup_shutdown_sounds script will run as a service on startup.
 
 ## Limitations
 

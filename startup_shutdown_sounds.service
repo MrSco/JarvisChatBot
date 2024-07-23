@@ -1,5 +1,7 @@
 [Unit]
 Description=Play startup and shutdown sounds
+Requires=sys-devices-platform-soc-soc:sound-sound-card2-controlC2.device
+After=sys-devices-platform-soc-soc:sound-sound-card2-controlC2.device
 
 [Service]
 Type=oneshot
