@@ -99,7 +99,7 @@ sudo apt-get update -y
 sudo apt-get upgrade -y
 sudo apt-get install portaudio19-dev libatlas-base-dev git python3-pip ffmpeg flac espeak -y
 KERNEL_VERSION=$(uname -r | cut -d'.' -f1,2)
-git clone --branch $KERNEL_VERSION https://github.com/HinTak/seeed-voicecard
+git clone --branch v$KERNEL_VERSION https://github.com/HinTak/seeed-voicecard
 cd seeed-voicecard
 sudo ./install.sh
 sudo reboot now
