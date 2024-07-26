@@ -17,6 +17,7 @@ from sound_effect_service import SoundEffectService
 from tts_service import TextToSpeechService
 
 transcript_seperator = f"_"*40
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # One-time download of all pre-trained models (or only select models)
 openwakeword.utils.download_models()
@@ -45,15 +46,18 @@ if is_rpi:
 else:
     print("LED event: Disconnected")
 
-config = json.load(open("config.json"))
+config_file = os.path.join(script_dir, "config.json")
+print(f"Loading config from {config_file}...")
+config = json.load(open(config_file))
 assistant_name = config["assistant_name"]
 today = str(date.today())
 if config["use_frontend"]:
+    import threading
     from flask import Flask, render_template, send_from_directory, request
     from flask_socketio import SocketIO
     from werkzeug.utils import secure_filename
     app = Flask(__name__)
-    socketio = SocketIO(app)
+    socketio = SocketIO(app, async_mode='threading')
 
 loading_sound = SoundEffectService().play_loop("loading")
 
@@ -86,7 +90,7 @@ class WakeWordDetector:
         self.chat_gpt_service = ChatGPTService(config)
         self.chat_gpt_service.append2log = append2log
         self.chat_gpt_service.emit_update_chat = emit_update_chat
-        oww_model_path = config["oww_model_path"]
+        oww_model_path = os.path.join(script_dir, config["oww_model_path"])
         oww_inference_framework = config["oww_inference_framework"]
         self.slang = config["slang"]
         self.oww_chunk_size = config["oww_chunk_size"]
@@ -365,11 +369,12 @@ def uploaded_file(filename):
     return send_from_directory(config['upload_folder'], filename)
 
 def run_flask_app():
-    socketio.run(app, debug=True, use_reloader=False, allow_unsafe_werkzeug=True, host="0.0.0.0")
+    socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=False, host="0.0.0.0")
 
 if __name__ == "__main__":
     detector = WakeWordDetector()
     app.config['detector'] = detector  # Attach detector to the Flask app config
     if config["use_frontend"]:
+        print("Starting Flask frontend...")
         socketio.start_background_task(run_flask_app)
     detector.run()
