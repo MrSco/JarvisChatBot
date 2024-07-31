@@ -135,7 +135,7 @@ class WakeWordDetector:
 
     def predictSilence(self):
         # Calculate the number of samples for the given duration of silence
-        duration_seconds=8
+        duration_seconds=2
         num_samples = int(self.oww_sample_rate * duration_seconds)
         silence_data = np.zeros(num_samples, dtype=np.int16)
         time.sleep(0.1)
@@ -149,7 +149,7 @@ class WakeWordDetector:
 
     def _init_mic_stream(self):
         self.handle_led_event("StreamingStarted")
-        self.predictSilence()
+        #self.predictSilence()
         self.mic_stream = self.pa.open(
             rate=self.oww_sample_rate,
             channels=self.oww_channels,
