@@ -1,6 +1,6 @@
 import time
 from elevenlabs import VoiceSettings
-from elevenlabs import play
+from elevenlabs import stream
 from elevenlabs.client import ElevenLabs
 import pyttsx3
 from gtts import gTTS
@@ -32,6 +32,7 @@ class TextToSpeechService:
                     return None
                 self.speak_with_pyttsx3(text)
                 return None
+            print("Speaking with elevenlabs...")
             audio = self.elevenlabs_client.generate(
                 text=text,
                 voice=self.elevenlabs_voice_id,
@@ -41,17 +42,17 @@ class TextToSpeechService:
                     stability=0.5,
                     similarity_boost=0.8,
                 ),
-                stream=False
+                stream=True
             )
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
             self.end_time = time.time()
             print(f"Time taken: {self.end_time - self.start_time} seconds")
             print(f"{self.assistant_name}: {text}")
-            play(audio)
+            stream(audio)
 
         except Exception as e:
-            print(f"Failed to use elevenlabs for speech: {e}")
+            print(f"Failed to use elevenlabs for speech ({text}): {e}")
             if self.use_gtts:
                 self.speak_with_gtts(text)
             else:
