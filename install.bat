@@ -1,5 +1,8 @@
 @echo off
 
+:: install mpv with chocolatey
+choco install mpv -y
+
 :: Check for Python 3
 python3 --version > nul 2>&1
 if %errorlevel% neq 0 (

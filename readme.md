@@ -42,6 +42,7 @@ This project also uses:
 - [SpeechRecognition](https://pypi.org/project/SpeechRecognition) (Google's legacy speech recognition engine)
 - [OpenAI](https://openai.com/): This is used to respond to requests. You will need an API key from OpenAI to use this service.
 - [ElevenLabs](https://elevenlabs.io/): This is used to convert the response from OpenAI into speech. You will need ElevenLabs credentials to use this service.
+- [mpv](https://mpv.io/): This is used to play the audio response from ElevenLabs.
 
 ## Configuration
 
@@ -97,7 +98,7 @@ Below are the commands to set up the project on your Raspberry Pi:
 ```bash
 sudo apt-get update -y
 sudo apt-get upgrade -y
-sudo apt-get install portaudio19-dev libatlas-base-dev git python3-pip ffmpeg flac espeak -y
+sudo apt-get install portaudio19-dev libatlas-base-dev git python3-pip ffmpeg flac espeak mpv -y
 KERNEL_VERSION=$(uname -r | cut -d'.' -f1,2)
 git clone --branch v$KERNEL_VERSION https://github.com/HinTak/seeed-voicecard
 cd seeed-voicecard
