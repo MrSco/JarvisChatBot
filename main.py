@@ -150,7 +150,7 @@ class WakeWordDetector:
 
     def _init_mic_stream(self):
         self.handle_led_event("StreamingStarted")
-        #self.predictSilence()
+        self.predictSilence()
         self.mic_stream = self.pa.open(
             rate=self.oww_sample_rate,
             channels=self.oww_channels,
