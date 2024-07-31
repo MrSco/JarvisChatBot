@@ -480,7 +480,7 @@ def signal_handler(sig, frame):
     if config["use_elevenlabs"]:
         SoundEffectService(config).play("goodbye")
     else:
-        TextToSpeechService(config).speak(f"Goodbye!")
+        TextToSpeechService(config).speak("Goodbye!")
     sys.exit(0)
 
 if __name__ == "__main__":
