@@ -461,7 +461,7 @@ def change_assistant(data):
     return socketio.emit('assistant_changed', {'assistant': None})
 
 def run_flask_app():
-    socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=False, host="0.0.0.0")
+    socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=True, host="0.0.0.0")
 
 def runApp():
     global detector, loading_sound
