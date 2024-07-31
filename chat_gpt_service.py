@@ -2,7 +2,7 @@
 #from os import environ
 #environ['OPENAI_LOG'] = 'debug'
 import openai
-from openai import OpenAI
+from groq import Groq
 import urllib
 import geocoder
 import time
@@ -12,18 +12,29 @@ import requests
 class ChatGPTService:
     def __init__(self, config):
         self.append2log = None
-        self.emit_update_chat = None
-        openai.api_key = config["openai_key"]
-        self.openai_async = OpenAI(api_key=config["openai_key"])
-        self.assistant_name = config["assistant_name"]
+        self.use_groq = config["use_groq"]
+        if (self.use_groq):
+            self.model = config["groq_model"]
+            self.llm = Groq(api_key=config["groq_key"])
+        else:
+            openai.api_key = config["openai_key"]
+            self.model = config["openai_model"]
+            self.llm = openai
+        self.assistant_name = config["assistant_dict"]["name"]
+        self.assistant_acronym = config["assistant_dict"]["acronym"]
+        self.assistant_descr = config["assistant_dict"]["descr"]
         self.system_prompt = config["system_prompt"]
-        self.openai_model = config["openai_model"]
         self.weather_info = self.get_weather_url()
         today = str(date.today()) 
-        self.system_prompt = config["system_prompt"].replace("{assistant_name}", self.assistant_name).replace("{today}", today).replace("{theCurrentTime}", time.strftime('%I:%M %p').lstrip("0")).replace("{weather_info}", self.weather_info)
+        self.system_prompt = config["system_prompt"] \
+            .replace("{assistant_name}", self.assistant_name) \
+            .replace("{assistant_acronym}", self.assistant_acronym) \
+            .replace("{assistant_descr}", self.assistant_descr) \
+            .replace("{today}", today) \
+            .replace("{theCurrentTime}", time.strftime('%I:%M %p').lstrip("0")) \
+            .replace("{weather_info}", self.weather_info)
         self.history = [{"role": "system", "content": self.system_prompt}]
         self.sound_effect = None
-        self.stream_responses = config["stream_responses"]
         self.imgur_client_id = config["imgur_client_id"]
         self.use_imgur = config["use_imgur"]
 
@@ -96,7 +107,7 @@ class ChatGPTService:
 
     def send_to_chat_gpt(self, request, image=None, image_link=''):
         start_time = time.time()
-        if image is not None:
+        if not self.use_groq and image is not None:
             if self.use_imgur:
                 image_link = self.upload_image_to_imgur(image)
                 image_url = image_link
@@ -111,59 +122,47 @@ class ChatGPTService:
         self.history.append({"role": "user", "content": content})
         result = None
         try:
-            response = openai.chat.completions.create(
-                model=self.openai_model, 
+            #print(self.history)
+            response = self.llm.chat.completions.create(
+                model=self.model, 
                 messages=self.history,
                 max_tokens=300,
                 temperature=1,
-                stream=self.stream_responses
+                stream=True
             )
-            if not self.stream_responses:                
-                result = response.choices[0].message.content
-                end_time = time.time()
-        except openai.APIConnectionError as e:
-            result = "API Connection Error: "
-            print(result + str(e))
-            return result
-        except openai.RateLimitError as e:
-            result = "Rate Limit Error: "
-            print(result + str(e))
-            return result
-        except openai.APIError as e:
-            result = "API Error: "
-            print(result + str(e))
-            return result
         except Exception as e:
             result = "Unknown Error "
             print(result + str(e))
             return result
         
-        if not self.stream_responses:
-            if result is None:
-                return None
-        
-        def wrapUp(result):
-            self.history.append({"role": "assistant", "content": result})
-            self.append2log(f" {image_link} \n\n", True)
-            self.emit_update_chat(f"You: {request} {image_link}")
-            self.append2log(f"{self.assistant_name}: {result}")
+        self.append2log(f" {image_link} \n\n", True)
 
         def text_iterator():
             response_full_text = ""
-            #self.append2log(f"{self.assistant_name}: ") 
+            sentence = ""
+            sentence_endings = {'.', '!', '?'}
+            #print(f"{self.assistant_name}: ", end="")
+            self.append2log(f"{self.assistant_name}: ", True)
             for chunk in response:
                 delta = chunk.choices[0].delta
                 if delta.content:
-                    response_full_text += delta.content
-                    yield delta.content
+                    sentence += delta.content.replace('\n', '')
+                    response_full_text += sentence
+                    # Check if the current character ends the sentence
+                    if delta.content[-1] in sentence_endings:
+                        #print(sentence, end="")
+                        self.append2log(sentence, True)
+                        yield sentence
+                        sentence = ""
+            # Yield any remaining text after the loop ends
+            if sentence:
+                #print(sentence)
+                self.append2log(sentence)
+                yield sentence
+            else:
+                self.append2log("")
             end_time = time.time()
             print(f"Time taken: {end_time - start_time} seconds")
-            wrapUp(response_full_text) 
-            print(f"{self.assistant_name}: {response_full_text}")
+            self.history.append({"role": "assistant", "content": response_full_text})
         
-        if self.stream_responses:
-            return text_iterator()
-        end_time = time.time()
-        print(f"Time taken: {end_time - start_time} seconds")
-        wrapUp(result)
-        return str.strip(result)
+        return text_iterator()

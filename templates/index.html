@@ -3,17 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>J.A.R.V.I.S.</title>
+    <title>{{ assistant_dict['page_title'] }}</title>
     <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
     <script>
-        var chatLogData = {{ chat_log|safe }};
+        var assistant_name = "{{ assistant_dict['name'] }}";
+        var assistant_wake_word = "{{ assistant_dict['wake_word'] }}";
+        var chatLogData = {{ chatlog|safe }};
+        var images_disabled = {{ 'true' if images_disabled else 'false' }};
     </script>
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
-    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="icon" href='{{ url_for("static", filename="images/" + assistant_dict["name"].lower() + "-favicon.ico")}}'>
     <!-- Apple Touch Icons for iOS and other devices -->
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicon-48x48.png')}}">
+    <link rel="apple-touch-icon" sizes="180x180" href='{{ url_for("static", filename="images/" + assistant_dict["name"].lower() + "-apple-touch-icon.png")}}'>
+    <link rel="icon" type="image/png" sizes="32x32" href='{{ url_for("static", filename="images/" + assistant_dict["name"].lower() + "-favicon-32x32.png")}}'>
+    <link rel="icon" type="image/png" sizes="16x16" href='{{ url_for("static", filename="images/" + assistant_dict["name"].lower() + "-favicon-16x16.png")}}'>
     <!-- Web App Manifest -->
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json')}}">
+    <link rel="manifest" href='{{ url_for("static", filename="" + assistant_dict["name"].lower() + "-manifest.json")}}'>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         label[for="file-upload"] {
@@ -23,8 +28,13 @@
 </head>
 <body>
     <div id="chatContainer">
-        <h1 id="header" title="Just A Rather Very Intelligent System">
-            <img class="jarvis-icon" src="{{ url_for('static', filename='images/favicon-48x48.png')}}"/> J.A.R.V.I.S.
+        <h1 id="header" title="{{ assistant_dict['acronym'] }}">
+            <img class="assistant_name-icon" src='{{ url_for("static", filename="images/" + assistant_dict["name"].lower() + "-favicon-48x48.png")}}'/>
+            <select id="assistantSelect">
+                {% for key, assistant in assistants.items() %}
+                    <option value="{{ key }}" {% if key == assistant_dict['name'].lower() %}selected{% endif %}>{{ assistant.page_title }}</option>
+                {% endfor %}
+            </select>
             <div id="statusMsg"></div>
         </h1>
         <div id="chat-log"></div>

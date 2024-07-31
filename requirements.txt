@@ -13,3 +13,4 @@ pyttsx3
 RPi.GPIO
 numpy
 openwakeword
+gtts

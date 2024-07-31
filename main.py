@@ -7,6 +7,7 @@ import re
 import signal
 import sys
 import time
+from typing import Iterable
 import numpy as np
 from chat_gpt_service import ChatGPTService
 from input_listener import InputListener
@@ -15,9 +16,27 @@ from openwakeword.model import Model
 import pyaudio
 from sound_effect_service import SoundEffectService
 from tts_service import TextToSpeechService
+import threading
+from flask import Flask, render_template, send_from_directory, request
+from flask_socketio import SocketIO
+from werkzeug.utils import secure_filename
 
 transcript_seperator = f"_"*40
 script_dir = os.path.dirname(os.path.abspath(__file__))
+detector = None
+flask_thread = None
+app = None
+socketio = None
+config = None
+config_file = None
+assistants = None
+assistant_name = None
+assistant_acronym = None
+led_service = None
+is_rpi = False
+today = None
+loading_sound = None
+file_chunks = {}
 
 # One-time download of all pre-trained models (or only select models)
 openwakeword.utils.download_models()
@@ -47,57 +66,46 @@ else:
     print("LED event: Disconnected")
 
 config_file = os.path.join(script_dir, "config.json")
+assistants_file = os.path.join(script_dir, "assistants.json")
 print(f"Loading config from {config_file}...")
 config = json.load(open(config_file))
-assistant_name = config["assistant_name"]
+print(f"Loading assistants from {assistants_file}...")
+assistants = json.load(open(assistants_file))
+assistant = assistants[config["assistant"]]
+config["assistant_dict"] = assistant
+assistant_name = assistant["name"]
+assistant_acronym = assistant["acronym"]
 today = str(date.today())
+chatlog_filename = os.path.join("chatlogs", f"{config['assistant']}_chatlog-{today}.txt")
+
 if config["use_frontend"]:
-    import threading
-    from flask import Flask, render_template, send_from_directory, request
-    from flask_socketio import SocketIO
-    from werkzeug.utils import secure_filename
     app = Flask(__name__)
     socketio = SocketIO(app, async_mode='threading')
 
-loading_sound = SoundEffectService().play_loop("loading")
-
-def signal_handler(sig, frame):
-    print('Exiting gracefully...')
-    if is_rpi:
-        led_service.turn_off()
-    SoundEffectService().play("goodbye")
-    sys.exit(0)
-# Catch SIGINT (Ctrl+C), you can also catch SIGTERM
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
 
 # save conversation to a log file 
 def append2log(text, noNewLine=False):
     global today
-    fname = 'chatlog-' + today + '.txt'
-    with open(fname, "a", encoding='utf-8') as f:
+    with open(chatlog_filename, "a", encoding='utf-8') as f:
         f.write(text + ("\n" if not noNewLine else ""))
         f.close
     
-    if not noNewLine and text != transcript_seperator:
-        emit_update_chat(text)
-
-def emit_update_chat(text):
-    socketio.emit('update_chat', {'message': text})
+    if text and text != transcript_seperator:
+        socketio.emit('update_chat', {'message': text.strip()})
 
 class WakeWordDetector:
     def __init__(self):
         self.chat_gpt_service = ChatGPTService(config)
         self.chat_gpt_service.append2log = append2log
-        self.chat_gpt_service.emit_update_chat = emit_update_chat
-        oww_model_path = os.path.join(script_dir, config["oww_model_path"])
-        oww_inference_framework = config["oww_inference_framework"]
-        self.slang = config["slang"]
+        oww_model_path = os.path.join(script_dir, "oww_models", config["oww_model"].replace("{assistant_name}", assistant_name))
+        oww_inference_framework = config["oww_model"].split(".")[-1]
+        self.language = config["language"]
         self.oww_chunk_size = config["oww_chunk_size"]
         self.oww_sample_rate = config["oww_sample_rate"]
         self.oww_channels = config["oww_channels"]
         self.is_request_processing = False
         self.is_awoken = False
+        self.use_elevenlabs = config["use_elevenlabs"]
 
         self.handle = Model(
             wakeword_models=[oww_model_path], 
@@ -112,7 +120,7 @@ class WakeWordDetector:
 
         self.speech = TextToSpeechService(config)
 
-        self.sound_effect = SoundEffectService()
+        self.sound_effect = SoundEffectService(config)
         self._init_mic_stream()
 
     def handle_led_event(self, event):
@@ -123,8 +131,7 @@ class WakeWordDetector:
                 return
             print(f"LED event: {event}")
 
-    def _init_mic_stream(self):
-        self.handle_led_event("StreamingStarted")
+    def predictSilence(self):
         # Calculate the number of samples for the given duration of silence
         duration_seconds=8
         num_samples = int(self.oww_sample_rate * duration_seconds)
@@ -136,6 +143,11 @@ class WakeWordDetector:
         except Exception as e:
             print(f"Error: {e}")
             pass
+        return prediction
+
+    def _init_mic_stream(self):
+        self.handle_led_event("StreamingStarted")
+        self.predictSilence()
         self.mic_stream = self.pa.open(
             rate=self.oww_sample_rate,
             channels=self.oww_channels,
@@ -143,16 +155,19 @@ class WakeWordDetector:
             input=True,
             frames_per_buffer=self.oww_chunk_size,
         )
-        print("Listening for wake word...")
+        print("Listening for '" + assistant["wake_word"] + "'...")
         self.is_request_processing = False
         self.is_awoken = False
-        socketio.emit('jarvis_ready', {'status': 'ready'})
+        socketio.emit('chatbot_ready', {'status': 'ready'})
     
     def something_went_wrong(self):
         if self.chat_gpt_service.sound_effect is not None:
             self.chat_gpt_service.sound_effect.stop_sound()
         self.sound_effect.play("error")
-        self.sound_effect.play("something_went_wrong")
+        if self.use_elevenlabs:
+            self.sound_effect.play("something_went_wrong")
+        else:
+            self.speech.speak(f"Something went wrong!")
         self._init_mic_stream()
 
     def process_transcript(self, transcript, image=None, image_name=''):
@@ -169,7 +184,10 @@ class WakeWordDetector:
             if len(transcript) < 2 and not image:
                 short_response = "Hi, there, how can I help?"
                 self.sound_effect.play("done")
-                self.sound_effect.play("hi_how_can_i_help")
+                if self.use_elevenlabs:
+                    self.sound_effect.play("hi_how_can_i_help")
+                else:
+                    self.speech.speak(f"Hi, how can I help?")
                 append2log(f"You: {transcript} \n")
                 append2log(f"{assistant_name}: {short_response} \n")
                 self._init_mic_stream()
@@ -194,8 +212,47 @@ class WakeWordDetector:
                 response = f"{current_time}"
                 self.sound_effect.play("done")
                 #self.sound_effect.play("the_current_time_is")
-                self.speech.speak(response, stream_responses=False)
                 append2log(f"{assistant_name}: {response} \n")
+                self.speech.speak(response)
+                self._init_mic_stream()
+                return
+            
+            change_assistant_phrases = [
+                "change assistant",
+                "switch assistant",
+                "change the assistant",
+                "switch the assistant",
+                "change voice assistant",
+                "switch voice assistant",
+                "change the voice assistant",
+                "switch the voice assistant",
+                "change the voice",
+                "switch the voice",
+                "change voice",
+                "switch voice",
+                "change your voice",
+                "switch your voice",
+            ]
+
+            if any(phrase in transcript for phrase in change_assistant_phrases) and not image:
+                print("Changing assistant...")
+                append2log(f"You: {transcript} \n")
+                # grab the assisant name from the transcript
+                new_assistant = next((assistant for assistant in assistants if assistants.get(assistant, {}).get('name', '').lower() in transcript.lower()), None)
+                new_assistant_name = assistants.get(new_assistant, {}).get('name', '')
+                if new_assistant and new_assistant_name != assistant_name:
+                    print(f"Switching to {new_assistant_name}...")
+                    change_assistant({'assistant': new_assistant_name.lower()})
+                elif new_assistant_name == assistant_name:
+                    response = f"I'm already {assistant_name}."
+                    print(response)
+                    append2log(f"{assistant_name}: {response} \n")
+                    self.speech.speak(response)
+                else:
+                    response = "Assistant not found."
+                    print(response)
+                    append2log(f"{assistant_name}: {response} \n")
+                    self.speech.speak(response)
                 self._init_mic_stream()
                 return
 
@@ -205,24 +262,36 @@ class WakeWordDetector:
             self.chat_gpt_service.sound_effect = self.sound_effect.play_loop("loading")
             self.speech.sound_effect = self.chat_gpt_service.sound_effect
 
-            response = self.chat_gpt_service.send_to_chat_gpt(transcript, image, image_name)
-            if response is None:
+            text_iterator = self.chat_gpt_service.send_to_chat_gpt(transcript, image, image_name)
+            if text_iterator is None:
+                append2log(f"{assistant_name}: Something went wrong.")
                 self.something_went_wrong()
                 return
 
             end_time = time.time()
             socketio.emit('chat_response_ready', {'status': 'ready'})
             self.handle_led_event("VoiceStarted")
-            self.speech.speak(response)
+            if isinstance(text_iterator, str):
+                text_iterator = [text_iterator]
+            elif isinstance(text_iterator, Iterable):
+                text_iterator = text_iterator
+            else:
+                raise ValueError("Invalid input type: text_input must be a string or an iterable")
+            for text in text_iterator:
+                if text.strip():
+                    self.speech.speak(text)
 
             print(f"Total Time: {end_time - start_time} seconds")
         finally:
             self._init_mic_stream()
 
     def run(self):
-        try:            
+        try:
             self.handle_led_event("VoiceStarted")
-            self.sound_effect.play("jarvis_ready")
+            if self.use_elevenlabs:
+                self.sound_effect.play("ready")
+            else:
+                self.speech.speak(f"{assistant_name} ready!")
             while True:
                 self.handle_led_event("Running")
                 sys.stdout.flush()
@@ -244,6 +313,7 @@ class WakeWordDetector:
                     mdl = prediction_models[0]
                     score = float(prediction[mdl])
                     if score >= 0.5 and not self.is_request_processing:
+                        prediction = self.predictSilence()
                         socketio.emit('prompt_received', {'status': 'ready'})
                         self.is_awoken = True
                         self.handle_led_event("Detection")
@@ -262,7 +332,7 @@ class WakeWordDetector:
                             self.sound_effect.play("error")
                             self._init_mic_stream()
                             continue
-                        self.process_transcript(self.listener.transcript)                        
+                        self.process_transcript(self.listener.transcript)                  
                 except Exception as e:
                     print(f"Error: {e}")
                     self._init_mic_stream()
@@ -286,30 +356,27 @@ def find_url_filter(text):
 
 @app.route('/')
 def index():
-    chat_log_filename = f'chatlog-{today}.txt'
     try:
-        with open(chat_log_filename, 'r', encoding='utf-8') as f:
-            #chat_log = f.readlines()
+        with open(chatlog_filename, 'r', encoding='utf-8') as f:
+            #chatlog = f.readlines()
             # read a line until you reach the end or You: or Jarvis:
-            chat_log = []
+            chatlog = []
             for line in f:
                 if line.startswith("You: ") or line.startswith(f"{assistant_name}: "):
-                    chat_log.append(line)
+                    chatlog.append(line)
                 else:
-                    if chat_log:
-                        chat_log[-1] += line
+                    if chatlog:
+                        chatlog[-1] += line
                     else:
-                        chat_log.append(line)
+                        chatlog.append(line)
     except FileNotFoundError:
-        chat_log = []
+        chatlog = []
 
     # remove lines that are only empty or newlines and wrap each chat message in a json object like the socketio emit
-    chat_log = [{"message": message.strip()} for message in chat_log]
+    chatlog = [{"message": message.strip()} for message in chatlog]
     
-    return render_template('index.html', chat_log=json.dumps(chat_log))
+    return render_template('index.html', assistants=assistants, assistant_dict=assistant, images_disabled=config["use_groq"], chatlog=json.dumps(chatlog))
 
-# Dictionary to hold file chunks
-file_chunks = {}
 @socketio.on("file_chunk")
 def handle_file_chunk(data):
     use_imgur = config["use_imgur"]
@@ -368,13 +435,50 @@ def handle_file_chunk(data):
 def uploaded_file(filename):
     return send_from_directory(config['upload_folder'], filename)
 
+@socketio.on('change_assistant')
+def change_assistant(data):
+    global config
+    new_assistant = data.get('assistant')
+    if new_assistant and new_assistant in assistants:
+        with open(config_file, 'r+') as f:
+            config = json.load(f)
+            config['assistant'] = new_assistant
+            f.seek(0)
+            json.dump(config, f, indent=4)
+            f.truncate()
+        socketio.emit('assistant_changed', {'assistant': new_assistant})
+        # get pid of current process
+        pid = os.getpid()
+        # call restart_app.py with the pid
+        cmd = f"python restart_app.py {pid} {os.path.basename(__file__)}"
+        print(f"Restarting app with command: {cmd}")
+        return os.system(cmd)
+    return socketio.emit('assistant_changed', {'assistant': None})
+
 def run_flask_app():
     socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=False, host="0.0.0.0")
 
-if __name__ == "__main__":
+def runApp():
+    global detector, loading_sound
+    loading_sound = SoundEffectService(config).play_loop("loading")
     detector = WakeWordDetector()
-    app.config['detector'] = detector  # Attach detector to the Flask app config
+    app.config['detector'] = detector  # Attach detector to the Flask app config    
+    detector.run()
+
+def signal_handler(sig, frame):
+    print('Exiting gracefully...')
+    if is_rpi:
+        led_service.turn_off()
+    if config["use_elevenlabs"]:
+        SoundEffectService(config).play("goodbye")
+    else:
+        TextToSpeechService(config).speak(f"Goodbye!")
+    sys.exit(0)
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     if config["use_frontend"]:
         print("Starting Flask frontend...")
         socketio.start_background_task(run_flask_app)
-    detector.run()
+    runApp()

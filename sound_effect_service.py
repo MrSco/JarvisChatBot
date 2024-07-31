@@ -5,19 +5,22 @@ from pydub.playback import _play_with_simpleaudio
 sounds_dir = os.path.dirname(os.path.abspath(__file__)) + "/sounds"
 
 class SoundEffectService:
-    def __init__(self):
+    def __init__(self, config=None):
+        if config is None:
+            config = {"assistant_dict": {"name": "Jarvis"}}
+        self.assistant_name = config["assistant_dict"]["name"].lower()
         self.sounds = {
-            "goodbye": AudioSegment.from_file(f"{sounds_dir}/goodbye.wav", format="wav"),
-            "hi_how_can_i_help": AudioSegment.from_file(f"{sounds_dir}/hi_how_can_i_help.wav", format="wav"),
-            "something_went_wrong": AudioSegment.from_file(f"{sounds_dir}/something_went_wrong.wav", format="wav"),
-            "the_current_time_is": AudioSegment.from_file(f"{sounds_dir}/the_current_time_is.wav", format="wav"),
-            "error": AudioSegment.from_file(f"{sounds_dir}/error.wav", format="wav"),
-            "jarvis_ready": AudioSegment.from_file(f"{sounds_dir}/jarvis_ready.wav", format="wav"),
-            "awake": AudioSegment.from_file(f"{sounds_dir}/awake.wav", format="wav"),
-            "done": AudioSegment.from_file(f"{sounds_dir}/done.wav", format="wav"),
-            "initializing": AudioSegment.from_file(f"{sounds_dir}/initializing.wav", format="wav"),
-            "loading": AudioSegment.from_file(f"{sounds_dir}/loading.mp3", format="mp3"),
-            "halflifebutton": AudioSegment.from_file(f"{sounds_dir}/halflifebutton.wav", format="wav"),
+            "ready": AudioSegment.from_file(os.path.join(sounds_dir, self.assistant_name, "ready.wav"), format="wav"),
+            "goodbye": AudioSegment.from_file(os.path.join(sounds_dir, self.assistant_name, "goodbye.wav"), format="wav"),
+            "hi_how_can_i_help": AudioSegment.from_file(os.path.join(sounds_dir, self.assistant_name, "hi_how_can_i_help.wav"), format="wav"),
+            "something_went_wrong": AudioSegment.from_file(os.path.join(sounds_dir, self.assistant_name, "something_went_wrong.wav"), format="wav"),
+            "the_current_time_is": AudioSegment.from_file(os.path.join(sounds_dir, self.assistant_name, "the_current_time_is.wav"), format="wav"),
+            "error": AudioSegment.from_file(os.path.join(sounds_dir, "error.wav"), format="wav"),
+            "awake": AudioSegment.from_file(os.path.join(sounds_dir, "awake.wav"), format="wav"),
+            "done": AudioSegment.from_file(os.path.join(sounds_dir, "done.wav"), format="wav"),
+            "initializing": AudioSegment.from_file(os.path.join(sounds_dir, "initializing.wav"), format="wav"),
+            "loading": AudioSegment.from_file(os.path.join(sounds_dir, "loading.mp3"), format="mp3"),
+            "halflifebutton": AudioSegment.from_file(os.path.join(sounds_dir, "halflifebutton.wav"), format="wav"),
         }
         self.player = None
 

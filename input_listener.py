@@ -8,7 +8,7 @@ class InputListener:
         self.rec.energy_threshold = config["energy_threshold"]
         self.timeout = config["timeout"]
         self.phrase_time_limit = config["phrase_time_limit"]
-        self.slang = config["slang"]
+        self.language = config["language"] + "-US"
         self.sound_effect = None
 
         with self.mic as source:
@@ -33,7 +33,7 @@ class InputListener:
             return None
         try:
             print("Processing speech request to text...")
-            self.transcript = self.rec.recognize_google(self.audio_data, language=self.slang)
+            self.transcript = self.rec.recognize_google(self.audio_data, language=self.language)
         except sr.UnknownValueError as e:
                 # Handle the case where the speech is unintelligible
                 print(f"Could not understand audio. {e}")

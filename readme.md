@@ -49,7 +49,7 @@ All the keys and important parameters are stored in the `config.json` file. This
 
 - OpenAI API key (`openai_key`, `openai_model`, `system_prompt`): Used for interacting with OpenAI.
 - ElevenLabs credentials (`elevenlabs_key`, `elevenlabs_voice_id`): Used for text-to-speech conversion with ElevenLabs.
-- SpeechRecognition (`slang`, `dynamic_energy_threshold`, `energy_threshold`, `timeout`, `phrase_time_limit`): The language code for the speech recognition engine.
+- SpeechRecognition (`language`, `dynamic_energy_threshold`, `energy_threshold`, `timeout`, `phrase_time_limit`): The language code for the speech recognition engine.
 - OpenWakeWord (`oww_model_path`, `oww_inference_framework`): The wake word model and inference framework to use. For more models see [Home Assistant Wake-Word Collection](https://github.com/fwartner/home-assistant-wakewords-collection/)
 
 ## Running the Project

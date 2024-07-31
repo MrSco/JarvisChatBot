@@ -1,63 +1,99 @@
 import time
 from elevenlabs import VoiceSettings
-from elevenlabs import play, stream
+from elevenlabs import play
 from elevenlabs.client import ElevenLabs
 import pyttsx3
+from gtts import gTTS
+from pydub import AudioSegment
+from pydub.playback import play
+import io
 
 class TextToSpeechService:
     def __init__(self, config):
-        self.output_format = "mp3_44100_128"
         self.elevenlabs_key = config["elevenlabs_key"]
         self.elevenlabs_client = ElevenLabs(api_key = self.elevenlabs_key)
-        self.assistant_name = config["assistant_name"]
-        self.elevenlabs_voice_id = config["elevenlabs_voice_id"]
-        self.sound_effect = None
-        self.stream_responses = config["stream_responses"]
+        self.assistant_name = config["assistant_dict"]["name"]
+        self.assistant_gender = 0 if config["assistant_dict"]["gender"] == "male" else 1
+        self.elevenlabs_voice_id = config["assistant_dict"]["elevenlabs_voice_id"]
         self.use_elevenlabs = config["use_elevenlabs"]
+        self.use_gtts = config["use_gtts"]
+        self.language = config["language"]
+        self.accent = config["assistant_dict"]["accent"]
+        self.sound_effect = None
+        self.start_time = None
+        self.end_time = None
 
-    def speak(self, text, stream_responses=None):
-        if not self.use_elevenlabs:
-            self.fallback_speak(text)
-            return None
-
-        if stream_responses is None:
-            stream_responses = self.stream_responses
+    def speak(self, text):
+        self.start_time = time.time()
         try:
-            start_time = time.time()
+            if self.use_gtts:
+                self.speak_with_gtts(text)
+                return None
+            if not self.use_elevenlabs:
+                self.speak_with_pyttsx3(text)
+                return None
             audio = self.elevenlabs_client.generate(
                 text=text,
                 voice=self.elevenlabs_voice_id,
                 model="eleven_multilingual_v2",
-                output_format=self.output_format,
+                output_format="mp3_44100_128",
                 voice_settings=VoiceSettings(
                     stability=0.5,
                     similarity_boost=0.8,
                 ),
-                stream=stream_responses
+                stream=False
             )
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
-            end_time = time.time()
-            print(f"Time taken: {end_time - start_time} seconds")
-            if stream_responses:
-                stream(audio)
-            else:
-                print(f"{self.assistant_name}: {text}")
-                play(audio)
-            
+            self.end_time = time.time()
+            print(f"Time taken: {self.end_time - self.start_time} seconds")
+            print(f"{self.assistant_name}: {text}")
+            play(audio)
+
         except Exception as e:
-            print(f"Failed to generate and/or play audio: {e}")
-            self.fallback_speak(text)
+            print(f"Failed to use elevenlabs for speech: {e}")
+            if self.use_gtts:
+                self.speak_with_gtts(text)
+            else:
+                self.speak_with_pyttsx3(text)
             return None
-        
-    def fallback_speak(self, text):
+
+    def speak_with_gtts(self, text):
         try:
-            print("Falling back to pyttsx3...")
+            print("Speaking with gTTS...")
+            # Create a gTTS object for the current text chunk
+            tts = gTTS(text=text, lang=self.language, tld=self.accent, slow=False)
+            
+            # Save the audio to a BytesIO object
+            audio_bytes = io.BytesIO()
+            tts.write_to_fp(audio_bytes)
+            audio_bytes.seek(0)
+            
+            # Load the audio with pydub
+            audio = AudioSegment.from_file(audio_bytes, format="mp3")
+            
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
-            if self.stream_responses:
-                print(f"{self.assistant_name}: {text}")
+            self.end_time = time.time()
+            print(f"Time taken: {self.end_time - self.start_time} seconds")
+            print(f"{self.assistant_name}: {text}")
+            
+            # Play the audio
+            play(audio)
+        except Exception as e:
+            print(f"Failed to use gTTS for speech: {e}")
+
+    def speak_with_pyttsx3(self, text):
+        try:
+            print("Speaking with pyttsx3...")            
             engine = pyttsx3.init()
+            voices = engine.getProperty('voices') 
+            engine.setProperty('voice', voices[self.assistant_gender].id)
+            if self.sound_effect is not None:
+                self.sound_effect.stop_sound()
+            self.end_time = time.time()
+            print(f"Time taken: {self.end_time - self.start_time} seconds")
+            print(f"{self.assistant_name}: {text}")
             engine.say(text)
             engine.runAndWait()
         except Exception as e:

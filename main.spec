@@ -4,14 +4,13 @@
 block_cipher = None
 app_name = 'jarvis_chatbot'
 added_files = [
+    ('chatlogs', 'chatlogs'),
     ('static', 'static'), 
     ('templates', 'templates'), 
     ('sounds', 'sounds'),
-    ('static', 'static'),
+    ('oww_models', 'oww_models'),
     ('config.json.example', '.'), 
-    ('readme.md', '.'), 
-    ('jarvis_v2.onnx', '.'), 
-    ('jarvis_v2.tflite', '.'), 
+    ('readme.md', '.')
 ]
 hiddenimports = ['engineio.async_drivers.threading']
 

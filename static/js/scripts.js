@@ -74,11 +74,12 @@ function update_chat(data) {
         return;
     }
     var ahref = null;
-    if(messageContent.startsWith('You')) {
+    var urlRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif))/i;
+    var urlMatch = messageContent.match(urlRegex);
+    var continuingResponse = (urlMatch && messageContent.startsWith(urlMatch[0])) || (!messageContent.startsWith("You") && !messageContent.startsWith(assistant_name));
+    if(messageContent.startsWith('You') || urlMatch) {
         messageContent = messageContent.replace('You:', '<span class="you">You:</span>');
-        // If the message contains an image URL, create an a href with an img element inside
-        var urlRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif))/i;
-        var urlMatch = messageContent.match(urlRegex);
+        // If the message contains an image URL, create a href with an img element inside
         if (urlMatch) {
             messageContent = messageContent.replace(urlRegex, '');
             var imageElement = document.createElement('img');
@@ -91,25 +92,36 @@ function update_chat(data) {
         }
     }
 
-    var newMessage = document.createElement('p');
-    if(messageContent.startsWith('Jarvis')) {
-        newMessage.className = 'darkBg';
-        messageContent = messageContent.replace('Jarvis:', '<span class="jarvis">Jarvis:</span>');
+    if (continuingResponse) {
+        var lastMessage = chatLog.lastChild;
+        if (messageContent && lastMessage)
+           lastMessage.innerHTML += ' ' + messageContent;
+        else if (ahref)
+            lastMessage.appendChild(ahref);
     }
-    newMessage.innerHTML = messageContent;
-    if(ahref) {
-        newMessage.appendChild(ahref);
+    else {
+        var newMessage = document.createElement('p');
+        if(messageContent.startsWith(assistant_name)) {
+            newMessage.className = 'darkBg';
+            messageContent = messageContent.replace(`${assistant_name}:`, `<span class="assistant_name">${assistant_name}:</span>`);
+        }
+        newMessage.innerHTML = messageContent;
+        if(ahref) {
+            newMessage.appendChild(ahref);
+        }
+        if (messageContent)
+            chatLog.appendChild(newMessage);
     }
-    if (messageContent)
-        chatLog.appendChild(newMessage);
     scrollToBottom();
 }
-function jarvis_ready(data) {
+function chatbot_ready(data) {
     if(data.status === 'ready') {
-        document.getElementById('image').disabled = false;
+        if (images_disabled)
+            document.querySelector('label[for="file-upload"]').title = 'Groq does not support image analysis. Image uploads are disabled!';
+        document.getElementById('image').disabled = images_disabled;
         document.getElementById('sendButton').disabled = false;
         document.getElementById('imagePreview').style.display = 'none';
-        setStatusMsg('Listening for wake word...');
+        setStatusMsg(`Listening for '${assistant_wake_word}'...`);
     }
 }
 document.addEventListener('DOMContentLoaded', function () {
@@ -126,19 +138,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     socket.on('connect', function () {
         console.log('Connected to the server.');
-        jarvis_ready({ status: 'ready' });
+        if (localStorage.getItem('assistantChanged')) {
+            localStorage.removeItem('assistantChanged');
+            window.location.reload();
+        }
+        chatbot_ready({ status: 'ready' });
     });
     socket.on('disconnect', function (reason) {
         console.log('Disconnected from the server. Reason:', reason);
         setStatusMsg('Disconnected.');
-    });
-    socket.on('reconnect', function (attemptNumber) {
-        console.log('Reconnected to the server after', attemptNumber, 'attempts.');
-        setStatusMsg('Reconnected.');
-    });
-    socket.on('reconnect_attempt', function () {
-        console.log('Attempting to reconnect to the server...');
-        setStatusMsg('Reconnecting...');
     });
 
     function submit_form(e) {
@@ -199,7 +207,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    socket.on('jarvis_ready', jarvis_ready);
+    socket.on('chatbot_ready', chatbot_ready);
 
     document.getElementById('form').addEventListener('submit', submit_form);
 
@@ -219,5 +227,18 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelector('label[for="file-upload"]').addEventListener('click', function(e) {
         e.preventDefault();
         document.getElementById('image').click();
+    });
+
+    document.getElementById('assistantSelect').addEventListener('change', function() {
+        var selectedAssistant = this.value;
+        socket.emit("change_assistant", {assistant: selectedAssistant});
+    });
+
+    socket.on('assistant_changed', function(data) {
+        if(data.assistant) {
+            setStatusMsg('Assistant changed.');
+            // set a flag to indicate that the assistant has been changed so we know to reload the page
+            localStorage.setItem('assistantChanged', true);
+        }
     });
 });
