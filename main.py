@@ -72,6 +72,7 @@ config = json.load(open(config_file))
 print(f"Loading assistants from {assistants_file}...")
 assistants = json.load(open(assistants_file))
 assistant = assistants[config["assistant"]]
+config["old_assistant"] = config["assistant"]
 config["assistant_dict"] = assistant
 assistant_name = assistant["name"]
 assistant_acronym = assistant["acronym"]
@@ -450,10 +451,13 @@ def change_assistant(data):
     if new_assistant and new_assistant in assistants:
         with open(config_file, 'r+') as f:
             config = json.load(f)
+            old_assistant = config['assistant']
             config['assistant'] = new_assistant
             f.seek(0)
             json.dump(config, f, indent=4)
             f.truncate()
+        print(f"Assistant changed from {old_assistant} to {new_assistant}.")
+        config["old_assistant"] = old_assistant
         socketio.emit('assistant_changed', {'assistant': new_assistant})
         # get pid of current process
         pid = os.getpid()
