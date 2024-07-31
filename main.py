@@ -247,6 +247,7 @@ class WakeWordDetector:
                 new_assistant_name = assistants.get(new_assistant, {}).get('name', '')
                 if new_assistant and new_assistant_name != assistant_name:
                     print(f"Switching to {new_assistant_name}...")
+                    self.sound_effect.play_loop("loading")
                     change_assistant({'assistant': new_assistant_name.lower()})
                 elif new_assistant_name == assistant_name:
                     response = f"I'm already {assistant_name}."
@@ -305,9 +306,11 @@ class WakeWordDetector:
                 except IOError as e:
                     if e.errno == pyaudio.paInputOverflowed:
                         # Handle overflow here. For example, you can just pass to ignore it.
+                        print("Overflow error: ", e)
                         self._init_mic_stream()
                         continue
                     elif e.errno == pyaudio.paStreamIsStopped:
+                        print("Stream is stopped. Re-opening...", e)
                         self._init_mic_stream()
                         continue
                     else:
@@ -318,7 +321,6 @@ class WakeWordDetector:
                     mdl = prediction_models[0]
                     score = float(prediction[mdl])
                     if score >= 0.5 and not self.is_request_processing:
-                        prediction = self.predictSilence()
                         socketio.emit('prompt_received', {'status': 'ready'})
                         self.is_awoken = True
                         self.handle_led_event("Detection")
@@ -333,6 +335,7 @@ class WakeWordDetector:
                         self.listener.sound_effect = self.sound_effect.play_loop("loading")                    
                         self.listener.transcribe()
 
+                        prediction = self.predictSilence()
                         if self.listener.transcript is None:                        
                             self.sound_effect.play("error")
                             self._init_mic_stream()
