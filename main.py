@@ -205,6 +205,9 @@ class WakeWordDetector:
                 "do you have the current time",
                 "do you know the time",
                 "do you know the current time",
+                "tell me the time",
+                "tell me the current time",
+                "tell me what time it is",
             ]
 
             if any(phrase in transcript for phrase in time_phrases) and not image:

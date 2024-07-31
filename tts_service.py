@@ -25,11 +25,11 @@ class TextToSpeechService:
 
     def speak(self, text):
         self.start_time = time.time()
-        try:
-            if self.use_gtts:
-                self.speak_with_gtts(text)
-                return None
+        try:            
             if not self.use_elevenlabs:
+                if self.use_gtts:
+                    self.speak_with_gtts(text)
+                    return None
                 self.speak_with_pyttsx3(text)
                 return None
             audio = self.elevenlabs_client.generate(
