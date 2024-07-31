@@ -328,6 +328,7 @@ class WakeWordDetector:
                         print(f"Awoken with score {round(score, 3)}!")                    
                         self.mic_stream.close()
                         self.mic_stream = None
+                        prediction = self.predictSilence()
 
                         self.sound_effect.play("awake")
                         self.handle_led_event("Transcript")
@@ -336,7 +337,6 @@ class WakeWordDetector:
                         self.listener.sound_effect = self.sound_effect.play_loop("loading")                    
                         self.listener.transcribe()
 
-                        prediction = self.predictSilence()
                         if self.listener.transcript is None:                        
                             self.sound_effect.play("error")
                             self._init_mic_stream()
