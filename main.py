@@ -77,6 +77,8 @@ assistant_name = assistant["name"]
 assistant_acronym = assistant["acronym"]
 today = str(date.today())
 chatlog_filename = os.path.join("chatlogs", f"{config['assistant']}_chatlog-{today}.txt")
+if not os.path.exists("chatlogs"):
+    os.makedirs("chatlogs")
 
 if config["use_frontend"]:
     app = Flask(__name__)
