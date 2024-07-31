@@ -1,5 +1,6 @@
 pyaudio
 openai
+groq
 elevenlabs
 SpeechRecognition
 pydub
