@@ -294,6 +294,51 @@ class WakeWordDetector:
             print(f"Total Time: {end_time - start_time} seconds")
         finally:
             self._init_mic_stream()
+    
+    def process_audio(self):
+        while True:
+            self.handle_led_event("Running")
+            sys.stdout.flush()
+            try:
+                oww_audio = np.frombuffer(self.mic_stream.read(self.oww_chunk_size, exception_on_overflow = False), dtype=np.int16)
+                prediction = self.handle.predict(oww_audio)
+                prediction_models = list(prediction.keys())
+                mdl = prediction_models[0]
+                score = float(prediction[mdl])
+                if score >= 0.5 and not self.is_request_processing:
+                    socketio.emit('prompt_received', {'status': 'ready'})
+                    self.is_awoken = True
+                    self.handle_led_event("Detection")
+                    print(f"Awoken with score {round(score, 3)}!")                    
+                    self.mic_stream.close()
+                    self.mic_stream = None
+                    prediction = self.predictSilence()
+                    self.sound_effect.play("awake")
+                    self.handle_led_event("Transcript")
+                    self.listener.listen()
+                    self.handle_led_event("StreamingStarted")
+                    self.listener.sound_effect = self.sound_effect.play_loop("loading")
+                    self.listener.transcribe()
+                    if self.listener.transcript is None:
+                        self.sound_effect.play("error")
+                        self._init_mic_stream()
+                        continue
+                    self.process_transcript(self.listener.transcript)
+                else:
+                    time.sleep(0.025)
+            except IOError as e:
+                if e.errno == pyaudio.paInputOverflowed:
+                    self._init_mic_stream()
+                    continue
+                elif e.errno == pyaudio.paStreamIsStopped:
+                    self._init_mic_stream()
+                    continue
+                else:
+                    raise 
+            except Exception as e:
+                print(f"Error: {e}")
+                self._init_mic_stream()
+                continue
 
     def run(self):
         try:
@@ -302,56 +347,7 @@ class WakeWordDetector:
                 self.sound_effect.play("ready")
             else:
                 self.speech.speak(f"{assistant_name} ready!")
-            while True:
-                self.handle_led_event("Running")
-                sys.stdout.flush()
-                try:
-                    oww_audio = np.frombuffer(self.mic_stream.read(self.oww_chunk_size, exception_on_overflow = False), dtype=np.int16)
-                except IOError as e:
-                    if e.errno == pyaudio.paInputOverflowed:
-                        # Handle overflow here. For example, you can just pass to ignore it.
-                        #print("Overflow error: ", e)
-                        self._init_mic_stream()
-                        continue
-                    elif e.errno == pyaudio.paStreamIsStopped:
-                        #print("Stream is stopped. Re-opening...", e)
-                        self._init_mic_stream()
-                        continue
-                    else:
-                        raise  # Re-raise exception if it's not an overflow error.
-                try:
-                    prediction = self.handle.predict(oww_audio)
-                    prediction_models = list(prediction.keys())
-                    mdl = prediction_models[0]
-                    score = float(prediction[mdl])
-                    if score >= 0.5 and not self.is_request_processing:
-                        socketio.emit('prompt_received', {'status': 'ready'})
-                        self.is_awoken = True
-                        self.handle_led_event("Detection")
-                        print(f"Awoken with score {round(score, 3)}!")                    
-                        self.mic_stream.close()
-                        self.mic_stream = None
-                        prediction = self.predictSilence()
-
-                        self.sound_effect.play("awake")
-                        self.handle_led_event("Transcript")
-                        self.listener.listen()
-                        self.handle_led_event("StreamingStarted")
-                        self.listener.sound_effect = self.sound_effect.play_loop("loading")
-                        self.listener.transcribe()
-
-                        if self.listener.transcript is None:
-                            self.sound_effect.play("error")
-                            self._init_mic_stream()
-                            continue
-                        self.process_transcript(self.listener.transcript)
-                    else:
-                        time.sleep(0.025)
-                except Exception as e:
-                    print(f"Error: {e}")
-                    self._init_mic_stream()
-                    continue
-
+            self.process_audio()
         except KeyboardInterrupt:
             pass
         finally:
