@@ -14,7 +14,7 @@
     "assistant": "jarvis",
     "oww_sample_rate": 16000,
     "oww_channels": 1,
-    "oww_chunk_size": 128,
+    "oww_chunk_size": 1280,
     "oww_model": "{assistant_name}.tflite",
     "language": "en",    
     "dynamic_energy_threshold": false,
