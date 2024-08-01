@@ -1,3 +1,4 @@
+import re
 import time
 from elevenlabs import VoiceSettings
 from elevenlabs import stream
@@ -23,11 +24,15 @@ class TextToSpeechService:
         self.start_time = None
         self.end_time = None
 
+    def remove_non_ascii(self, text):
+        return re.sub(r'[^\x00-\x7F]+', '', text)
+
     def speak(self, text):
+        textToSpeak = text
         self.start_time = time.time()
         try:
             # strip out emojis so we don't try to speak them
-            textToSpeak = text.encode('ascii', 'ignore').decode('ascii')
+            textToSpeak = self.remove_non_ascii(text)
             if not self.use_elevenlabs:
                 if self.use_gtts:
                     self.speak_with_gtts(textToSpeak)

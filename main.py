@@ -77,7 +77,7 @@ config["assistant_dict"] = assistant
 assistant_name = assistant["name"]
 assistant_acronym = assistant["acronym"]
 today = str(date.today())
-chatlog_filename = os.path.join("chatlogs", f"{config['assistant']}_chatlog-{today}.txt")
+chatlog_filename = os.path.join(script_dir, "chatlogs", f"{config['assistant']}_chatlog-{today}.txt")
 if not os.path.exists("chatlogs"):
     os.makedirs("chatlogs")
 
@@ -422,7 +422,7 @@ def handle_file_chunk(data):
             print(f"Received all chunks for file {file_id}.")
             if not use_imgur:
                 file_data = b"".join(file_chunks[file_id])
-                upload_path = config['upload_folder']
+                upload_path = os.path.join(script_dir, config['upload_folder'])
                 if not os.path.exists(upload_path):
                     os.makedirs(upload_path)
 
