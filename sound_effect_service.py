@@ -7,7 +7,7 @@ sounds_dir = os.path.dirname(os.path.abspath(__file__)) + "/sounds"
 class SoundEffectService:
     def __init__(self, config=None):
         if config is None:
-            config = {"assistant": "jarvis"}
+            config = {"assistant": "jarvis", "old_assistant": "jarvis"}
         self.assistant_name = config["old_assistant"]
         self.sounds = {
             "ready": AudioSegment.from_file(os.path.join(sounds_dir, self.assistant_name, "ready.wav"), format="wav"),
