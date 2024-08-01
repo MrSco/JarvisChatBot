@@ -337,16 +337,16 @@ class WakeWordDetector:
                         self.handle_led_event("Transcript")
                         self.listener.listen()
                         self.handle_led_event("StreamingStarted")
-                        self.listener.sound_effect = self.sound_effect.play_loop("loading")                    
+                        self.listener.sound_effect = self.sound_effect.play_loop("loading")
                         self.listener.transcribe()
 
-                        if self.listener.transcript is None:                        
+                        if self.listener.transcript is None:
                             self.sound_effect.play("error")
                             self._init_mic_stream()
                             continue
                         self.process_transcript(self.listener.transcript)
                     else:
-                        time.sleep(0.01)                  
+                        time.sleep(0.025)
                 except Exception as e:
                     print(f"Error: {e}")
                     self._init_mic_stream()
