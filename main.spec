@@ -4,12 +4,12 @@
 block_cipher = None
 app_name = 'jarvis_chatbot'
 added_files = [
-    ('chatlogs', 'chatlogs'),
     ('static', 'static'), 
     ('templates', 'templates'), 
     ('sounds', 'sounds'),
     ('oww_models', 'oww_models'),
     ('config.json.example', '.'), 
+    ('assistants.json.example', '.'), 
     ('readme.md', '.')
 ]
 hiddenimports = ['engineio.async_drivers.threading']
@@ -39,8 +39,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
-    icon='static/images/favicon.ico'
+    console=True
 )
 
 coll = COLLECT(
@@ -54,6 +53,7 @@ coll = COLLECT(
     name=app_name
 )
 
-# Post-compile hook to copy config.json.example to config.json
+# Post-compile hook to copy config.json.example to config.json and assistants.json.example to assistants.json
 import shutil
 shutil.copy(f"dist/{app_name}/_internal/config.json.example", f"dist/{app_name}/_internal/config.json")
+shutil.copy(f"dist/{app_name}/_internal/assistants.json.example", f"dist/{app_name}/_internal/assistants.json")

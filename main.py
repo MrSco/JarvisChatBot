@@ -344,7 +344,9 @@ class WakeWordDetector:
                             self.sound_effect.play("error")
                             self._init_mic_stream()
                             continue
-                        self.process_transcript(self.listener.transcript)                  
+                        self.process_transcript(self.listener.transcript)
+                    else:
+                        time.sleep(0.01)                  
                 except Exception as e:
                     print(f"Error: {e}")
                     self._init_mic_stream()
@@ -481,18 +483,20 @@ def runApp():
     detector.run()
 
 def signal_handler(sig, frame):
-    led_service.handle_event("Shutdown")
     print('Exiting gracefully...')
     if is_rpi:
-        led_service.turn_off()
+        led_service.handle_event("Shutdown")
     if config["use_elevenlabs"]:
         SoundEffectService(config).play("goodbye")
     else:
         TextToSpeechService(config).speak("Goodbye!")
+    if is_rpi:
+        led_service.turn_off()
     sys.exit(0)
 
 if __name__ == "__main__":
-    led_service.handle_event("Connected")
+    if is_rpi:
+        led_service.handle_event("Connected")
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     if config["use_frontend"]:
