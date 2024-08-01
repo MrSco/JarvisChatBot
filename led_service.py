@@ -15,6 +15,8 @@ _BLUE = (0, 0, 255)
 _GREEN = (0, 255, 0)
 _PURPLE = (255, 0, 255)
 _CYAN = (0, 255, 255)
+_PINK = (255, 105, 180)
+_ORANGE = (255, 165, 0)
 
 class LEDService:
     def __init__(self,):
@@ -43,6 +45,8 @@ class LEDService:
             self.set_color(_CYAN)
         elif "Detection" == event:
             self.set_color(_BLUE)
+        elif "Processing" == event:
+            self.set_color(_PINK)
         elif "VoiceStarted" == event:
             self.set_color(_YELLOW)
         elif "Transcript" == event:
@@ -53,6 +57,8 @@ class LEDService:
             self.set_color(_RED)
         elif "Connected" == event:
             self.set_color(_GREEN)
+        elif "Shutdown" == event:
+            self.set_color(_ORANGE)
         elif "Disconnected" == event:
             self.set_color(_PURPLE)
 

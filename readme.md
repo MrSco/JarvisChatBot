@@ -246,6 +246,22 @@ sudo systemctl start startup_shutdown_sounds.service
 
 Now, the startup_shutdown_sounds script will run as a service on startup.
 
+## LED Lights
+
+The ReSpeaker 2-Mics Pi HAT has LED lights that can be controlled. The `led_service.py` script can be used to control these lights. The script uses the `apa102.py` library to control the LEDs.
+
+LED Color Legend:
+- Purple: Starting up
+- Green: Started (or reinitalizing wake word)
+- Red: Ready and Listening for wake word
+- Blue: Woken up by wake word
+- White: Listening for user input
+- Cyan: Transcribing user input
+- Pink: Processing user input
+- Yellow: Responding to user input
+- Orange: Shutting down
+- Off: not running
+
 ## Limitations
 
 Please note that this project was forked from a project that was developed for hackathon and demo purposes. Therefore, there is no guarantee for its performance or functionality.

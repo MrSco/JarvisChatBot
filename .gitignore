@@ -1,4 +1,5 @@
 config.json
+assistants.json
 .vscode/settings.json
 DaVinci.py
 wait.py

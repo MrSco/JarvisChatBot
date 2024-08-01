@@ -149,7 +149,7 @@ class WakeWordDetector:
         return prediction
 
     def _init_mic_stream(self):
-        self.handle_led_event("StreamingStarted")
+        self.handle_led_event("Connected")
         self.predictSilence()
         self.mic_stream = self.pa.open(
             rate=self.oww_sample_rate,
@@ -177,7 +177,7 @@ class WakeWordDetector:
         if self.is_request_processing:
             print("A request is already being processed. Please wait.")
             return 
-        self.handle_led_event("StreamingStarted")
+        self.handle_led_event("Processing")
         self.is_request_processing = True
         try:
             start_time = time.time()
@@ -185,6 +185,7 @@ class WakeWordDetector:
             append2log("")
             # if the user's question is none or too short, skip 
             if len(transcript) < 2 and not image:
+                self.handle_led_event("VoiceStarted")
                 short_response = "Hi, there, how can I help?"
                 self.sound_effect.play("done")
                 if self.use_elevenlabs:
@@ -219,6 +220,7 @@ class WakeWordDetector:
                 self.sound_effect.play("done")
                 #self.sound_effect.play("the_current_time_is")
                 append2log(f"{assistant_name}: {response} \n")
+                self.handle_led_event("VoiceStarted")
                 self.speech.speak(response)
                 self._init_mic_stream()
                 return
@@ -241,6 +243,7 @@ class WakeWordDetector:
             ]
 
             if any(phrase in transcript for phrase in change_assistant_phrases) and not image:
+                self.handle_led_event("VoiceStarted")
                 print("Changing assistant...")
                 append2log(f"You: {transcript} \n")
                 # grab the assisant name from the transcript
@@ -303,7 +306,7 @@ class WakeWordDetector:
                 self.handle_led_event("Running")
                 sys.stdout.flush()
                 try:
-                    oww_audio = np.frombuffer(self.mic_stream.read(self.oww_chunk_size), dtype=np.int16)
+                    oww_audio = np.frombuffer(self.mic_stream.read(self.oww_chunk_size, exception_on_overflow = False), dtype=np.int16)
                 except IOError as e:
                     if e.errno == pyaudio.paInputOverflowed:
                         # Handle overflow here. For example, you can just pass to ignore it.
@@ -478,6 +481,7 @@ def runApp():
     detector.run()
 
 def signal_handler(sig, frame):
+    led_service.handle_event("Shutdown")
     print('Exiting gracefully...')
     if is_rpi:
         led_service.turn_off()
@@ -488,6 +492,7 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 if __name__ == "__main__":
+    led_service.handle_event("Connected")
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     if config["use_frontend"]:
