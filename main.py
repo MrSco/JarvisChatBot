@@ -307,11 +307,11 @@ class WakeWordDetector:
                 except IOError as e:
                     if e.errno == pyaudio.paInputOverflowed:
                         # Handle overflow here. For example, you can just pass to ignore it.
-                        print("Overflow error: ", e)
+                        #print("Overflow error: ", e)
                         self._init_mic_stream()
                         continue
                     elif e.errno == pyaudio.paStreamIsStopped:
-                        print("Stream is stopped. Re-opening...", e)
+                        #print("Stream is stopped. Re-opening...", e)
                         self._init_mic_stream()
                         continue
                     else:
