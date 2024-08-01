@@ -324,8 +324,7 @@ class WakeWordDetector:
                         self._init_mic_stream()
                         continue
                     self.process_transcript(self.listener.transcript)
-                else:
-                    time.sleep(0.025)
+                    time.sleep(0.1)
             except IOError as e:
                 if e.errno == pyaudio.paInputOverflowed:
                     self._init_mic_stream()
