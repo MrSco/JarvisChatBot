@@ -260,7 +260,7 @@ LED Color Legend:
 - Pink: Processing user input
 - Yellow: Responding to user input
 - Orange: Shutting down
-- Off: not running
+- Off: Not running
 
 ## Limitations
 

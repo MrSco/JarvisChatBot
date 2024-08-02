@@ -150,7 +150,6 @@ class WakeWordDetector:
 
     def _init_mic_stream(self):
         self.handle_led_event("Connected")
-        self.predictSilence()
         self.mic_stream = self.pa.open(
             rate=self.oww_sample_rate,
             channels=self.oww_channels,
@@ -324,7 +323,6 @@ class WakeWordDetector:
                         self._init_mic_stream()
                         continue
                     self.process_transcript(self.listener.transcript)
-                    time.sleep(0.1)
             except IOError as e:
                 if e.errno == pyaudio.paInputOverflowed:
                     self._init_mic_stream()

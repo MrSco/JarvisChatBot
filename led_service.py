@@ -51,8 +51,8 @@ class LEDService:
             self.set_color(_YELLOW)
         elif "Transcript" == event:
             self.set_color(_WHITE)
-        elif "Off" == event:
-            self.set_color(_BLACK)
+        elif "Starting" == event:
+            self.set_color(_PURPLE)
         elif "Running" == event:
             self.set_color(_RED)
         elif "Connected" == event:
@@ -60,10 +60,12 @@ class LEDService:
         elif "Shutdown" == event:
             self.set_color(_ORANGE)
         elif "Disconnected" == event:
-            self.set_color(_PURPLE)
+            self.set_color(_RED)
+        elif "Off" == event:
+            self.set_color(_BLACK)
 
     def turn_off(self):
-        self.set_color(_BLACK)
+        self.handle_event("Off")
         self.leds.cleanup()
         self.led_power.off()
 

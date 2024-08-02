@@ -24,16 +24,6 @@ buttonPressTime = None
 sound_effect = SoundEffectService()
 led_service = LEDService()
 
-def buttonPressedAction(output):
-    sound_effect.play("halflifebutton")
-    # check if jarvischatbot.service is running and toggle it
-    if 'inactive' in output or 'failed' in output:
-        led_service.handle_event("Disconnected")
-        os.system("sudo systemctl start jarvischatbot.service")        
-    else:
-        os.system("sudo systemctl stop jarvischatbot.service")
-        led_service.handle_event("Off")
-
 while True:
     #grab the current button state
     buttonState1 = GPIO.input(pin)
@@ -50,9 +40,16 @@ while True:
             buttonPressTime = None
     else:
         if buttonPressTime is not None:
-            # If the button was not held down for 5 seconds, toggle play/pause
+            # If the button was not held down for 5 seconds, toggle jarvischatbot.service
             if time.time() - buttonPressTime < 5:
-                buttonPressedAction(os.popen('sudo systemctl is-active jarvischatbot.service').read())
+                output = os.popen('sudo systemctl is-active jarvischatbot.service').read()
+                sound_effect.play("halflifebutton")
+                # check if jarvischatbot.service is running and toggle it
+                if 'inactive' in output or 'failed' in output:
+                    led_service.handle_event("Starting")
+                    os.system("sudo systemctl start jarvischatbot.service")        
+                else:
+                    os.system("sudo systemctl stop jarvischatbot.service")
             # Reset the button press time
             buttonPressTime = None
     time.sleep(.1)
