@@ -36,9 +36,9 @@
                 {% endfor %}
             </select>
             <div class="vad_container">
-                <label for="thresholdSlider">Voice Threshold: </label><span id="thresholdValue">{{ vad_threshold }}</span>
+                <label for="thresholdSlider">Voice Threshold: </label>
                 <input type="range" id="thresholdSlider" min="0" max="1000" value="{{ vad_threshold }}">
-                <label for="thresholdSlider">1000</label>
+                <span id="thresholdValue">{{ vad_threshold }}</span>
                 <span id="redDot"></span>
             </div>
             <div id="statusMsg"></div>
