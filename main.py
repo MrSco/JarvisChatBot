@@ -543,13 +543,11 @@ def signal_handler(sig, frame):
         detector.producer_thread.join()
         detector.consumer_thread.join()
     if is_rpi:
-        led_service.handle_event("Shutdown")
+        led_service.turn_off()
     if config["use_elevenlabs"]:
         SoundEffectService(config).play("goodbye")
     else:
         TextToSpeechService(config).speak("Goodbye!")
-    if is_rpi:
-        led_service.turn_off()
     sys.exit(0)
 
 if __name__ == "__main__":
