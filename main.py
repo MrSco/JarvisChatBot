@@ -377,6 +377,7 @@ class WakeWordDetector:
 
     def run(self):
         try:
+            self.handle_led_event("VoiceStarted")
             if self.use_elevenlabs:
                 self.sound_effect.play("ready")
             else:
