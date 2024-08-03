@@ -45,6 +45,32 @@ h1, h1 select {
     color: red;
 }
 
+#redDot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    visibility: hidden;
+    width: 30px;
+    height: 30px;
+    background-color: red;
+    border-radius: 50%;
+    margin-left: 5px;
+    color: white;
+    font-size: 10px;
+}
+
+.vad_container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 5px;
+}
+
+label[for="thresholdSlider"],
+#thresholdValue{
+    font-size: 10px;
+}
+
 #chat-log {
     /*min-height: 70vh;*/
     overflow-y: auto;

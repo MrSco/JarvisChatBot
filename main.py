@@ -3,6 +3,7 @@ from datetime import date
 import json
 import os
 import platform
+import queue
 import re
 import signal
 import sys
@@ -37,6 +38,7 @@ is_rpi = False
 today = None
 loading_sound = None
 file_chunks = {}
+is_exiting = False
 
 # One-time download of all pre-trained models (or only select models)
 openwakeword.utils.download_models()
@@ -59,11 +61,11 @@ if is_rpi:
     try:
         from led_service import LEDService        
         led_service = LEDService()
-        led_service.handle_event("Disconnected")
+        led_service.handle_event("Starting")
     except ImportError:
         print("Make sure you're running this on a Raspberry Pi.")
 else:
-    print("LED event: Disconnected")
+    print("LED event: Starting")
 
 config_file = os.path.join(script_dir, "config.json")
 assistants_file = os.path.join(script_dir, "assistants.json")
@@ -76,6 +78,8 @@ config["old_assistant"] = config["assistant"]
 config["assistant_dict"] = assistant
 assistant_name = assistant["name"]
 assistant_acronym = assistant["acronym"]
+vad_threshold = config["vad_threshold"]
+print_audio_level = config["print_audio_level"]
 today = str(date.today())
 chatlog_filename = os.path.join(script_dir, "chatlogs", f"{config['assistant']}_chatlog-{today}.txt")
 if not os.path.exists("chatlogs"):
@@ -109,6 +113,10 @@ class WakeWordDetector:
         self.is_request_processing = False
         self.is_awoken = False
         self.use_elevenlabs = config["use_elevenlabs"]
+        self.audio_queue = queue.Queue()
+        self.is_running = True
+        self.producer_thread = None
+        self.consumer_thread = None
 
         self.handle = Model(
             wakeword_models=[oww_model_path], 
@@ -123,8 +131,82 @@ class WakeWordDetector:
 
         self.speech = TextToSpeechService(config)
 
-        self.sound_effect = SoundEffectService(config)
+        self.sound_effect = SoundEffectService(config)        
+
+    def audio_producer(self):
         self._init_mic_stream()
+        while self.is_running:
+            try:
+                oww_audio = np.frombuffer(self.mic_stream.read(self.oww_chunk_size, exception_on_overflow=False), dtype=np.int16)
+                self.audio_queue.put(oww_audio)
+            except IOError as e:
+                if e.errno == pyaudio.paStreamIsStopped:
+                    self._init_mic_stream()
+                    continue
+                else:
+                    raise
+
+    def audio_consumer(self):
+        current_time = time.time()
+        last_audio_level_emit_time = current_time
+        last_audio_level_over_threshold = current_time
+        while self.is_running:
+            try:
+                self.handle_led_event("Running")
+                oww_audio = self.audio_queue.get()
+                audio_level = np.abs(oww_audio).mean()
+                if current_time - last_audio_level_emit_time >= 0.1:
+                    socketio.emit('processing_audio', {'status': 'ready'})
+                current_time = time.time()
+                # if audio level is below the threshold, skip processing, 
+                # but if the audio level was just above the threshold in the last 0.5 seconds, 
+                # process the audio as its the tail end of the audio
+                if audio_level < vad_threshold and current_time - last_audio_level_over_threshold > 0.5:
+                    continue
+                if audio_level > vad_threshold:
+                    last_audio_level_over_threshold = current_time
+                if print_audio_level:
+                    print(f"Audio level threshold ({audio_level}) triggered. Processing audio...")
+                # we don't want to send too many messages to the frontend. only send every audio level if its been 0.1 seconds
+                if current_time - last_audio_level_emit_time >= 0.1:
+                    socketio.emit('processing_audio', {'status': 'done', 'audio_level': audio_level})
+                    last_audio_level_emit_time = time.time()
+                prediction = self.handle.predict(oww_audio)
+                prediction_models = list(prediction.keys())
+                mdl = prediction_models[0]
+                score = float(prediction[mdl])
+                if score >= 0.5 and not self.is_request_processing:
+                    socketio.emit('awake', {'status': 'ready'})
+                    self.is_awoken = True
+                    self.handle_led_event("Detection")
+                    print(f"Awoken with score {round(score, 3)}!")
+                    self.sound_effect.play("awake")
+                    prediction = self.predictSilence()
+                    self.handle_led_event("Transcript")
+                    socketio.emit('listening_for_prompt', {'status': 'ready'})
+                    self.listener.listen()
+                    self.handle_led_event("StreamingStarted")
+                    socketio.emit('prompt_received', {'status': 'ready'})
+                    self.listener.sound_effect = self.sound_effect.play_loop("loading")
+                    self.listener.transcribe()
+                    if self.listener.transcript is None:
+                        self.sound_effect.play("error")
+                        self._init_mic_stream()
+                        continue
+                    self.process_transcript(self.listener.transcript)
+            except Exception as e:
+                print(f"Error: {e}")
+                self._init_mic_stream()
+                continue
+
+    def process_audio(self):
+        self.producer_thread = threading.Thread(target=self.audio_producer)
+        self.consumer_thread = threading.Thread(target=self.audio_consumer)
+        self.producer_thread.start()
+        self.consumer_thread.start()
+        while self.is_running:
+            sys.stdout.flush()
+            time.sleep(1)
 
     def handle_led_event(self, event):
         if led_service is not None:
@@ -139,7 +221,6 @@ class WakeWordDetector:
         duration_seconds=2
         num_samples = int(self.oww_sample_rate * duration_seconds)
         silence_data = np.zeros(num_samples, dtype=np.int16)
-        time.sleep(0.1)
         # Predict the silence data to initialize the model
         try:
             prediction = self.handle.predict(silence_data)
@@ -293,49 +374,6 @@ class WakeWordDetector:
             print(f"Total Time: {end_time - start_time} seconds")
         finally:
             self._init_mic_stream()
-    
-    def process_audio(self):
-        while True:
-            self.handle_led_event("Running")
-            sys.stdout.flush()
-            try:
-                oww_audio = np.frombuffer(self.mic_stream.read(self.oww_chunk_size, exception_on_overflow = False), dtype=np.int16)
-                prediction = self.handle.predict(oww_audio)
-                prediction_models = list(prediction.keys())
-                mdl = prediction_models[0]
-                score = float(prediction[mdl])
-                if score >= 0.5 and not self.is_request_processing:
-                    socketio.emit('prompt_received', {'status': 'ready'})
-                    self.is_awoken = True
-                    self.handle_led_event("Detection")
-                    print(f"Awoken with score {round(score, 3)}!")                    
-                    self.mic_stream.close()
-                    self.mic_stream = None
-                    prediction = self.predictSilence()
-                    self.sound_effect.play("awake")
-                    self.handle_led_event("Transcript")
-                    self.listener.listen()
-                    self.handle_led_event("StreamingStarted")
-                    self.listener.sound_effect = self.sound_effect.play_loop("loading")
-                    self.listener.transcribe()
-                    if self.listener.transcript is None:
-                        self.sound_effect.play("error")
-                        self._init_mic_stream()
-                        continue
-                    self.process_transcript(self.listener.transcript)
-            except IOError as e:
-                if e.errno == pyaudio.paInputOverflowed:
-                    self._init_mic_stream()
-                    continue
-                elif e.errno == pyaudio.paStreamIsStopped:
-                    self._init_mic_stream()
-                    continue
-                else:
-                    raise 
-            except Exception as e:
-                print(f"Error: {e}")
-                self._init_mic_stream()
-                continue
 
     def run(self):
         try:
@@ -348,6 +386,9 @@ class WakeWordDetector:
         except KeyboardInterrupt:
             pass
         finally:
+            self.is_running = False
+            self.producer_thread.join()
+            self.consumer_thread.join()
             if self.mic_stream is not None:
                 self.mic_stream.close()
             if self.pa is not None:
@@ -382,7 +423,7 @@ def index():
     # remove lines that are only empty or newlines and wrap each chat message in a json object like the socketio emit
     chatlog = [{"message": message.strip()} for message in chatlog]
     
-    return render_template('index.html', assistants=assistants, assistant_dict=assistant, images_disabled=config["use_groq"], chatlog=json.dumps(chatlog))
+    return render_template('index.html', vad_threshold=vad_threshold, assistants=assistants, assistant_dict=assistant, images_disabled=config["use_groq"], chatlog=json.dumps(chatlog))
 
 @socketio.on("file_chunk")
 def handle_file_chunk(data):
@@ -442,6 +483,22 @@ def handle_file_chunk(data):
 def uploaded_file(filename):
     return send_from_directory(config['upload_folder'], filename)
 
+@socketio.on('change_vad_threshold')
+def change_vad_threshold(data):
+    global vad_threshold, config
+    new_threshold = int(data.get('vad_threshold'))
+    if new_threshold:
+        vad_threshold = new_threshold
+        with open(config_file, 'r+') as f:
+            config = json.load(f)
+            config['vad_threshold'] = new_threshold
+            f.seek(0)
+            json.dump(config, f, indent=4)
+            f.truncate()
+        print(f"VAD threshold changed to {new_threshold}.")
+        socketio.emit('vad_threshold_changed', {'vad_threshold': new_threshold})
+    return socketio.emit('vad_threshold_changed', {'vad_threshold': None})
+
 @socketio.on('change_assistant')
 def change_assistant(data):
     global config
@@ -476,7 +533,15 @@ def runApp():
     detector.run()
 
 def signal_handler(sig, frame):
+    global is_exiting
+    if is_exiting:
+        return
+    is_exiting = True
     print('Exiting gracefully...')
+    if detector is not None:
+        detector.is_running = False
+        detector.producer_thread.join()
+        detector.consumer_thread.join()
     if is_rpi:
         led_service.handle_event("Shutdown")
     if config["use_elevenlabs"]:

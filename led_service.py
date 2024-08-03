@@ -21,9 +21,7 @@ _ORANGE = (255, 165, 0)
 class LEDService:
     def __init__(self,):
         self.led_power = gpiozero.LED(LEDS_GPIO, active_high=False)
-        self.led_power.on()
-        self.leds = APA102(num_led=NUM_LEDS)
-        self.current_color = _BLACK
+        self.turn_on()
 
     def set_color(self,  rgb: Tuple[int, int, int]):
         if self.current_color == rgb:
@@ -59,10 +57,13 @@ class LEDService:
             self.set_color(_GREEN)
         elif "Shutdown" == event:
             self.set_color(_ORANGE)
-        elif "Disconnected" == event:
-            self.set_color(_RED)
         elif "Off" == event:
             self.set_color(_BLACK)
+    
+    def turn_on(self):        
+        self.led_power.on()
+        self.leds = APA102(num_led=NUM_LEDS)
+        self.current_color = _BLACK
 
     def turn_off(self):
         self.handle_event("Off")

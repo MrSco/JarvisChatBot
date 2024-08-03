@@ -8,6 +8,8 @@ class SoundEffectService:
     def __init__(self, config=None):
         if config is None:
             config = {"old_assistant": "jarvis"}
+        elif "old_assistant" not in config:
+            config["old_assistant"] = "jarvis"
         self.assistant_name = config["old_assistant"]
         self.sounds = {
             "ready": AudioSegment.from_file(os.path.join(sounds_dir, self.assistant_name, "ready.wav"), format="wav"),

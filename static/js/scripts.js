@@ -129,6 +129,11 @@ document.addEventListener('DOMContentLoaded', function () {
     adjustChatContainerHeight();
     window.onload = scrollToBottom;
     window.addEventListener('resize', adjustChatContainerHeight);
+    var thresholdValue = document.getElementById('thresholdValue');
+    var thresholdSlider = document.getElementById('thresholdSlider');
+    var vad_threshold = thresholdSlider.value;
+    var redDot = document.getElementById('redDot');
+
     var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port, {
         reconnection: true,
         reconnectionAttempts: Infinity,
@@ -200,10 +205,40 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    socket.on('awake', function(data) {
+        if(data.status === 'ready') {
+            setStatusMsg('Wake word detected!');
+        }
+    });
+
+    socket.on('listening_for_prompt', function(data) {
+        if(data.status === 'ready') {
+            setStatusMsg('Listening for prompt...');
+        }
+    });
+
     socket.on('chat_response_ready', function(data) {
         if(data.status === 'ready') {
+            redDot.title = '';
+            redDot.style.visibility = 'hidden';
             setStatusMsg('Responding...');
             document.getElementById('imagePreview').style.display = 'none';
+        }
+    });
+
+    // Update the threshold value when the slider is changed
+    thresholdSlider.addEventListener('input', function() {
+        vad_threshold = this.value;
+        thresholdValue.innerText = vad_threshold;
+        socket.emit("change_vad_threshold", {vad_threshold: vad_threshold});
+    });
+
+    socket.on('processing_audio', function(data) {
+        if (data.status === 'done') {
+            redDot.innerText = parseInt(data.audio_level);
+            redDot.style.visibility = 'visible';
+        } else {
+            redDot.style.visibility = 'hidden';
         }
     });
 
