@@ -27,8 +27,14 @@
     </style>
 </head>
 <body>
+    <div id="sideNav" class="sidenav">
+        <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>
+        <a id="homeLink" href="/">Home</a>
+        <a id="historyLink" href="/history">History</a>
+    </div>
     <div id="chatContainer">
         <h1 id="header" title="{{ assistant_dict['acronym'] }}">
+            <span class="hamburger" onclick="openNav()">&#9776;</span>
             <img class="assistant_name-icon" src='{{ url_for("static", filename="images/" + assistant_dict["name"].lower() + "-favicon-48x48.png")}}'/>
             <select id="assistantSelect">
                 {% for key, assistant in assistants.items() %}
@@ -56,6 +62,5 @@
             </div>
         </form>
     </div>
-    
 </body>
 </html>

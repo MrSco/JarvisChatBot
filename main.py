@@ -18,7 +18,7 @@ import pyaudio
 from sound_effect_service import SoundEffectService
 from tts_service import TextToSpeechService
 import threading
-from flask import Flask, render_template, send_from_directory, request
+from flask import Flask, jsonify, render_template, send_from_directory, request
 from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
 
@@ -402,12 +402,13 @@ def find_url_filter(text):
     url = pattern.search(text)[0] if pattern.search(text) else None
     return url if url else None
 
-@app.route('/')
-def index():
+# Function to get chat logs for a specific date
+def get_chat_log_for_date(date):
+    filename = chatlog_filename.split("-")[0] + f"-{date}.txt"
+    print(f"Getting chat log for {filename}...")
     try:
-        with open(chatlog_filename, 'r', encoding='utf-8') as f:
-            #chatlog = f.readlines()
-            # read a line until you reach the end or You: or Jarvis:
+        with open(filename, 'r', encoding='utf-8') as f:
+            # read a line until you reach the end or You: or assistant_name:
             chatlog = []
             for line in f:
                 if line.startswith("You: ") or line.startswith(f"{assistant_name}: "):
@@ -420,9 +421,17 @@ def index():
     except FileNotFoundError:
         chatlog = []
 
-    # remove lines that are only empty or newlines and wrap each chat message in a json object like the socketio emit
     chatlog = [{"message": message.strip()} for message in chatlog]
-    
+    return chatlog
+
+@app.route('/chatlog/<date>', methods=['GET'])
+def chatlog(date):
+    chatlog = get_chat_log_for_date(date)
+    return jsonify(chatlog)
+
+@app.route('/')
+def index():
+    chatlog = get_chat_log_for_date(today)
     return render_template('index.html', vad_threshold=vad_threshold, assistants=assistants, assistant_dict=assistant, images_disabled=config["use_groq"], chatlog=json.dumps(chatlog))
 
 @socketio.on("file_chunk")
@@ -482,6 +491,11 @@ def handle_file_chunk(data):
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(config['upload_folder'], filename)
+
+@app.route('/history')
+def history():
+    chatlog = get_chat_log_for_date(today)
+    return render_template('history.html', assistant_dict=assistant, chatlog=json.dumps(chatlog))
 
 @socketio.on('change_vad_threshold')
 def change_vad_threshold(data):

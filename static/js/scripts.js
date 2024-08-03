@@ -6,6 +6,23 @@ window.addEventListener("visibilitychange", function () {
     }
   });
 
+function openNav() {
+    document.getElementById("sideNav").style.width = "250px";
+}
+
+function closeNav() {
+    document.getElementById("sideNav").style.width = "0";
+}
+
+function setActiveLink() {
+    var currentPath = window.location.pathname;
+    if (currentPath === '/') {
+        document.getElementById('homeLink').classList.add('active');
+    } else if (currentPath === '/history') {
+        document.getElementById('historyLink').classList.add('active');
+    }
+}
+
 function adjustChatContainerHeight() {
     var chatContainer = document.querySelector('.chat-container');
     if (chatContainer) {
@@ -16,8 +33,8 @@ function adjustChatContainerHeight() {
     var chatLog = document.getElementById('chat-log');
     if (chatLog) {
         var viewportHeight = window.innerHeight;
-        var formHeight = document.getElementById('form').offsetHeight;
-        var headerHeight = document.getElementById('header').offsetHeight; 
+        var formHeight = document.getElementById('form')?.offsetHeight || 0;
+        var headerHeight = document.getElementById('header')?.offsetHeight || 0; 
         var padding = 30;
         var availableHeight = viewportHeight - formHeight - headerHeight - padding;
 
@@ -124,156 +141,187 @@ function chatbot_ready(data) {
         setStatusMsg(`Listening for '${assistant_wake_word}'...`);
     }
 }
-document.addEventListener('DOMContentLoaded', function () {
-    populateChatLog(chatLogData);
-    adjustChatContainerHeight();
-    window.onload = scrollToBottom;
-    window.addEventListener('resize', adjustChatContainerHeight);
-    var thresholdValue = document.getElementById('thresholdValue');
-    var thresholdSlider = document.getElementById('thresholdSlider');
-    var vad_threshold = thresholdSlider.value;
-    var redDot = document.getElementById('redDot');
 
-    var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port, {
-        reconnection: true,
-        reconnectionAttempts: Infinity,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        randomizationFactor: 0.5
-    });
-    socket.on('connect', function () {
-        console.log('Connected to the server.');
-        if (localStorage.getItem('assistantChanged')) {
-            localStorage.removeItem('assistantChanged');
-            window.location.reload();
-        }
-        chatbot_ready({ status: 'ready' });
-    });
-    socket.on('disconnect', function (reason) {
-        console.log('Disconnected from the server. Reason:', reason);
-        setStatusMsg('Disconnected.');
+if (location.toString().includes('/history')) {
+    document.addEventListener('DOMContentLoaded', function () {
+        setActiveLink();
+        populateChatLog(chatLogData);
+        adjustChatContainerHeight();
+        window.onload = scrollToBottom;
+        window.addEventListener('resize', adjustChatContainerHeight);
+
+        var dateSelector = document.getElementById('dateSelector');
+        dateSelector.value = (new Date()).toISOString().split('T')[0];
+        dateSelector.addEventListener('change', function () {
+            var selectedDate = dateSelector.value;
+            fetchChatLogForDate(selectedDate);
+        });
     });
 
-    function submit_form(e) {
-        e.preventDefault();
-        var prompt = document.getElementById('prompt').value;
-        var file = document.getElementById('image').files[0];
-        var dataToSend = {prompt};
-    
-        if (!prompt && !image) {
-            return setStatusMsg('Please enter a prompt or upload an image!', true);
-        }
+    function fetchChatLogForDate(date) {
+        fetch(`/chatlog/${date}`)
+            .then(response => response.json())
+            .then(chatLogData => {
+                chatLogData.forEach(function(message) {
+                    update_chat(message);
+                });
+            })
+            .catch(error => console.error('Error fetching chat log:', error));
+    }        
+}
+else {
+    document.addEventListener('DOMContentLoaded', function () {
+        setActiveLink();
+        populateChatLog(chatLogData);
+        adjustChatContainerHeight();
+        window.onload = scrollToBottom;
+        window.addEventListener('resize', adjustChatContainerHeight);
+        var thresholdValue = document.getElementById('thresholdValue');
+        var thresholdSlider = document.getElementById('thresholdSlider');
+        var vad_threshold = thresholdSlider.value;
+        var redDot = document.getElementById('redDot');
+
+        var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port, {
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            randomizationFactor: 0.5
+        });
+        socket.on('connect', function () {
+            console.log('Connected to the server.');
+            if (localStorage.getItem('assistantChanged')) {
+                localStorage.removeItem('assistantChanged');
+                window.location.reload();
+            }
+            chatbot_ready({ status: 'ready' });
+        });
+        socket.on('disconnect', function (reason) {
+            console.log('Disconnected from the server. Reason:', reason);
+            setStatusMsg('Disconnected.');
+        });
+
+        function submit_form(e) {
+            e.preventDefault();
+            var prompt = document.getElementById('prompt').value;
+            var file = document.getElementById('image').files[0];
+            var dataToSend = {prompt};
         
-        if (!file)
-            return socket.emit("file_chunk", {
-                fileId: null,
-                ...dataToSend,
-            });
-        // if CHUNK_SIZE >= 1MB then the socket header gets overwritten and throws errors
-        const CHUNK_SIZE = 1024 * 512; // 0.5MB
-        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-        const fileId = `${file.name}-${Date.now()}`; // Unique ID for the file upload
-    
-        for (let i = 0; i < totalChunks; i++) {
-            const blob = file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const base64Content = e.target.result.split(",")[1];
-                socket.emit("file_chunk", {
-                    fileId: fileId,
-                    chunkIndex: i,
-                    totalChunks: totalChunks,
-                    chunkData: base64Content,
-                    fileName: file.name, // Consider sanitizing on the server
+            if (!prompt && !image) {
+                return setStatusMsg('Please enter a prompt or upload an image!', true);
+            }
+            
+            if (!file)
+                return socket.emit("file_chunk", {
+                    fileId: null,
                     ...dataToSend,
                 });
-            };
-            reader.readAsDataURL(blob);
+            // if CHUNK_SIZE >= 1MB then the socket header gets overwritten and throws errors
+            const CHUNK_SIZE = 1024 * 512; // 0.5MB
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+            const fileId = `${file.name}-${Date.now()}`; // Unique ID for the file upload
+        
+            for (let i = 0; i < totalChunks; i++) {
+                const blob = file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const base64Content = e.target.result.split(",")[1];
+                    socket.emit("file_chunk", {
+                        fileId: fileId,
+                        chunkIndex: i,
+                        totalChunks: totalChunks,
+                        chunkData: base64Content,
+                        fileName: file.name, // Consider sanitizing on the server
+                        ...dataToSend,
+                    });
+                };
+                reader.readAsDataURL(blob);
+            }
         }
-    }
-    
-    socket.on('update_chat', update_chat);
+        
+        socket.on('update_chat', update_chat);
 
-    socket.on('prompt_received', function(data) {
-        if(data.status === 'ready') {
-            document.getElementById('prompt').value = '';
-            var image = document.getElementById('image');
-            image.value = '';
-            image.disabled = true;
-            document.getElementById('sendButton').disabled = true;
-            setStatusMsg('Generating response...');
-        }
+        socket.on('prompt_received', function(data) {
+            if(data.status === 'ready') {
+                document.getElementById('prompt').value = '';
+                var image = document.getElementById('image');
+                image.value = '';
+                image.disabled = true;
+                document.getElementById('sendButton').disabled = true;
+                setStatusMsg('Generating response...');
+            }
+        });
+
+        socket.on('awake', function(data) {
+            if(data.status === 'ready') {
+                setStatusMsg('Wake word detected!');
+            }
+        });
+
+        socket.on('listening_for_prompt', function(data) {
+            if(data.status === 'ready') {
+                setStatusMsg('Listening for prompt...');
+            }
+        });
+
+        socket.on('chat_response_ready', function(data) {
+            if(data.status === 'ready') {
+                redDot.title = '';
+                redDot.style.visibility = 'hidden';
+                setStatusMsg('Responding...');
+                document.getElementById('imagePreview').style.display = 'none';
+            }
+        });
+
+        // Update the threshold value when the slider is changed
+        thresholdSlider.addEventListener('input', function() {
+            vad_threshold = this.value;
+            thresholdValue.innerText = vad_threshold;
+            socket.emit("change_vad_threshold", {vad_threshold: vad_threshold});
+        });
+
+        socket.on('processing_audio', function(data) {
+            if (data.status === 'done') {
+                redDot.innerText = parseInt(data.audio_level);
+                redDot.style.visibility = 'visible';
+            } else {
+                redDot.style.visibility = 'hidden';
+            }
+        });
+
+        socket.on('chatbot_ready', chatbot_ready);
+
+        document.getElementById('form').addEventListener('submit', submit_form);
+
+        document.getElementById('image').addEventListener('change', function(e) {
+            var image = e.target.files[0];
+            if (image) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var preview = document.getElementById('imagePreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'inline-block';
+                };
+                reader.readAsDataURL(image);
+            }
+        });
+
+        document.querySelector('label[for="file-upload"]').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('image').click();
+        });
+
+        document.getElementById('assistantSelect').addEventListener('change', function() {
+            var selectedAssistant = this.value;
+            socket.emit("change_assistant", {assistant: selectedAssistant});
+        });
+
+        socket.on('assistant_changed', function(data) {
+            if(data.assistant) {
+                setStatusMsg('Assistant changed.');
+                // set a flag to indicate that the assistant has been changed so we know to reload the page
+                localStorage.setItem('assistantChanged', true);
+            }
+        });
     });
-
-    socket.on('awake', function(data) {
-        if(data.status === 'ready') {
-            setStatusMsg('Wake word detected!');
-        }
-    });
-
-    socket.on('listening_for_prompt', function(data) {
-        if(data.status === 'ready') {
-            setStatusMsg('Listening for prompt...');
-        }
-    });
-
-    socket.on('chat_response_ready', function(data) {
-        if(data.status === 'ready') {
-            redDot.title = '';
-            redDot.style.visibility = 'hidden';
-            setStatusMsg('Responding...');
-            document.getElementById('imagePreview').style.display = 'none';
-        }
-    });
-
-    // Update the threshold value when the slider is changed
-    thresholdSlider.addEventListener('input', function() {
-        vad_threshold = this.value;
-        thresholdValue.innerText = vad_threshold;
-        socket.emit("change_vad_threshold", {vad_threshold: vad_threshold});
-    });
-
-    socket.on('processing_audio', function(data) {
-        if (data.status === 'done') {
-            redDot.innerText = parseInt(data.audio_level);
-            redDot.style.visibility = 'visible';
-        } else {
-            redDot.style.visibility = 'hidden';
-        }
-    });
-
-    socket.on('chatbot_ready', chatbot_ready);
-
-    document.getElementById('form').addEventListener('submit', submit_form);
-
-    document.getElementById('image').addEventListener('change', function(e) {
-        var image = e.target.files[0];
-        if (image) {
-            var reader = new FileReader();
-            reader.onload = function(e) {
-                var preview = document.getElementById('imagePreview');
-                preview.src = e.target.result;
-                preview.style.display = 'inline-block';
-            };
-            reader.readAsDataURL(image);
-        }
-    });
-
-    document.querySelector('label[for="file-upload"]').addEventListener('click', function(e) {
-        e.preventDefault();
-        document.getElementById('image').click();
-    });
-
-    document.getElementById('assistantSelect').addEventListener('change', function() {
-        var selectedAssistant = this.value;
-        socket.emit("change_assistant", {assistant: selectedAssistant});
-    });
-
-    socket.on('assistant_changed', function(data) {
-        if(data.assistant) {
-            setStatusMsg('Assistant changed.');
-            // set a flag to indicate that the assistant has been changed so we know to reload the page
-            localStorage.setItem('assistantChanged', true);
-        }
-    });
-});
+}

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat History</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script>
+        var assistant_name = "{{ assistant_dict['name'] }}";
+        var chatLogData = {{ chatlog|safe }};
+    </script>
+    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+</head>
+<body>
+    <div id="sideNav" class="sidenav">
+        <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>
+        <a id="homeLink" href="/">Home</a>
+        <a id="historyLink" href="/history">History</a>
+    </div>
+    <div id="chatContainer">
+        <h1 id="header">
+            <span class="hamburger" onclick="openNav()">&#9776;</span>
+            <span>Chat History</span>
+            <input type="date" id="dateSelector">
+        </h1>
+        <div id="chat-log"></div>
+    </div>
+</body>
+</html>
