@@ -33,6 +33,7 @@ while True:
             # Record the time when the button is pressed
             buttonPressTime = time.time()
         elif time.time() - buttonPressTime >= 5:
+            led_service.turn_off()
             # If the button is held down for 5 seconds, shutdown
             os.system("sudo shutdown -h now")
             # Reset the button press time
