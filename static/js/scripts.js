@@ -190,10 +190,6 @@ else {
         });
         socket.on('connect', function () {
             console.log('Connected to the server.');
-            if (localStorage.getItem('assistantChanged')) {
-                localStorage.removeItem('assistantChanged');
-                window.location.reload();
-            }
             chatbot_ready({ status: 'ready' });
         });
         socket.on('disconnect', function (reason) {
@@ -319,8 +315,7 @@ else {
         socket.on('assistant_changed', function(data) {
             if(data.assistant) {
                 setStatusMsg('Assistant changed.');
-                // set a flag to indicate that the assistant has been changed so we know to reload the page
-                localStorage.setItem('assistantChanged', true);
+                window.location.reload();
             }
         });
     });
