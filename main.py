@@ -561,6 +561,8 @@ def runApp():
         detector.run()
         if not detector.restart_app:
             break
+        else:
+            detector = None
 
 def signal_handler(sig, frame):
     global is_exiting
