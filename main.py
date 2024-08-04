@@ -180,15 +180,15 @@ class WakeWordDetector:
                     socketio.emit('awake', {'status': 'ready'})
                     self.is_awoken = True
                     print(f"Awoken with score {round(score, 3)}!")
-                    self.sound_effect.play("awake")
-                    prediction = self.predictSilence()
                     self.handle_led_event("Transcript")
+                    self.sound_effect.play("awake")
                     socketio.emit('listening_for_prompt', {'status': 'ready'})
                     self.listener.listen()
                     self.handle_led_event("StreamingStarted")
                     socketio.emit('prompt_received', {'status': 'ready'})
                     self.listener.sound_effect = self.sound_effect.play_loop("loading")
                     self.listener.transcribe()
+                    prediction = self.predictSilence()
                     if self.listener.transcript is None:
                         self.sound_effect.play("error")
                         self._init_mic_stream()
