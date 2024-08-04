@@ -387,14 +387,19 @@ class WakeWordDetector:
         except KeyboardInterrupt:
             pass
         finally:
-            self.is_running = False
+            self.cleanup()
+
+    def cleanup(self):
+        self.is_running = False
+        if self.producer_thread.is_alive():
             self.producer_thread.join()
+        if self.consumer_thread.is_alive():
             self.consumer_thread.join()
-            if self.mic_stream is not None:
-                self.mic_stream.close()
-            if self.pa is not None:
-                self.pa.terminate()
-            self.handle = None
+        if self.mic_stream is not None:
+            self.mic_stream.close()
+        if self.pa is not None:
+            self.pa.terminate()
+        self.handle = None
 
 @app.template_filter('find_url')
 def find_url_filter(text):
@@ -542,11 +547,10 @@ def run_flask_app():
     socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=True, host="0.0.0.0")
 
 def restart_app():
+    global detector
     if detector is not None:
-        detector.is_running = False
         detector.restart_app = True 
-        detector.producer_thread.join()
-        detector.consumer_thread.join()        
+        detector.cleanup()
 
 def runApp():
     global detector, loading_sound
