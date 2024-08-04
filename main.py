@@ -554,12 +554,13 @@ def restart_app():
 
 def runApp():
     global detector, loading_sound
-    loading_sound = SoundEffectService(config).play_loop("loading")
-    detector = WakeWordDetector()
-    app.config['detector'] = detector  # Attach detector to the Flask app config    
-    detector.run()
-    if detector.restart_app:
-        runApp()
+    while True:
+        loading_sound = SoundEffectService(config).play_loop("loading")
+        detector = WakeWordDetector()
+        app.config['detector'] = detector  # Attach detector to the Flask app config    
+        detector.run()
+        if not detector.restart_app:
+            break
 
 def signal_handler(sig, frame):
     global is_exiting
