@@ -118,6 +118,7 @@ class WakeWordDetector:
         self.is_running = True
         self.producer_thread = None
         self.consumer_thread = None
+        self.restart_app = False
 
         self.handle = Model(
             wakeword_models=[oww_model_path], 
@@ -515,7 +516,7 @@ def change_vad_threshold(data):
 
 @socketio.on('change_assistant')
 def change_assistant(data):
-    global config
+    global config, assistant_name, assistant_acronym, assistant, chatlog_filename
     new_assistant = data.get('assistant')
     if new_assistant and new_assistant in assistants:
         with open(config_file, 'r+') as f:
@@ -527,17 +528,25 @@ def change_assistant(data):
             f.truncate()
         print(f"Assistant changed from {old_assistant} to {new_assistant}.")
         config["old_assistant"] = old_assistant
+        config["assistant_dict"] = assistants[new_assistant]
+        assistant = assistants[config["assistant"]]
+        assistant_name = assistant["name"]
+        assistant_acronym = assistant["acronym"]
+        chatlog_filename = os.path.join(script_dir, "chatlogs", f"{config['assistant']}_chatlog-{today}.txt")
         socketio.emit('assistant_changed', {'assistant': new_assistant})
-        # get pid of current process
-        pid = os.getpid()
-        # call restart_app.py with the pid
-        cmd = f"python restart_app.py {pid} {os.path.basename(__file__)}"
-        print(f"Restarting app with command: {cmd}")
-        return os.system(cmd)
+        restart_app()
+        return
     return socketio.emit('assistant_changed', {'assistant': None})
 
 def run_flask_app():
     socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=True, host="0.0.0.0")
+
+def restart_app():
+    if detector is not None:
+        detector.is_running = False
+        detector.restart_app = True 
+        detector.producer_thread.join()
+        detector.consumer_thread.join()        
 
 def runApp():
     global detector, loading_sound
@@ -545,6 +554,8 @@ def runApp():
     detector = WakeWordDetector()
     app.config['detector'] = detector  # Attach detector to the Flask app config    
     detector.run()
+    if detector.restart_app:
+        runApp()
 
 def signal_handler(sig, frame):
     global is_exiting

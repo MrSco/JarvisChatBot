@@ -7,27 +7,18 @@ sounds_dir = os.path.dirname(os.path.abspath(__file__)) + "/sounds"
 class SoundEffectService:
     def __init__(self, config=None):
         if config is None:
-            config = {"old_assistant": "jarvis"}
-        elif "old_assistant" not in config:
-            config["old_assistant"] = "jarvis"
-        self.assistant_name = config["old_assistant"]
-        self.sounds = {
-            "ready": AudioSegment.from_file(os.path.join(sounds_dir, self.assistant_name, "ready.wav"), format="wav"),
-            "goodbye": AudioSegment.from_file(os.path.join(sounds_dir, self.assistant_name, "goodbye.wav"), format="wav"),
-            "hi_how_can_i_help": AudioSegment.from_file(os.path.join(sounds_dir, self.assistant_name, "hi_how_can_i_help.wav"), format="wav"),
-            "something_went_wrong": AudioSegment.from_file(os.path.join(sounds_dir, self.assistant_name, "something_went_wrong.wav"), format="wav"),
-            "the_current_time_is": AudioSegment.from_file(os.path.join(sounds_dir, self.assistant_name, "the_current_time_is.wav"), format="wav"),
-            "error": AudioSegment.from_file(os.path.join(sounds_dir, "error.wav"), format="wav"),
-            "awake": AudioSegment.from_file(os.path.join(sounds_dir, "awake.wav"), format="wav"),
-            "done": AudioSegment.from_file(os.path.join(sounds_dir, "done.wav"), format="wav"),
-            "initializing": AudioSegment.from_file(os.path.join(sounds_dir, "initializing.wav"), format="wav"),
-            "loading": AudioSegment.from_file(os.path.join(sounds_dir, "loading.mp3"), format="mp3"),
-            "halflifebutton": AudioSegment.from_file(os.path.join(sounds_dir, "halflifebutton.wav"), format="wav"),
-        }
+            config = {"assistant": "jarvis"}
+        elif "assistant" not in config:
+            config["assistant"] = "jarvis"
+        self.assistant_name = config["assistant"]
         self.player = None
+        self.generic_sound_names = ["error", "awake", "done", "initializing", "loading", "halflifebutton"]
+
+    def get_sound(self, sound_name, assistant_name):
+        return AudioSegment.from_file(os.path.join(sounds_dir, assistant_name if not sound_name in self.generic_sound_names else "", f"{sound_name}.wav"), format="wav")
 
     def play(self, sound_name, loop=False):
-        sound = self.sounds.get(sound_name)
+        sound = self.get_sound(sound_name, self.assistant_name)
         if sound is None:
             raise ValueError(f"Sound '{sound_name}' not found.")
         if self.player is not None:
