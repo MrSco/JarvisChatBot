@@ -1,5 +1,6 @@
 import base64
 from datetime import date
+import gc
 import json
 import os
 import platform
@@ -406,6 +407,8 @@ class WakeWordDetector:
         self.chat_gpt_service = None
         self.listener = None
         self.handle = None
+        # Explicitly invoke garbage collection
+        gc.collect()
 
 @app.template_filter('find_url')
 def find_url_filter(text):
