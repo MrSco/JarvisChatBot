@@ -49,8 +49,8 @@ body {
     font-size: 30px;
     cursor: pointer;
     position: absolute;
-    left: 0;
-    top: 0;
+    left: 5px;
+    top: 5px;
 }
 
 .sidenav a.active {
