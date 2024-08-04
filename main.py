@@ -399,6 +399,12 @@ class WakeWordDetector:
             self.mic_stream.close()
         if self.pa is not None:
             self.pa.terminate()
+        self.mic_stream = None
+        self.pa = None
+        self.speech = None
+        self.sound_effect = None
+        self.chat_gpt_service = None
+        self.listener = None
         self.handle = None
 
 @app.template_filter('find_url')
