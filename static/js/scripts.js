@@ -203,7 +203,7 @@ else {
             var file = document.getElementById('image').files[0];
             var dataToSend = {prompt};
         
-            if (!prompt && !image) {
+            if (!prompt && !file) {
                 return setStatusMsg('Please enter a prompt or upload an image!', true);
             }
             
