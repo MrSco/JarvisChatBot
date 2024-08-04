@@ -41,7 +41,7 @@ class LEDService:
         self.event = event
         if "StreamingStarted" == event:
             self.set_color(_CYAN)
-        elif "Detection" == event:
+        elif "NoInternet" == event:
             self.set_color(_BLUE)
         elif "Processing" == event:
             self.set_color(_PINK)

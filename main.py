@@ -21,6 +21,7 @@ import threading
 from flask import Flask, jsonify, render_template, send_from_directory, request
 from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
+import requests
 
 transcript_seperator = f"_"*40
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -178,7 +179,6 @@ class WakeWordDetector:
                 if score >= 0.5 and not self.is_request_processing:
                     socketio.emit('awake', {'status': 'ready'})
                     self.is_awoken = True
-                    self.handle_led_event("Detection")
                     print(f"Awoken with score {round(score, 3)}!")
                     self.sound_effect.play("awake")
                     prediction = self.predictSilence()
@@ -564,9 +564,25 @@ def signal_handler(sig, frame):
         TextToSpeechService(config).speak("Goodbye!")
     sys.exit(0)
 
+def check_internet_connection(url='http://www.google.com/', timeout=5):
+    try:
+        response = requests.get(url, timeout=timeout)
+        return True
+    except requests.ConnectionError:
+        return False
+    
 if __name__ == "__main__":
-    if is_rpi:
-        led_service.handle_event("Connected")
+    if not check_internet_connection():
+        print("No internet connection. Please check your connection and try again.")
+        config["use_elevenlabs"] = False
+        config["use_gtts"] = False
+        TextToSpeechService(config).speak("No internet connection")
+        if is_rpi:
+            led_service.handle_event("NoInternet")
+        signal_handler(signal.SIGINT, None)
+    else:    
+        if is_rpi:
+            led_service.handle_event("Connected")
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     if config["use_frontend"]:

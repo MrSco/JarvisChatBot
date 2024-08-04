@@ -254,7 +254,7 @@ LED Color Legend:
 - Purple: Starting up
 - Green: Started (or reinitalizing wake word)
 - Red: Ready and Listening for wake word
-- Blue: Woken up by wake word
+- Blue: No Internet Connection
 - White: Listening for user input
 - Cyan: Transcribing user input
 - Pink: Processing user input
