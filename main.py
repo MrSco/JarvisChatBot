@@ -279,6 +279,23 @@ class WakeWordDetector:
                 self._init_mic_stream()
                 return
             
+            new_convo_phrases = [
+                "start a new conversation",
+                "start a new chat",
+                "forget the previous conversation",
+                "forget what I said",
+                "forget what I just said",
+                "let's start over",
+            ]
+
+            if any(phrase in transcript for phrase in new_convo_phrases) and not image:
+                append2log(f"You: {transcript} \n")
+                self.sound_effect.play("done")
+                # clear all but the first item in the chat history
+                self.chat_gpt_service.history = self.chat_gpt_service.history[:1]
+                self._init_mic_stream()
+                return
+            
             time_phrases = [
                 "what time is it",
                 "what is the time",
