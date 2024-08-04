@@ -339,6 +339,8 @@ class WakeWordDetector:
                 "switch voice",
                 "change your voice",
                 "switch your voice",
+                "change your name",
+                "switch your name",
             ]
 
             if any(phrase in transcript for phrase in change_assistant_phrases) and not image:
@@ -350,7 +352,6 @@ class WakeWordDetector:
                 new_assistant_name = assistants.get(new_assistant, {}).get('name', '')
                 if new_assistant and new_assistant_name != assistant_name:
                     print(f"Switching to {new_assistant_name}...")
-                    self.sound_effect.play_loop("loading")
                     change_assistant({'assistant': new_assistant_name.lower()})
                 elif new_assistant_name == assistant_name:
                     response = f"I'm already {assistant_name}."
