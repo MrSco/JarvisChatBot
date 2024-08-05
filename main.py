@@ -251,6 +251,8 @@ class WakeWordDetector:
         socketio.emit('chatbot_ready', {'status': 'ready'})
     
     def something_went_wrong(self):
+        if self.listener.sound_effect is not None:
+            self.listener.sound_effect.stop_sound()
         if self.chat_gpt_service.sound_effect is not None:
             self.chat_gpt_service.sound_effect.stop_sound()
         self.sound_effect.play("error")
