@@ -24,7 +24,7 @@ class ChatGPTService:
         self.assistant_acronym = config["assistant_dict"]["acronym"]
         self.assistant_descr = config["assistant_dict"]["descr"]
         self.system_prompt = config["system_prompt"]
-        self.weather_info = self.get_weather_url()
+        self.weather_info = "" #self.get_weather_url()
         today = str(date.today()) 
         self.system_prompt = config["system_prompt"] \
             .replace("{assistant_name}", self.assistant_name) \
@@ -119,6 +119,8 @@ class ChatGPTService:
                 return None
         else:
             content = request
+        # disable the history for now to save tokens
+        self.history = self.history[:1]
         self.history.append({"role": "user", "content": content})
         result = None
         try:
@@ -126,8 +128,7 @@ class ChatGPTService:
             response = self.llm.chat.completions.create(
                 model=self.model, 
                 messages=self.history,
-                max_tokens=300,
-                temperature=1,
+                max_tokens=500,
                 stream=True
             )
         except Exception as e:
@@ -146,7 +147,7 @@ class ChatGPTService:
             for chunk in response:
                 delta = chunk.choices[0].delta
                 if delta.content:
-                    sentence += delta.content.replace('\n', '')
+                    sentence += delta.content.replace('\n', ' ')
                     response_full_text += sentence
                     # Check if the current character ends the sentence
                     if delta.content[-1] in sentence_endings:
