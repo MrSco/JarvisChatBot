@@ -202,8 +202,8 @@ class WakeWordDetector:
                         continue
                     self.process_transcript(self.listener.transcript)
             except Exception as e:
+                self.something_went_wrong()
                 print(f"Error: {e}")
-                self._init_mic_stream()
                 continue
 
     def process_audio(self):
