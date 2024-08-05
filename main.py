@@ -140,6 +140,11 @@ class WakeWordDetector:
         self._init_mic_stream()
         while self.is_running:
             try:
+                if self.is_awoken:
+                    #print("Audio producer paused")
+                    while self.is_awoken:
+                        time.sleep(1)
+                #print("Audio producer resumed")
                 oww_audio = np.frombuffer(self.mic_stream.read(self.oww_chunk_size, exception_on_overflow=False), dtype=np.int16)
                 self.audio_queue.put(oww_audio)
             except IOError as e:
@@ -164,7 +169,7 @@ class WakeWordDetector:
                 # if audio level is below the threshold, skip processing, 
                 # but if the audio level was just above the threshold in the last 0.5 seconds, 
                 # process the audio as its the tail end of the audio
-                if audio_level < vad_threshold and current_time - last_audio_level_over_threshold > 0.25:
+                if audio_level < vad_threshold and current_time - last_audio_level_over_threshold > 0.75:
                     continue
                 if audio_level > vad_threshold:
                     last_audio_level_over_threshold = current_time
