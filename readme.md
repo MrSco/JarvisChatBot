@@ -164,6 +164,18 @@ S2. Audio
 
 After you've selected the appropriate option, the system should use this device as the default for audio output.
 
+4. Run alsamixer and set volume levels
+
+```bash
+alsamixer
+```
+
+5. Save the settings:
+
+```bash
+sudo alsactl --file ~/.config/asound.state store
+```
+
 ## Running as a Service
 
 1. **Create a jarvischatbot Service File**
