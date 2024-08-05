@@ -177,6 +177,30 @@ alsamixer
 sudo alsactl --file ~/.config/asound.state store
 ```
 
+## Using as an AirPlay speaker with ShairPort-Sync
+
+If you want to use the ReSpeaker 2-Mics Pi HAT as an AirPlay speaker, you can use ShairPort-Sync. Here's how to set it up:
+
+1. **Install ShairPort-Sync**
+
+```bash
+sudo apt install shairport-sync -y
+```
+
+2. **Edit the ShairPort-Sync configuration file**
+
+```bash
+sudo nano /etc/shairport-sync.conf
+```
+
+3. **Change the `port` field to something other then 5000 (I use 5555)**
+
+4. **Start the ShairPort-Sync service**
+
+```bash
+sudo systemctl start shairport-sync
+```
+
 ## Running as a Service
 
 1. **Create a jarvischatbot Service File**
