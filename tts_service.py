@@ -21,15 +21,15 @@ class TextToSpeechService:
         self.language = config["language"]
         self.accent = config["assistant_dict"]["accent"]
         self.sound_effect = None
-        self.start_time = None
-        self.end_time = None
+        #self.start_time = None
+        #self.end_time = None
 
     def remove_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', '', text)
 
     def speak(self, text):
         textToSpeak = text
-        self.start_time = time.time()
+        #self.start_time = time.time()
         try:
             # strip out emojis so we don't try to speak them
             textToSpeak = self.remove_non_ascii(text)
@@ -39,7 +39,7 @@ class TextToSpeechService:
                     return None
                 self.speak_with_pyttsx3(textToSpeak)
                 return None
-            print("Speaking with elevenlabs...")
+            #print("Speaking with elevenlabs...")
             audio = self.elevenlabs_client.generate(
                 text=textToSpeak,
                 voice=self.elevenlabs_voice_id,
@@ -53,8 +53,8 @@ class TextToSpeechService:
             )
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
-            self.end_time = time.time()
-            print(f"Time taken: {self.end_time - self.start_time} seconds")
+            #self.end_time = time.time()
+            #print(f"Time taken: {self.end_time - self.start_time} seconds")
             print(f"{self.assistant_name}: {text}")
             stream(audio)
 
@@ -68,7 +68,7 @@ class TextToSpeechService:
 
     def speak_with_gtts(self, text):
         try:
-            print("Speaking with gTTS...")
+            #print("Speaking with gTTS...")
             # Create a gTTS object for the current text chunk
             tts = gTTS(text=text, lang=self.language, tld=self.accent, slow=False)
             
@@ -82,8 +82,8 @@ class TextToSpeechService:
             
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
-            self.end_time = time.time()
-            print(f"Time taken: {self.end_time - self.start_time} seconds")
+            #self.end_time = time.time()
+            #print(f"Time taken: {self.end_time - self.start_time} seconds")
             print(f"{self.assistant_name}: {text}")
             
             # Play the audio
@@ -93,14 +93,14 @@ class TextToSpeechService:
 
     def speak_with_pyttsx3(self, text):
         try:
-            print("Speaking with pyttsx3...")            
+            #print("Speaking with pyttsx3...")            
             engine = pyttsx3.init()
             voices = engine.getProperty('voices') 
             engine.setProperty('voice', voices[self.assistant_gender].id)
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
-            self.end_time = time.time()
-            print(f"Time taken: {self.end_time - self.start_time} seconds")
+            #self.end_time = time.time()
+            #print(f"Time taken: {self.end_time - self.start_time} seconds")
             print(f"{self.assistant_name}: {text}")
             engine.say(text)
             engine.runAndWait()

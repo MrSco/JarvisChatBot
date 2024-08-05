@@ -164,7 +164,7 @@ class WakeWordDetector:
                 # if audio level is below the threshold, skip processing, 
                 # but if the audio level was just above the threshold in the last 0.5 seconds, 
                 # process the audio as its the tail end of the audio
-                if audio_level < vad_threshold and current_time - last_audio_level_over_threshold > 0.5:
+                if audio_level < vad_threshold and current_time - last_audio_level_over_threshold > 0.25:
                     continue
                 if audio_level > vad_threshold:
                     last_audio_level_over_threshold = current_time

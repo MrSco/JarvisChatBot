@@ -51,7 +51,7 @@ while True:
                     led_service.handle_event("Starting")
                     os.system("sudo systemctl start jarvischatbot.service")        
                 else:
-                    os.system("sudo systemctl stop jarvischatbot.service")
+                    os.system("sudo systemctl stop --now jarvischatbot.service")
             # Reset the button press time
             buttonPressTime = None
     time.sleep(.1)
