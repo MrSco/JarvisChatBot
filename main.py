@@ -26,6 +26,7 @@ import requests
 
 transcript_seperator = f"_"*40
 script_dir = os.path.dirname(os.path.abspath(__file__))
+shairport_handler = None
 detector = None
 flask_thread = None
 app = None
@@ -102,6 +103,34 @@ def append2log(text, noNewLine=False):
     if text and text != transcript_seperator:
         socketio.emit('update_chat', {'message': text.strip()})
 
+class ShairportSyncHandler:
+    def __init__(self, wake_word_detector):
+        self.wake_word_detector = wake_word_detector
+        self.metadata_pipe = "/tmp/shairport-sync-metadata"
+        self.is_playing = False
+        self.thread = threading.Thread(target=self.read_metadata)
+        self.thread.daemon = True
+        self.thread.start()
+
+    def read_metadata(self):
+        with open(self.metadata_pipe, 'r') as pipe:
+            while True:
+                line = pipe.readline()
+                if "ssnc" in line:
+                    if "play" in line:
+                        self.is_playing = True
+                        self.wake_word_detector.is_awoken = True
+                    elif "stop" in line or "pause" in line:
+                        self.is_playing = False
+                        self.wake_word_detector.is_awoken = False
+                time.sleep(0.1)
+
+    def cleanup(self):
+        if self.thread.is_alive():
+            self.thread.join()
+        # Explicitly invoke garbage collection
+        gc.collect()
+
 class WakeWordDetector:
     def __init__(self):
         self.chat_gpt_service = ChatGPTService(config)
@@ -160,6 +189,9 @@ class WakeWordDetector:
         last_audio_level_over_threshold = current_time
         while self.is_running:
             try:
+                if self.is_awoken:
+                    while self.is_awoken:
+                        time.sleep(1)
                 self.handle_led_event("Running")
                 oww_audio = self.audio_queue.get()
                 audio_level = np.abs(oww_audio).mean()
@@ -581,16 +613,19 @@ def run_flask_app():
     socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=True, host="0.0.0.0")
 
 def restart_app():
-    global detector
+    if shairport_handler is not None:
+        shairport_handler.cleanup()
     if detector is not None:
         detector.restart_app = True 
         detector.cleanup()
 
 def runApp():
-    global detector, loading_sound
+    global detector, shairport_handler, loading_sound
     while True:
         loading_sound = SoundEffectService(config).play_loop("loading")
         detector = WakeWordDetector()
+        if config["use_shairport-sync"]:
+            shairport_handler = ShairportSyncHandler(detector)
         app.config['detector'] = detector  # Attach detector to the Flask app config    
         detector.run()
         if not detector.restart_app:
@@ -605,9 +640,7 @@ def signal_handler(sig, frame):
     is_exiting = True
     print('Exiting gracefully...')
     if detector is not None:
-        detector.is_running = False
-        detector.producer_thread.join()
-        detector.consumer_thread.join()
+        detector.cleanup()
     if is_rpi:
         led_service.turn_off()
     if config["use_elevenlabs"]:
