@@ -273,9 +273,12 @@ else {
         thresholdSlider.addEventListener('input', function() {
             vad_threshold = this.value;
             thresholdValue.innerText = vad_threshold;
-            socket.emit("change_vad_threshold", {vad_threshold: vad_threshold});
         });
 
+        thresholdSlider.addEventListener('change', function() {
+            socket.emit("change_vad_threshold", {vad_threshold: vad_threshold});
+        });
+        
         socket.on('processing_audio', function(data) {
             if (data.status === 'done') {
                 redDot.innerText = parseInt(data.audio_level);

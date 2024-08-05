@@ -1,6 +1,6 @@
 [Unit]
 Description=JarvisChatBot
-Requires=sys-devices-platform-soc-soc:sound-sound-card2-controlC2.device
+Requires=sys-devices-platform-soc-soc:sound-sound-card2-controlC2.device shairport-sync.service
 After=sys-devices-platform-soc-soc:sound-sound-card2-controlC2.device
 
 [Service]

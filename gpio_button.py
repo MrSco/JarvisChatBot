@@ -34,9 +34,9 @@ while True:
             # Record the time when the button is pressed
             buttonPressTime = time.time()
         elif time.time() - buttonPressTime >= 5:
-            os.system("sudo systemctl stop jarvischatbot.service")
-            # If the button is held down for 5 seconds, shutdown
-            os.system("sudo shutdown -h now")
+            os.system("sudo systemctl stop --now jarvischatbot.service")
+            # If the button is held down for 5 seconds, poweroff
+            os.system("sudo poweroff")
             # Reset the button press time
             buttonPressTime = None
     else:

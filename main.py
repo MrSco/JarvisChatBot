@@ -24,6 +24,24 @@ from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
 import requests
 
+# from alarm_timer_service import AlarmTimerService
+
+# # Initialize the alarm and timer service
+# alarm_timer_service = AlarmTimerService()
+
+# def alarm_callback():
+#     print("Alarm triggered!")
+
+# def timer_callback():
+#     print("Timer finished!")
+
+# # Example usage
+# alarm_time = datetime.now() + timedelta(seconds=10)  # Set an alarm for 10 seconds from now
+# alarm_timer_service.add_alarm(alarm_time, alarm_callback)
+
+# timer_duration = 5  # Set a timer for 5 seconds
+# alarm_timer_service.add_timer(timer_duration, timer_callback)
+
 transcript_seperator = f"_"*40
 script_dir = os.path.dirname(os.path.abspath(__file__))
 shairport_handler = None
@@ -62,6 +80,7 @@ led_service = None
 is_rpi= platform.system() == 'Linux' and is_running_on_raspberry_pi()
 if is_rpi:
     try:
+        import dbus
         from led_service import LEDService        
         led_service = LEDService()
         led_service.handle_event("Starting")
@@ -104,28 +123,49 @@ def append2log(text, noNewLine=False):
         socketio.emit('update_chat', {'message': text.strip()})
 
 class ShairportSyncHandler:
-    def __init__(self, wake_word_detector):
-        self.wake_word_detector = wake_word_detector
-        self.metadata_pipe = "/tmp/shairport-sync-metadata"
-        self.is_playing = False
-        self.thread = threading.Thread(target=self.read_metadata)
-        self.thread.daemon = True
+    def __init__(self):
+        self.is_running = True
+        self.is_playing = detector.is_awoken
+        self.blink_led_thread = None
+        self.bus = dbus.SystemBus()
+        self.shairport_proxy = self.bus.get_object('org.gnome.ShairportSync', '/org/gnome/ShairportSync')
+        self.shairport_interface = dbus.Interface(self.shairport_proxy, 'org.freedesktop.DBus.Properties')
+        self.thread = threading.Thread(target=self.check_if_playing)
         self.thread.start()
 
-    def read_metadata(self):
-        with open(self.metadata_pipe, 'r') as pipe:
-            while True:
-                line = pipe.readline()
-                if "ssnc" in line:
-                    if "play" in line:
+    def check_if_playing(self):
+        while self.is_running:
+            try:
+                if self.shairport_interface.Get('org.gnome.ShairportSync', 'Active'):
+                    if not self.is_playing:
                         self.is_playing = True
-                        self.wake_word_detector.is_awoken = True
-                    elif "stop" in line or "pause" in line:
+                        detector.is_awoken = self.is_playing
+                        self.blink_led_thread = threading.Thread(target=self.blink_led)
+                        self.blink_led_thread.start()
+                        print("Pausing chatbot vad...")
+                else:
+                    if self.is_playing:
                         self.is_playing = False
-                        self.wake_word_detector.is_awoken = False
-                time.sleep(0.1)
+                        if self.blink_led_thread is not None and self.blink_led_thread.is_alive():
+                            self.blink_led_thread.join()
+                        detector.is_awoken = self.is_playing
+                        detector.handle_led_event("Running")
+                        print("Resuming chatbot vad...")
+            except dbus.DBusException as e:
+                print(f"Error communicating with Shairport Sync: {e}")
+            time.sleep(1)
+
+    def blink_led(self):
+        while self.is_running and self.is_playing:
+            detector.handle_led_event("Paused")
+            time.sleep(0.5)
+            detector.handle_led_event("Off")
+            time.sleep(0.5)
 
     def cleanup(self):
+        self.is_running = False
+        if self.blink_led_thread is not None and self.blink_led_thread.is_alive():
+            self.blink_led_thread.join()
         if self.thread.is_alive():
             self.thread.join()
         # Explicitly invoke garbage collection
@@ -279,7 +319,7 @@ class WakeWordDetector:
         )
         print("Listening for '" + assistant["wake_word"] + "'...")
         self.is_request_processing = False
-        self.is_awoken = False
+        self.is_awoken = shairport_handler.is_playing if shairport_handler is not None else False
         socketio.emit('chatbot_ready', {'status': 'ready'})
     
     def something_went_wrong(self):
@@ -496,6 +536,21 @@ def get_chat_log_for_date(date):
     chatlog = [{"message": message.strip()} for message in chatlog]
     return chatlog
 
+# # Add endpoints to set alarms and timers
+# @app.route('/set_alarm', methods=['POST'])
+# def set_alarm():
+#     data = request.json
+#     alarm_time = datetime.strptime(data['time'], '%Y-%m-%d %H:%M:%S')
+#     alarm_timer_service.add_alarm(alarm_time, alarm_callback)
+#     return jsonify({'status': 'alarm set'})
+
+# @app.route('/set_timer', methods=['POST'])
+# def set_timer():
+#     data = request.json
+#     duration = int(data['duration'])
+#     alarm_timer_service.add_timer(duration, timer_callback)
+#     return jsonify({'status': 'timer set'})
+
 @app.route('/chatlog/<date>', methods=['GET'])
 def chatlog(date):
     chatlog = get_chat_log_for_date(date)
@@ -624,8 +679,8 @@ def runApp():
     while True:
         loading_sound = SoundEffectService(config).play_loop("loading")
         detector = WakeWordDetector()
-        if config["use_shairport-sync"]:
-            shairport_handler = ShairportSyncHandler(detector)
+        if is_rpi and config["use_shairport-sync"]:
+            shairport_handler = ShairportSyncHandler()
         app.config['detector'] = detector  # Attach detector to the Flask app config    
         detector.run()
         if not detector.restart_app:
@@ -639,6 +694,8 @@ def signal_handler(sig, frame):
         return
     is_exiting = True
     print('Exiting gracefully...')
+    if shairport_handler is not None:
+        shairport_handler.cleanup()
     if detector is not None:
         detector.cleanup()
     if is_rpi:

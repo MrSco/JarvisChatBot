@@ -57,6 +57,8 @@ class LEDService:
             self.set_color(_GREEN)
         elif "Shutdown" == event:
             self.set_color(_ORANGE)
+        elif "Paused" == event:
+            self.set_color(_ORANGE)
         elif "Off" == event:
             self.set_color(_BLACK)
     
