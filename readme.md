@@ -117,6 +117,7 @@ cd JarvisChatBot
 
 ```bash
 chmod +x install.sh
+chmod +x sound_startup.sh
 ./install.sh
 ```
 
