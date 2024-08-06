@@ -46,7 +46,6 @@ transcript_seperator = f"_"*40
 script_dir = os.path.dirname(os.path.abspath(__file__))
 shairport_handler = None
 detector = None
-flask_thread = None
 app = None
 socketio = None
 config = None
@@ -123,53 +122,61 @@ def append2log(text, noNewLine=False):
         socketio.emit('update_chat', {'message': text.strip()})
 
 class ShairportSyncHandler:
-    def __init__(self):
+    def __init__(self, wakeword_detector):
+        self.wakeword_detector = wakeword_detector
         self.is_running = True
-        self.is_playing = detector.is_awoken
+        self.shairport_active = False
         self.blink_led_thread = None
         self.bus = dbus.SystemBus()
         self.shairport_proxy = self.bus.get_object('org.gnome.ShairportSync', '/org/gnome/ShairportSync')
         self.shairport_interface = dbus.Interface(self.shairport_proxy, 'org.freedesktop.DBus.Properties')
-        self.thread = threading.Thread(target=self.check_if_playing)
+        self.thread = threading.Thread(target=self.check_if_active)
         self.thread.start()
 
-    def check_if_playing(self):
-        while self.is_running:
-            try:
+    def check_if_active(self):
+        while self.wakeword_detector.is_running and self.is_running:
+            try:                
                 if self.shairport_interface.Get('org.gnome.ShairportSync', 'Active'):
-                    if not self.is_playing:
-                        self.is_playing = True
-                        detector.is_awoken = self.is_playing
+                    if not self.shairport_active:
+                        self.shairport_active = True
+                        self.wakeword_detector.is_awoken = self.shairport_active
                         self.blink_led_thread = threading.Thread(target=self.blink_led)
                         self.blink_led_thread.start()
                         print("Pausing chatbot vad...")
+                        socketio.emit('shairport_active', {'status': 'ready'})
                 else:
-                    if self.is_playing:
-                        self.is_playing = False
+                    if self.shairport_active:
+                        self.shairport_active = False
+                        self.wakeword_detector.is_awoken = self.shairport_active
                         if self.blink_led_thread is not None and self.blink_led_thread.is_alive():
                             self.blink_led_thread.join()
-                        detector.is_awoken = self.is_playing
-                        detector.handle_led_event("Running")
+                        self.wakeword_detector.handle_led_event("Running")
                         print("Resuming chatbot vad...")
+                        socketio.emit('shairport_active', {'status': 'done'})
             except dbus.DBusException as e:
                 print(f"Error communicating with Shairport Sync: {e}")
             time.sleep(1)
 
     def blink_led(self):
-        while self.is_running and self.is_playing:
-            detector.handle_led_event("Paused")
+        while self.is_running and self.shairport_active:
+            self.wakeword_detector.handle_led_event("Paused")
             time.sleep(0.5)
-            detector.handle_led_event("Off")
+            self.wakeword_detector.handle_led_event("Off")
             time.sleep(0.5)
 
     def cleanup(self):
-        self.is_running = False
+        print("Cleaning up Shairport Sync handler...")
+        self.shairport_active = False
         if self.blink_led_thread is not None and self.blink_led_thread.is_alive():
             self.blink_led_thread.join()
+        self.is_running = False
         if self.thread.is_alive():
             self.thread.join()
-        # Explicitly invoke garbage collection
-        gc.collect()
+        self.bus = None
+        self.shairport_interface = None
+        self.shairport_proxy = None
+        self.blink_led_thread = None
+        self.thread = None
 
 class WakeWordDetector:
     def __init__(self):
@@ -211,7 +218,7 @@ class WakeWordDetector:
             try:
                 if self.is_awoken:
                     #print("Audio producer paused")
-                    while self.is_awoken:
+                    while self.is_running and self.is_awoken:
                         time.sleep(1)
                 #print("Audio producer resumed")
                 oww_audio = np.frombuffer(self.mic_stream.read(self.oww_chunk_size, exception_on_overflow=False), dtype=np.int16)
@@ -230,8 +237,10 @@ class WakeWordDetector:
         while self.is_running:
             try:
                 if self.is_awoken:
-                    while self.is_awoken:
+                    #print("Audio consumer paused")
+                    while self.is_running and self.is_awoken:
                         time.sleep(1)
+                #print("Audio consumer resumed")
                 self.handle_led_event("Running")
                 oww_audio = self.audio_queue.get()
                 audio_level = np.abs(oww_audio).mean()
@@ -317,10 +326,15 @@ class WakeWordDetector:
             input=True,
             frames_per_buffer=self.oww_chunk_size,
         )
-        print("Listening for '" + assistant["wake_word"] + "'...")
         self.is_request_processing = False
-        self.is_awoken = shairport_handler.is_playing if shairport_handler is not None else False
-        socketio.emit('chatbot_ready', {'status': 'ready'})
+        if shairport_handler is not None and shairport_handler.shairport_active:
+            self.is_awoken = True
+            socketio.emit('shairport_active', {'status': 'ready'})
+            print("Airplay active. Pausing chatbot vad...")
+        else:
+            self.is_awoken = False
+            socketio.emit('chatbot_ready', {'status': 'ready'})
+            print("Listening for '" + assistant["wake_word"] + "'...")
     
     def something_went_wrong(self):
         if self.listener.sound_effect is not None:
@@ -488,6 +502,7 @@ class WakeWordDetector:
             self.cleanup()
 
     def cleanup(self):
+        print("Cleaning up detector...")
         self.is_running = False
         if self.producer_thread.is_alive():
             self.producer_thread.join()
@@ -504,8 +519,6 @@ class WakeWordDetector:
         self.chat_gpt_service = None
         self.listener = None
         self.handle = None
-        # Explicitly invoke garbage collection
-        gc.collect()
 
 @app.template_filter('find_url')
 def find_url_filter(text):
@@ -668,36 +681,41 @@ def run_flask_app():
     socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=True, host="0.0.0.0")
 
 def restart_app():
-    if shairport_handler is not None:
-        shairport_handler.cleanup()
     if detector is not None:
         detector.restart_app = True 
         detector.cleanup()
+    if shairport_handler is not None:
+        shairport_handler.cleanup()  
+    print("restart_app() complete.")  
 
 def runApp():
     global detector, shairport_handler, loading_sound
-    while True:
+    while not is_exiting:
         loading_sound = SoundEffectService(config).play_loop("loading")
         detector = WakeWordDetector()
         if is_rpi and config["use_shairport-sync"]:
-            shairport_handler = ShairportSyncHandler()
+            shairport_handler = ShairportSyncHandler(detector)
         app.config['detector'] = detector  # Attach detector to the Flask app config    
         detector.run()
         if not detector.restart_app:
             break
         else:
             detector = None
+            shairport_handler = None
+            gc.collect()
+        time.sleep(0.1)
 
 def signal_handler(sig, frame):
+    print('Signal received: ', sig)
     global is_exiting
     if is_exiting:
         return
     is_exiting = True
     print('Exiting gracefully...')
-    if shairport_handler is not None:
-        shairport_handler.cleanup()
     if detector is not None:
         detector.cleanup()
+    if shairport_handler is not None:
+        shairport_handler.cleanup()
     if is_rpi:
         led_service.turn_off()
     if config["use_elevenlabs"]:
@@ -705,6 +723,8 @@ def signal_handler(sig, frame):
     else:
         TextToSpeechService(config).speak("Goodbye!")
     sys.exit(0)
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 def check_internet_connection(url='http://www.google.com/', timeout=5):
     try:
@@ -721,13 +741,11 @@ if __name__ == "__main__":
         TextToSpeechService(config).speak("No internet connection")
         if is_rpi:
             led_service.handle_event("NoInternet")
-        signal_handler(signal.SIGINT, None)
     else:    
         if is_rpi:
             led_service.handle_event("Connected")
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    if config["use_frontend"]:
-        print("Starting Flask frontend...")
-        socketio.start_background_task(run_flask_app)
-    runApp()
+    
+        if config["use_frontend"]:
+            print("Starting Flask frontend...")
+            socketio.start_background_task(run_flask_app)
+        runApp()

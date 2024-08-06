@@ -45,12 +45,13 @@ while True:
             if time.time() - buttonPressTime < 5:
                 output = os.popen('sudo systemctl is-active jarvischatbot.service').read()
                 led_service.turn_on()
-                sound_effect.play("halflifebutton")
                 # check if jarvischatbot.service is running and toggle it
                 if 'inactive' in output or 'failed' in output:
+                    sound_effect.play("halflifebutton")
                     led_service.handle_event("Starting")
                     os.system("sudo systemctl start jarvischatbot.service")        
                 else:
+                    sound_effect.play("halflifebutton")
                     os.system("sudo systemctl stop --now jarvischatbot.service")
             # Reset the button press time
             buttonPressTime = None

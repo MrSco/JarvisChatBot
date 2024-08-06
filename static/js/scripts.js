@@ -189,10 +189,12 @@ else {
             randomizationFactor: 0.5
         });
         socket.on('connect', function () {
+            redDot.style.visibility = 'hidden';
             console.log('Connected to the server.');
             chatbot_ready({ status: 'ready' });
         });
         socket.on('disconnect', function (reason) {
+            redDot.style.visibility = 'hidden';
             console.log('Disconnected from the server. Reason:', reason);
             setStatusMsg('Disconnected.');
         });
@@ -257,6 +259,17 @@ else {
         socket.on('listening_for_prompt', function(data) {
             if(data.status === 'ready') {
                 setStatusMsg('Listening for prompt...');
+            }
+        });
+
+        socket.on('shairport_active', function(data) {
+            if(data.status === 'ready') {
+                redDot.title = '';
+                redDot.style.visibility = 'hidden';
+                setStatusMsg('Airplay music active...');
+            }
+            else {
+                setStatusMsg('Airplay music stopped...');
             }
         });
 
