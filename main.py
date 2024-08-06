@@ -196,6 +196,7 @@ class WakeWordDetector:
         self.producer_thread = None
         self.consumer_thread = None
         self.restart_app = False
+        self.mic_stream = None
 
         self.handle = Model(
             wakeword_models=[oww_model_path], 
@@ -269,7 +270,7 @@ class WakeWordDetector:
                     self.is_awoken = True
                     print(f"Awoken with score {round(score, 3)}!")
                     self.handle_led_event("Transcript")
-                    self.sound_effect.play("awake")
+                    self.sound_effect.play(self.sound_effect.get_random_wake_sound())
                     socketio.emit('listening_for_prompt', {'status': 'ready'})
                     self.listener.listen()
                     self.handle_led_event("StreamingStarted")
@@ -283,6 +284,7 @@ class WakeWordDetector:
                         continue
                     self.process_transcript(self.listener.transcript)
             except Exception as e:
+                print("Error processing audio in audio_consumer...")
                 self.something_went_wrong()
                 print(f"Error: {e}")
                 continue
@@ -319,13 +321,14 @@ class WakeWordDetector:
 
     def _init_mic_stream(self):
         self.handle_led_event("Connected")
-        self.mic_stream = self.pa.open(
-            rate=self.oww_sample_rate,
-            channels=self.oww_channels,
-            format=pyaudio.paInt16,
-            input=True,
-            frames_per_buffer=self.oww_chunk_size,
-        )
+        if self.pa is not None:
+            self.mic_stream = self.pa.open(
+                rate=self.oww_sample_rate,
+                channels=self.oww_channels,
+                format=pyaudio.paInt16,
+                input=True,
+                frames_per_buffer=self.oww_chunk_size,
+            )
         self.is_request_processing = False
         if shairport_handler is not None and shairport_handler.shairport_active:
             self.is_awoken = True
@@ -362,7 +365,7 @@ class WakeWordDetector:
             if len(transcript) < 2 and not image:
                 self.handle_led_event("VoiceStarted")
                 short_response = "Hi, there, how can I help?"
-                self.sound_effect.play("done")
+                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 if self.use_elevenlabs:
                     self.sound_effect.play("hi_how_can_i_help")
                 else:
@@ -409,7 +412,7 @@ class WakeWordDetector:
                 # get the current time in am/pm format without leading zeros
                 current_time = time.strftime('%I:%M %p').lstrip("0").replace("AM", "a.m.").replace("PM", "p.m.")
                 response = f"{current_time}"
-                self.sound_effect.play("done")
+                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 #self.sound_effect.play("the_current_time_is")
                 append2log(f"{assistant_name}: {response} \n")
                 self.handle_led_event("VoiceStarted")
@@ -459,7 +462,7 @@ class WakeWordDetector:
                 self._init_mic_stream()
                 return
 
-            self.sound_effect.play("done")
+            self.sound_effect.play(self.sound_effect.get_random_filler_sound())
             print("Sending to chat GPT...")
             append2log(f"You: {transcript}", noNewLine=True)
             self.chat_gpt_service.sound_effect = self.sound_effect.play_loop("loading")
@@ -504,9 +507,10 @@ class WakeWordDetector:
     def cleanup(self):
         print("Cleaning up detector...")
         self.is_running = False
-        if self.producer_thread.is_alive():
+        current_thread = threading.current_thread()
+        if self.producer_thread.is_alive() and self.producer_thread != current_thread:
             self.producer_thread.join()
-        if self.consumer_thread.is_alive():
+        if self.consumer_thread.is_alive() and self.consumer_thread != current_thread:
             self.consumer_thread.join()
         if self.mic_stream is not None:
             self.mic_stream.close()

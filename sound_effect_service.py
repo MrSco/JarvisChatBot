@@ -1,4 +1,5 @@
 import os
+import random
 from pydub import AudioSegment
 from pydub.playback import _play_with_simpleaudio
 
@@ -13,6 +14,14 @@ class SoundEffectService:
         self.assistant_name = config["assistant"]
         self.player = None
         self.generic_sound_names = ["error", "awake", "done", "initializing", "loading", "halflifebutton"]
+        self.awake_sound_names = ["listening", "you_called", "yes", "hello"]
+        self.filler_sound_names = ["ummm", "ehhh", "uhhhh", "hmmm"]
+
+    def get_random_wake_sound(self):
+        return self.awake_sound_names[random.randint(0, len(self.awake_sound_names) - 1)]
+    
+    def get_random_filler_sound(self):
+        return self.filler_sound_names[random.randint(0, len(self.filler_sound_names) - 1)]
 
     def get_sound(self, sound_name, assistant_name):
         return AudioSegment.from_file(os.path.join(sounds_dir, assistant_name if not sound_name in self.generic_sound_names else "", f"{sound_name}.wav"), format="wav")
