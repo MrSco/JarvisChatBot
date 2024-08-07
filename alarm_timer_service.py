@@ -116,7 +116,7 @@ class AlarmTimerService:
     def _reload_and_start_timer(self, timer_name):
         os.system(f'sudo systemctl daemon-reload --now')
         os.system(f'sudo systemctl enable --now {timer_name}')
-        os.system(f'sudo systemctl start --now {timer_name}')
+        os.system(f'sudo systemctl try-reload-or-restart --now {timer_name}')
         print(f"Enabled and started {timer_name}")
     
     def clear_systemd_timers(self):
