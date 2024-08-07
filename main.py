@@ -1,5 +1,5 @@
 import base64
-from datetime import date
+from datetime import date, datetime
 import gc
 import json
 import os
@@ -18,29 +18,13 @@ from openwakeword.model import Model
 import pyaudio
 from sound_effect_service import SoundEffectService
 from tts_service import TextToSpeechService
+from alarm_timer_service import AlarmTimerService
+from trigger_alarm_timer import alarm_callback, timer_callback
 import threading
 from flask import Flask, jsonify, render_template, send_from_directory, request
 from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
 import requests
-
-# from alarm_timer_service import AlarmTimerService
-
-# # Initialize the alarm and timer service
-# alarm_timer_service = AlarmTimerService()
-
-# def alarm_callback():
-#     print("Alarm triggered!")
-
-# def timer_callback():
-#     print("Timer finished!")
-
-# # Example usage
-# alarm_time = datetime.now() + timedelta(seconds=10)  # Set an alarm for 10 seconds from now
-# alarm_timer_service.add_alarm(alarm_time, alarm_callback)
-
-# timer_duration = 5  # Set a timer for 5 seconds
-# alarm_timer_service.add_timer(timer_duration, timer_callback)
 
 transcript_seperator = f"_"*40
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -110,6 +94,7 @@ if config["use_frontend"]:
     app = Flask(__name__)
     socketio = SocketIO(app, async_mode='threading')
 
+alarm_timer_service = AlarmTimerService()
 
 # save conversation to a log file 
 def append2log(text, noNewLine=False):
@@ -350,7 +335,49 @@ class WakeWordDetector:
         else:
             self.speech.speak(f"Something went wrong!")
         self._init_mic_stream()
+    
+    def extract_time_from_transcript(self, transcript):
+        # Regular expression to match time in HH:MM AM/PM format
+        time_pattern = re.compile(r'(\d{1,2}:\d{2}\s?(?:AM|PM|am|pm)?)')
+        match = time_pattern.search(transcript)
+        if match:
+            time_str = match.group(1)
+            # Convert the matched time string to a datetime object
+            alarm_time = datetime.strptime(time_str, '%I:%M %p')
+            return alarm_time
+        else:
+            raise ValueError("No valid time found in transcript")
 
+    def extract_duration_from_transcript(self, transcript):
+        # Regular expression to match duration in minutes or seconds
+        duration_pattern = re.compile(r'(\d+)\s?(seconds?|minutes?|hours?|days?)')
+        match = duration_pattern.search(transcript)
+        if match:
+            duration_value = int(match.group(1))
+            duration_unit = match.group(2).lower()
+            if 'day' in duration_unit:
+                duration_seconds = duration_value * 24 * 3600
+            elif 'hour' in duration_unit:
+                duration_seconds = duration_value * 3600
+            elif 'minute' in duration_unit:
+                duration_seconds = duration_value * 60
+            else:
+                duration_seconds = duration_value
+                # if not is_rpi:
+                #     duration_seconds = 60 if duration_seconds < 60 else duration_seconds
+            return duration_seconds
+        else:
+            raise ValueError("No valid duration found in transcript")
+        
+    def durationSecondsToMaxUnits(self, seconds):
+        days = seconds // (24 * 3600)
+        seconds = seconds % (24 * 3600)
+        hours = seconds // 3600
+        seconds %= 3600
+        minutes = seconds // 60
+        seconds %= 60
+        return days, hours, minutes, seconds
+    
     def process_transcript(self, transcript, image=None, image_name=''):
         if self.is_request_processing:
             print("A request is already being processed. Please wait.")
@@ -392,28 +419,73 @@ class WakeWordDetector:
             #     self._init_mic_stream()
             #     return
             
-            time_phrases = [
-                "what time is it",
-                "what is the time",
-                "what is the current time",
-                "what's the time",
-                "what's the current time",
-                "do you have the time",
-                "do you have the current time",
-                "do you know the time",
-                "do you know the current time",
-                "tell me the time",
-                "tell me the current time",
-                "tell me what time it is",
-            ]
+            # time_phrases = [
+            #     "what time is it",
+            #     "what is the time",
+            #     "what is the current time",
+            #     "what's the time",
+            #     "what's the current time",
+            #     "do you have the time",
+            #     "do you have the current time",
+            #     "do you know the time",
+            #     "do you know the current time",
+            #     "tell me the time",
+            #     "tell me the current time",
+            #     "tell me what time it is",
+            # ]
 
-            if any(phrase in transcript for phrase in time_phrases) and not image:
-                append2log(f"You: {transcript} \n")
-                # get the current time in am/pm format without leading zeros
-                current_time = time.strftime('%I:%M %p').lstrip("0").replace("AM", "a.m.").replace("PM", "p.m.")
-                response = f"{current_time}"
+            # if any(phrase in transcript for phrase in time_phrases) and not image:
+            #     append2log(f"You: {transcript} \n")
+            #     # get the current time in am/pm format without leading zeros
+            #     current_time = time.strftime('%I:%M %p').lstrip("0").replace("AM", "a.m.").replace("PM", "p.m.")
+            #     response = f"{current_time}"
+            #     self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+            #     #self.sound_effect.play("the_current_time_is")
+            #     append2log(f"{assistant_name}: {response} \n")
+            #     self.handle_led_event("VoiceStarted")
+            #     self.speech.speak(response)
+            #     self._init_mic_stream()
+            #     return
+
+            if "set an alarm" in transcript and not image:
+                # Extract time from transcript and set alarm
+                alarm_time = self.extract_time_from_transcript(transcript)
+                alarm_timer_service.add_alarm(alarm_time, alarm_callback)
+                response = "Alarm set for " + alarm_time.strftime('%I:%M %p')
                 self.sound_effect.play(self.sound_effect.get_random_filler_sound())
-                #self.sound_effect.play("the_current_time_is")
+                append2log(f"{assistant_name}: {response} \n")
+                self.handle_led_event("VoiceStarted")
+                self.speech.speak(response)
+                self._init_mic_stream()
+                return
+            
+            if "set a timer" in transcript and not image:
+                # Extract duration from transcript and set timer
+                duration = self.extract_duration_from_transcript(transcript)
+                alarm_timer_service.add_timer(duration, timer_callback)
+                days, hours, minutes, seconds = self.durationSecondsToMaxUnits(duration)
+                day = f"{days} day" + ("s" if days > 1 else "") + ", " if days else ""
+                hour = f"{hours} hour" + ("s" if hours > 1 else "") + ", " if hours else ""
+                minute = f"{minutes} minute" + ("s" if minutes > 1 else "") + ", " if minutes else ""
+                second = f"{seconds} second" + ("s" if seconds > 1 else "") + ", " if seconds else ""
+                response = "Timer set for " + f"{day}{hour}{minute}{second}"
+                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                append2log(f"{assistant_name}: {response} \n")
+                self.handle_led_event("VoiceStarted")
+                self.speech.speak(response)
+                self._init_mic_stream()
+                return
+
+            delete_phrases = [
+            "delete all alarms and timers",
+            "delete all alarms",
+            "delete all timers",
+            "delete all timers and alarms",
+            ]
+            if any(phrase in transcript for phrase in delete_phrases) and not image:
+                alarm_timer_service.delete_all_jobs()
+                response = "All alarms and timers deleted"
+                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 append2log(f"{assistant_name}: {response} \n")
                 self.handle_led_event("VoiceStarted")
                 self.speech.speak(response)
@@ -553,7 +625,6 @@ def get_chat_log_for_date(date):
     chatlog = [{"message": message.strip()} for message in chatlog]
     return chatlog
 
-# # Add endpoints to set alarms and timers
 # @app.route('/set_alarm', methods=['POST'])
 # def set_alarm():
 #     data = request.json
@@ -567,6 +638,11 @@ def get_chat_log_for_date(date):
 #     duration = int(data['duration'])
 #     alarm_timer_service.add_timer(duration, timer_callback)
 #     return jsonify({'status': 'timer set'})
+
+# @app.route('/delete_all_jobs', methods=['POST'])
+# def delete_all_jobs():
+#     alarm_timer_service.delete_all_jobs()
+#     return jsonify({'status': 'all jobs deleted'})
 
 @app.route('/chatlog/<date>', methods=['GET'])
 def chatlog(date):

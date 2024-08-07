@@ -1,0 +1,14 @@
+pyaudio
+openai
+groq
+elevenlabs
+SpeechRecognition
+pydub
+simpleaudio
+geocoder
+flask
+flask_socketio
+pyttsx3
+numpy
+openwakeword
+gtts

@@ -25,5 +25,6 @@
     "phrase_time_limit": 20,
     "system_prompt": "You are a voice assistant named {assistant_name}.{assistant_descr} Your responses, speech patterns, humor and wit should reflect that character. Make your answers short and concise so they can be spoken back in 20 seconds or less. The main user will be a child between the ages of 5 and 12. Make the responses appropriate for that age group. Today is {today} and the current time is {theCurrentTime}. {weather_info} Keep track of this information, as you may be asked about it much later on. ",
     "use_frontend": true,
-    "use_shairport-sync": false
+    "use_shairport-sync": false,
+    "windows_task_author": "COMPUTERNAME\\USER"
 }

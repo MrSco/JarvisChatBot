@@ -13,7 +13,7 @@ class SoundEffectService:
             config["assistant"] = "jarvis"
         self.assistant_name = config["assistant"]
         self.player = None
-        self.generic_sound_names = ["error", "awake", "done", "initializing", "loading", "halflifebutton"]
+        self.generic_sound_names = ["error", "awake", "done", "initializing", "loading", "halflifebutton", "alarm", "timer"]
         self.awake_sound_names = ["listening", "you_called", "yes", "hello"]
         self.filler_sound_names = ["ummm", "ehhh", "uhhhh", "hmmm"]
 
