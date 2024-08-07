@@ -10,10 +10,11 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 trigger_script_path = os.path.join(script_dir, "trigger_alarm_timer.py")
 class AlarmTimerService:
     def __init__(self):
+        is_windows = platform.system() == "Windows"
         self.cron_file = "/etc/cron.d/alarm_timer_cron"
-        self.is_windows = platform.system() == "Windows"
+        self.is_windows = is_windows
         self.python_exe = os.path.join(script_dir, "venv/bin/python3" if not self.is_windows else "venv/Scripts/python")
-        self.buffer_time = 7
+        self.buffer_time = 1 if is_windows else 12
         
     def add_alarm(self, alarm_time, callback):
         print(f"Setting alarm for {alarm_time}.")
@@ -26,7 +27,7 @@ class AlarmTimerService:
         else:
             self._create_systemd_service(service_name, 'alarm')
             self._create_systemd_timer(timer_name, alarm_time, service_name, is_alarm=True)
-            self._reload_and_start_timer(timer_name)
+            self._reload_and_start_timer(service_name, timer_name)
 
     def add_timer(self, duration, callback):
         print(f"Setting timer for {duration} seconds.")
@@ -40,7 +41,7 @@ class AlarmTimerService:
         else:
             self._create_systemd_service(service_name, 'timer')
             self._create_systemd_timer(timer_name, timer_time, service_name, is_alarm=False)
-            self._reload_and_start_timer(timer_name)
+            self._reload_and_start_timer(service_name, timer_name)
 
     def _add_scheduled_task(self, run_time, task_name, type):
         today = datetime.now()
@@ -114,11 +115,12 @@ class AlarmTimerService:
             timer_file.write(timer_content)
         print(f"Created timer file at {timer_path}")
 
-    def _reload_and_start_timer(self, timer_name):
+    def _reload_and_start_timer(self, service_name, timer_name):
         os.system(f'sudo systemctl daemon-reload')
+        os.system(f'sudo systemctl enable {service_name}')
         os.system(f'sudo systemctl enable {timer_name}')
         os.system(f'sudo systemctl try-reload-or-restart {timer_name}')
-        print(f"Enabled and reloaded/restarted {timer_name}")
+        print(f"Enabled and started {timer_name}")
     
     def clear_systemd_timers(self):
         timer_names = ["jarvis_alarm.timer", "jarvis_timer.timer"]
