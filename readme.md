@@ -175,7 +175,7 @@ alsamixer
 
 ```bash
 alsactl -U --file ~/.config/asound.state store
-sudo mv ~/.config/asound.state /var/lib/alsa/asound.state
+sudo cp ~/.config/asound.state /var/lib/alsa/asound.state
 ```
 
 ## Using as an AirPlay speaker with ShairPort-Sync

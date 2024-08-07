@@ -35,7 +35,7 @@ class AlarmTimerService:
     def _add_cron_job(self, cron_time, cron_command):
         with open(self.cron_file, 'a') as cron_file:
             cron_file.write(f"{cron_time} {cron_command}\n")
-        command = f'"{command}"'
+        cron_command = f'"{cron_command}"'
         full_command = ["crontab", self.cron_file]
         print("Running alarm/timer command: " + " ".join(full_command))
         subprocess.run(full_command)
