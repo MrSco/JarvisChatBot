@@ -89,14 +89,14 @@ class AlarmTimerService:
     def _create_systemd_timer(self, timer_name, time_value, service_name, is_alarm=False):
         if is_alarm:
             # Alarms should repeat at the same time every day
-            on_calendar = time_value.strftime('%H:%M:%S')
+            on_calendar = time_value.strftime('*-*-* %H:%M:%S')
         else:
             # Timers should not repeat
             on_calendar = time_value.strftime('%Y-%m-%d %H:%M:%S')
         
         timer_content = f"""
         [Unit]
-        Description=Run Jarvis {service_name.split('_')[1].capitalize()} Service
+        Description=Run Jarvis {service_name.split('_')[1].capitalize()} Timer
 
         [Timer]
         OnCalendar={on_calendar}
