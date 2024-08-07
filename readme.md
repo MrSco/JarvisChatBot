@@ -96,9 +96,10 @@ Below are the commands to set up the project on your Raspberry Pi:
 1. **Install the ReSpeaker 2-Mics Pi HAT sound card**
 
 ```bash
-sudo apt-get update -y
-sudo apt-get upgrade -y
-sudo apt-get install portaudio19-dev libatlas-base-dev git python3-pip ffmpeg flac espeak mpv build-essential libpython3-dev libdbus-1-dev libglib2.0-dev pipewire-audio-client-libraries -y
+sudo apt update -y
+sudo apt upgrade -y
+sudo apt install portaudio19-dev libatlas-base-dev git python3-pip ffmpeg flac espeak mpv build-essential libpython3-dev libdbus-1-dev libglib2.0-dev pipewire-audio-client-libraries -y
+sudo apt remove wireplumber -y
 KERNEL_VERSION=$(uname -r | cut -d'.' -f1,2)
 git clone --branch v$KERNEL_VERSION https://github.com/HinTak/seeed-voicecard
 cd seeed-voicecard
@@ -117,7 +118,6 @@ cd JarvisChatBot
 
 ```bash
 chmod +x install.sh
-chmod +x sound_startup.sh
 ./install.sh
 ```
 
@@ -133,11 +133,12 @@ install.bat
 
 # Edit the config.json file
 
-Copy the `config.json.example` file to `config.json` and edit the file to include your OpenAI and ElevenLabs keys.
+Copy the `config.json.example` file to `config.json` and edit the file to include your OpenAI and ElevenLabs keys. Also copy the `assistants.json.example` file to `assistants.json`.
 
 
 ```bash
 cp config.json.example config.json
+cp assistants.json.example assistants.json
 ```
 
 ```bash
@@ -301,7 +302,19 @@ LED Color Legend:
 - Pink: Processing user input
 - Yellow: Responding to user input
 - Orange: Shutting down
+- Flashing Orange: Airplay Connected to ShairPort-Sync
 - Off: Not running
+
+
+## AirPlay Speaker support via ShairPort-Sync
+
+The Raspberry Pi can be used as an AirPlay speaker using ShairPort-Sync. Whether the chatbot is running or not, you can stream audio to the Raspberry Pi using AirPlay. 
+If running, the microphone will be muted and the LED lights will flash orange when connected to ShairPort-Sync. After disconnecting, the microphone will be unmuted and the LED lights will return to normal.
+
+## Alarms and Timers
+
+The JarvisChatBot can be used to set alarms and timers. systemd (and scheduled tasks on windows) are used to store the alarms and timers. 
+You can use the phrases `set an alarm for 6:30 am` or `set a timer for 10 minutes` to set an alarm or timer.
 
 ## Limitations
 
