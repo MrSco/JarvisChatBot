@@ -138,6 +138,8 @@ function enable_prompting() {
     document.getElementById('image').disabled = images_disabled;
     document.getElementById('sendButton').disabled = false;
     document.getElementById('imagePreview').style.display = 'none';
+    document.getElementById("assistantSelect").disabled = false;
+    document.getElementById('thresholdSlider').disabled = false;
 }
 
 function disable_prompting() {
@@ -146,12 +148,21 @@ function disable_prompting() {
     image.value = '';
     image.disabled = true;
     document.getElementById('sendButton').disabled = true;
+    document.getElementById("assistantSelect").disabled = true;
+    document.getElementById('thresholdSlider').disabled = true;
 }
 
 function chatbot_ready(data) {
     if(data.status === 'ready') {
         enable_prompting();
         setStatusMsg(`Listening for '${assistant_wake_word}'...`);
+        if (radio_playing) {
+            var button = document.getElementById("radioControlButton");
+            redDot.style.visibility = 'hidden';
+            setStatusMsg('Music active...');
+            button.textContent = "Stop Radio";
+            disable_prompting();
+        }
     }
 }
 
@@ -193,7 +204,6 @@ else {
         var thresholdSlider = document.getElementById('thresholdSlider');
         var vad_threshold = thresholdSlider.value;
         var redDot = document.getElementById('redDot');
-        var radioPlaying = false;
 
         var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port, {
             reconnection: true,
@@ -278,23 +288,24 @@ else {
                 redDot.style.visibility = 'hidden';
                 setStatusMsg('Music active...');
                 button.textContent = "Stop Radio";
-                radioPlaying = !radioPlaying;
+                disable_prompting();
+                radio_playing = !radio_playing;
             }
             else {
                 setStatusMsg('Music stopped...');
                 button.textContent = "Play Radio";
-                radioPlaying = !radioPlaying;
+                enable_prompting();
+                radio_playing = !radio_playing;
             }
         });                
 
         window.toggleRadio = function() {
             var button = document.getElementById("radioControlButton");
-            if (radioPlaying) {
+            if (radio_playing) {
                 stopRadio(button, "Play Radio");
             } else {
                 playRadio(button, "Stop Radio");
             }
-            //radioPlaying = !radioPlaying;
         };
         
         function playRadio(btn, text) {
@@ -309,7 +320,7 @@ else {
                     setStatusMsg('Music active...');
                     btn.textContent = text;
                     disable_prompting();
-                    radioPlaying = !radioPlaying;
+                    radio_playing = !radio_playing;
                 })
                 .catch(error => {
                     console.error("Error starting radio:", error);
@@ -327,7 +338,7 @@ else {
                     setStatusMsg('Music stopped...');
                     btn.textContent = text;
                     enable_prompting();
-                    radioPlaying = !radioPlaying;
+                    radio_playing = !radio_playing;
                 })
                 .catch(error => {
                     console.error("Error stopping radio:", error);

@@ -10,6 +10,7 @@
         var assistant_wake_word = "{{ assistant_dict['wake_word'] }}";
         var chatLogData = {{ chatlog|safe }};
         var images_disabled = {{ 'true' if images_disabled else 'false' }};
+        var radio_playing = {{ 'true' if radio_playing else 'false' }};
     </script>
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
     <link rel="icon" href='{{ url_for("static", filename="images/" + assistant_dict["name"].lower() + "-favicon.ico")}}'>
