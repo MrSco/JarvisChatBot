@@ -25,13 +25,10 @@ class ChatGPTService:
         self.assistant_descr = config["assistant_dict"]["descr"]
         self.system_prompt = config["system_prompt"]
         self.weather_info = "" #self.get_weather_url()
-        today = str(date.today()) 
         self.system_prompt = config["system_prompt"] \
             .replace("{assistant_name}", self.assistant_name) \
             .replace("{assistant_acronym}", self.assistant_acronym) \
             .replace("{assistant_descr}", self.assistant_descr) \
-            .replace("{today}", today) \
-            .replace("{theCurrentTime}", time.strftime('%I:%M %p').lstrip("0")) \
             .replace("{weather_info}", self.weather_info)
         self.history = [{"role": "system", "content": self.system_prompt}]
         self.sound_effect = None
@@ -121,6 +118,10 @@ class ChatGPTService:
             content = request
         # disable the history for now to save tokens
         self.history = self.history[:1]
+        print(f"History: {self.history}")
+        # replace the timestamp in the history with the current time
+        self.history[0]["content"] = self.history[0]["content"].replace("{today}", str(date.today())).replace("{theCurrentTime}", time.strftime('%I:%M %p').lstrip("0"))
+
         self.history.append({"role": "user", "content": content})
         result = None
         try:
