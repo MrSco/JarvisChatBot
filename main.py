@@ -109,8 +109,9 @@ def append2log(text, noNewLine=False):
         socketio.emit('update_chat', {'message': text.strip()})
 
 class ShairportSyncHandler:
-    def __init__(self, wakeword_detector):
+    def __init__(self, wakeword_detector, radio_player):
         self.wakeword_detector = wakeword_detector
+        self.radio_player = radio_player
         self.is_running = True
         self.shairport_active = False
         self.blink_led_thread = None
@@ -125,6 +126,8 @@ class ShairportSyncHandler:
             try:                
                 if self.shairport_interface.Get('org.gnome.ShairportSync', 'Active'):
                     if not self.shairport_active:
+                        if self.radio_player is not None and self.radio_player.running:
+                            self.radio_player.stop()
                         self.shairport_active = True
                         self.wakeword_detector.is_awoken = self.shairport_active
                         self.blink_led_thread = threading.Thread(target=self.blink_led)
@@ -860,9 +863,9 @@ def runApp():
     while not is_exiting:
         loading_sound = SoundEffectService(config).play_loop("loading")
         detector = WakeWordDetector()
-        if is_rpi and config["use_shairport-sync"]:
-            shairport_handler = ShairportSyncHandler(detector)
         radio_player = RadioPlayer(detector)
+        if is_rpi and config["use_shairport-sync"]:
+            shairport_handler = ShairportSyncHandler(detector, radio_player)
         app.config['detector'] = detector  # Attach detector to the Flask app config    
         detector.run()
         if not detector.restart_app:
