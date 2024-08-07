@@ -557,6 +557,8 @@ class WakeWordDetector:
             "cancel all timers",
             "clear all alarms",
             "clear all timers",
+            "forget all alarms",
+            "forget all timers",
             ]
             if any(phrase in transcript.lower() for phrase in delete_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
