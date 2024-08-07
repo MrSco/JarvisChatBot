@@ -14,14 +14,12 @@ class AlarmTimerService:
         self.cron_file = "/etc/cron.d/alarm_timer_cron"
         self.is_windows = is_windows
         self.python_exe = os.path.join(script_dir, "venv/bin/python3" if not self.is_windows else "venv/Scripts/python")
-        self.buffer_time = 1 if is_windows else 10
+        self.buffer_time = 0
         
     def add_alarm(self, alarm_time, callback):
         print(f"Setting alarm for {alarm_time}.")
         service_name = 'jarvis_alarm.service'
         timer_name = 'jarvis_alarm.timer'
-        # Add self.buffer_time seconds to the alarm time to account for the time it takes to start the alarm
-        alarm_time = alarm_time + timedelta(seconds=self.buffer_time)
         if self.is_windows:
             self._add_scheduled_task(alarm_time, "JarvisChatBotAlarmTask", "alarm")
         else:
@@ -35,12 +33,11 @@ class AlarmTimerService:
         timer_name = 'jarvis_timer.timer'
         # Add self.buffer_time seconds to the duration to account for the time it takes to start the timer
         timer_time = datetime.now() + timedelta(seconds=duration + self.buffer_time)
-        cron_time = timer_time.strftime('%M %H %d %m *')
         if self.is_windows:
             self._add_scheduled_task(timer_time, "JarvisChatBotTimerTask", "timer")
         else:
             self._create_systemd_service(service_name, 'timer')
-            self._create_systemd_timer(timer_name, timer_time, service_name, is_alarm=False)
+            self._create_systemd_timer(timer_name, timedelta(seconds=duration + self.buffer_time), service_name, is_alarm=False)
             self._reload_and_start_timer(service_name, timer_name)
 
     def _add_scheduled_task(self, run_time, task_name, type):
@@ -97,6 +94,7 @@ class AlarmTimerService:
             on_calendar = time_value.strftime('*-*-* %H:%M:%S')
         else:
             # Timers should not repeat
+            time_value = datetime.now() + time_value
             on_calendar = time_value.strftime('%Y-%m-%d %H:%M:%S')
         
         timer_content = f"""
