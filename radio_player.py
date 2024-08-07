@@ -9,6 +9,7 @@ class RadioPlayer:
         self.thread = None
         self.running = False
         self.stream_url = None
+        self.blink_led_thread = None
 
     def start(self, stream_url=None):
         if not self.running:
@@ -21,6 +22,8 @@ class RadioPlayer:
                 return
             self.running = True
             self.wakeword_detector.is_awoken = True
+            self.blink_led_thread = threading.Thread(target=self.blink_led)
+            self.blink_led_thread.start()
             self.player.set_media(vlc.Media(stream_url))
             self.thread = threading.Thread(target=self._play)
             self.thread.start()
@@ -46,6 +49,8 @@ class RadioPlayer:
             self.running = False
             self.wakeword_detector.is_awoken = False
             self.player.stop()
+            if self.blink_led_thread is not None and self.blink_led_thread.is_alive():
+                self.blink_led_thread.join()
             if self.thread:
                 self.thread.join()
                 self.thread = None
