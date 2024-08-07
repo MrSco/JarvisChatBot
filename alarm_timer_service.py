@@ -111,6 +111,7 @@ class AlarmTimerService:
         print(f"Created timer file at {timer_path}")
 
     def _reload_and_start_timer(self, timer_name):
+        os.system(f'sudo systemctl daemon-reload')
         os.system(f'sudo systemctl enable {timer_name}')
         os.system(f'sudo systemctl try-reload-or-restart {timer_name}')
         print(f"Enabled and reloaded/restarted {timer_name}")

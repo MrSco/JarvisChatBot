@@ -171,11 +171,14 @@ After you've selected the appropriate option, the system should use this device 
 alsamixer
 ```
 
-5. Save the settings:
+5. (Optional) Adjust alsa-restore.service and add the -U parameter to the exestart restore command:
 
 ```bash
-alsactl -U --file ~/.config/asound.state store
-sudo cp ~/.config/asound.state /var/lib/alsa/asound.state
+sudo nano /usr/lib/systemd/system/alsa-restore.service
+```
+
+```bash
+ExecStart=-/usr/sbin/alsactl -E HOME=/run/alsa -E XDG_RUNTIME_DIR=/run/alsa/runtime -U restore
 ```
 
 ## Using as an AirPlay speaker with ShairPort-Sync
