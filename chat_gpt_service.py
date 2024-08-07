@@ -118,7 +118,6 @@ class ChatGPTService:
             content = request
         # disable the history for now to save tokens
         self.history = self.history[:1]
-        print(f"History: {self.history}")
         # replace the timestamp in the history with the current time
         self.history[0]["content"] = self.history[0]["content"].replace("{today}", str(date.today())).replace("{theCurrentTime}", time.strftime('%I:%M %p').lstrip("0"))
 
