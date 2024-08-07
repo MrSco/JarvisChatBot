@@ -1,7 +1,7 @@
 @echo off
 
-:: install mpv with chocolatey
-choco install mpv -y
+:: install mpv and vlc with chocolatey
+choco install mpv vlc -y
 
 :: Check for Python 3
 python --version > nul 2>&1
