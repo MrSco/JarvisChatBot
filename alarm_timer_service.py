@@ -25,7 +25,7 @@ class AlarmTimerService:
         else:
             self._create_systemd_service(service_name, 'alarm')
             self._create_systemd_timer(timer_name, alarm_time, service_name, is_alarm=True)
-            self._reload_and_start_timer(service_name, timer_name)
+            self._reload_and_start_timer(timer_name)
 
     def add_timer(self, duration, callback):
         print(f"Setting timer for {duration} seconds.")
@@ -38,7 +38,7 @@ class AlarmTimerService:
         else:
             self._create_systemd_service(service_name, 'timer')
             self._create_systemd_timer(timer_name, timedelta(seconds=duration + self.buffer_time), service_name, is_alarm=False)
-            self._reload_and_start_timer(service_name, timer_name)
+            self._reload_and_start_timer(timer_name)
 
     def _add_scheduled_task(self, run_time, task_name, type):
         today = datetime.now()
@@ -113,11 +113,10 @@ class AlarmTimerService:
             timer_file.write(timer_content)
         print(f"Created timer file at {timer_path}")
 
-    def _reload_and_start_timer(self, service_name, timer_name):
-        os.system(f'sudo systemctl daemon-reload')
-        os.system(f'sudo systemctl enable {service_name}')
-        os.system(f'sudo systemctl enable {timer_name}')
-        os.system(f'sudo systemctl try-reload-or-restart {timer_name}')
+    def _reload_and_start_timer(self, timer_name):
+        os.system(f'sudo systemctl daemon-reload --now')
+        os.system(f'sudo systemctl enable --now {timer_name}')
+        os.system(f'sudo systemctl start --now {timer_name}')
         print(f"Enabled and started {timer_name}")
     
     def clear_systemd_timers(self):
