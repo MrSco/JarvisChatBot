@@ -448,18 +448,20 @@ class WakeWordDetector:
             #     return
 
             if "set an alarm" in transcript and not image:
+                self.handle_led_event("VoiceStarted")
+                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 # Extract time from transcript and set alarm
                 alarm_time = self.extract_time_from_transcript(transcript)
                 alarm_timer_service.add_alarm(alarm_time, alarm_callback)
                 response = "Alarm set for " + alarm_time.strftime('%I:%M %p')
-                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 append2log(f"{assistant_name}: {response} \n")
-                self.handle_led_event("VoiceStarted")
                 self.speech.speak(response)
                 self._init_mic_stream()
                 return
             
             if "set a timer" in transcript and not image:
+                self.handle_led_event("VoiceStarted")
+                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 # Extract duration from transcript and set timer
                 duration = self.extract_duration_from_transcript(transcript)
                 alarm_timer_service.add_timer(duration, timer_callback)
@@ -469,9 +471,7 @@ class WakeWordDetector:
                 minute = f"{minutes} minute" + ("s" if minutes > 1 else "") + ", " if minutes else ""
                 second = f"{seconds} second" + ("s" if seconds > 1 else "") + ", " if seconds else ""
                 response = "Timer set for " + f"{day}{hour}{minute}{second}"
-                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 append2log(f"{assistant_name}: {response} \n")
-                self.handle_led_event("VoiceStarted")
                 self.speech.speak(response)
                 self._init_mic_stream()
                 return
@@ -483,11 +483,11 @@ class WakeWordDetector:
             "delete all timers and alarms",
             ]
             if any(phrase in transcript for phrase in delete_phrases) and not image:
+                self.handle_led_event("VoiceStarted")
+                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 alarm_timer_service.delete_all_jobs()
                 response = "All alarms and timers deleted"
-                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 append2log(f"{assistant_name}: {response} \n")
-                self.handle_led_event("VoiceStarted")
                 self.speech.speak(response)
                 self._init_mic_stream()
                 return
