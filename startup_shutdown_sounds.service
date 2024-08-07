@@ -6,7 +6,7 @@ After=sys-devices-platform-soc-soc:sound-sound-card2-controlC2.device
 [Service]
 Type=oneshot
 RemainAfterExit=true
-ExecStart=/bin/bash -c 'alsactl -U --file /home/user/.config/asound.state restore && aplay -D plughw:CARD=seeed2micvoicec,DEV=0 /home/user/JarvisChatBot/sounds/winxp_startup.wav'
+ExecStart=/bin/bash -c 'sudo alsactl -U restore && aplay -D plughw:CARD=seeed2micvoicec,DEV=0 /home/user/JarvisChatBot/sounds/winxp_startup.wav'
 ExecStop=aplay -D plughw:CARD=seeed2micvoicec,DEV=0 /home/user/JarvisChatBot/sounds/winxp_shutdown.wav
 
 [Install]
