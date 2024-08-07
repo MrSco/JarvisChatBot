@@ -325,7 +325,7 @@ class WakeWordDetector:
             self.is_awoken = True
             socketio.emit('music_active', {'status': 'ready'})
             print("Music active. Pausing chatbot vad...")
-        else:
+        elif self.is_awoken:
             self.is_awoken = False
             socketio.emit('chatbot_ready', {'status': 'ready'})
             print("Listening for '" + assistant["wake_word"] + "'...")
