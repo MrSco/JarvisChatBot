@@ -284,6 +284,13 @@ class WakeWordDetector:
         self.consumer_thread = threading.Thread(target=self.audio_consumer)
         self.producer_thread.start()
         self.consumer_thread.start()
+        self.is_awoken = True
+        self.handle_led_event("VoiceStarted")
+        if self.use_elevenlabs:
+            self.sound_effect.play("ready")
+        else:
+            self.speech.speak(f"{assistant_name} ready!")
+        self.is_awoken = False
         while self.is_running:
             sys.stdout.flush()
             time.sleep(1)
@@ -633,12 +640,7 @@ class WakeWordDetector:
             self._init_mic_stream()
 
     def run(self):
-        try:
-            self.handle_led_event("VoiceStarted")
-            if self.use_elevenlabs:
-                self.sound_effect.play("ready")
-            else:
-                self.speech.speak(f"{assistant_name} ready!")
+        try:            
             self.process_audio()
         except KeyboardInterrupt:
             pass
