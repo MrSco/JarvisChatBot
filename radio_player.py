@@ -25,6 +25,13 @@ class RadioPlayer:
             self.thread = threading.Thread(target=self._play)
             self.thread.start()
 
+    def blink_led(self):
+        while self.running:
+            self.wakeword_detector.handle_led_event("Paused")
+            time.sleep(0.5)
+            self.wakeword_detector.handle_led_event("Off")
+            time.sleep(0.5)
+
     def _play(self):
         try:
             self.player.play()
