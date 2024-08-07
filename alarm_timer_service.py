@@ -111,10 +111,9 @@ class AlarmTimerService:
         print(f"Created timer file at {timer_path}")
 
     def _reload_and_start_timer(self, timer_name):
-        os.system('sudo systemctl daemon-reload')
         os.system(f'sudo systemctl enable {timer_name}')
-        os.system(f'sudo systemctl start {timer_name}')
-        print(f"Reloaded systemd daemon and started {timer_name}")
+        os.system(f'sudo systemctl try-reload-or-restart {timer_name}')
+        print(f"Enabled and reloaded/restarted {timer_name}")
     
     def clear_systemd_timers(self):
         timer_names = ["jarvis_alarm.timer", "jarvis_timer.timer"]
