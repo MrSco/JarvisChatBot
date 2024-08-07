@@ -81,6 +81,7 @@ function setStatusMsg(msg, error) {
         statusMsg.classList.remove('error');
     }
 }
+
 function update_chat(data) {
     if (!data) {
         return;
@@ -131,13 +132,25 @@ function update_chat(data) {
     }
     scrollToBottom();
 }
+function enable_prompting() {
+    if (images_disabled)
+        document.querySelector('label[for="file-upload"]').title = 'Groq does not support image analysis. Image uploads are disabled!';
+    document.getElementById('image').disabled = images_disabled;
+    document.getElementById('sendButton').disabled = false;
+    document.getElementById('imagePreview').style.display = 'none';
+}
+
+function disable_prompting() {
+    document.getElementById('prompt').value = '';
+    var image = document.getElementById('image');
+    image.value = '';
+    image.disabled = true;
+    document.getElementById('sendButton').disabled = true;
+}
+
 function chatbot_ready(data) {
     if(data.status === 'ready') {
-        if (images_disabled)
-            document.querySelector('label[for="file-upload"]').title = 'Groq does not support image analysis. Image uploads are disabled!';
-        document.getElementById('image').disabled = images_disabled;
-        document.getElementById('sendButton').disabled = false;
-        document.getElementById('imagePreview').style.display = 'none';
+        enable_prompting();
         setStatusMsg(`Listening for '${assistant_wake_word}'...`);
     }
 }
@@ -180,6 +193,7 @@ else {
         var thresholdSlider = document.getElementById('thresholdSlider');
         var vad_threshold = thresholdSlider.value;
         var redDot = document.getElementById('redDot');
+        var radioPlaying = false;
 
         var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port, {
             reconnection: true,
@@ -241,11 +255,7 @@ else {
 
         socket.on('prompt_received', function(data) {
             if(data.status === 'ready') {
-                document.getElementById('prompt').value = '';
-                var image = document.getElementById('image');
-                image.value = '';
-                image.disabled = true;
-                document.getElementById('sendButton').disabled = true;
+                disable_prompting();
                 setStatusMsg('Generating response...');
             }
         });
@@ -262,20 +272,70 @@ else {
             }
         });
 
-        socket.on('shairport_active', function(data) {
+        socket.on('music_active', function(data) {
+            var button = document.getElementById("radioControlButton");
             if(data.status === 'ready') {
-                redDot.title = '';
                 redDot.style.visibility = 'hidden';
-                setStatusMsg('Airplay music active...');
+                setStatusMsg('Music active...');
+                button.textContent = "Stop Radio";
+                radioPlaying = !radioPlaying;
             }
             else {
-                setStatusMsg('Airplay music stopped...');
+                setStatusMsg('Music stopped...');
+                button.textContent = "Play Radio";
+                radioPlaying = !radioPlaying;
             }
-        });
+        });                
+
+        window.toggleRadio = function() {
+            var button = document.getElementById("radioControlButton");
+            if (radioPlaying) {
+                stopRadio(button, "Play Radio");
+            } else {
+                playRadio(button, "Stop Radio");
+            }
+            //radioPlaying = !radioPlaying;
+        };
+        
+        function playRadio(btn, text) {
+            fetch('/play_radio', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'error') {
+                        console.error("Error stopping radio");
+                        return;
+                    }
+                    redDot.style.visibility = 'hidden';
+                    setStatusMsg('Music active...');
+                    btn.textContent = text;
+                    disable_prompting();
+                    radioPlaying = !radioPlaying;
+                })
+                .catch(error => {
+                    console.error("Error starting radio:", error);
+                });
+        }
+        
+        function stopRadio(btn, text) {
+            fetch('/stop_radio', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'error') {
+                        console.error("Error stopping radio");
+                        return;
+                    }
+                    setStatusMsg('Music stopped...');
+                    btn.textContent = text;
+                    enable_prompting();
+                    radioPlaying = !radioPlaying;
+                })
+                .catch(error => {
+                    console.error("Error stopping radio:", error);
+                });
+        }
 
         socket.on('chat_response_ready', function(data) {
             if(data.status === 'ready') {
-                redDot.title = '';
                 redDot.style.visibility = 'hidden';
                 setStatusMsg('Responding...');
                 document.getElementById('imagePreview').style.display = 'none';

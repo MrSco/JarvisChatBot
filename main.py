@@ -25,10 +25,12 @@ from flask import Flask, jsonify, render_template, send_from_directory, request
 from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
 import requests
+from radio_player import RadioPlayer
 
 transcript_seperator = f"_"*40
 script_dir = os.path.dirname(os.path.abspath(__file__))
 shairport_handler = None
+radio_player = None
 detector = None
 app = None
 socketio = None
@@ -128,7 +130,7 @@ class ShairportSyncHandler:
                         self.blink_led_thread = threading.Thread(target=self.blink_led)
                         self.blink_led_thread.start()
                         print("Pausing chatbot vad...")
-                        socketio.emit('shairport_active', {'status': 'ready'})
+                        socketio.emit('music_active', {'status': 'ready'})
                 else:
                     if self.shairport_active:
                         self.shairport_active = False
@@ -137,7 +139,7 @@ class ShairportSyncHandler:
                             self.blink_led_thread.join()
                         self.wakeword_detector.handle_led_event("Running")
                         print("Resuming chatbot vad...")
-                        socketio.emit('shairport_active', {'status': 'done'})
+                        socketio.emit('music_active', {'status': 'done'})
             except dbus.DBusException as e:
                 print(f"Error communicating with Shairport Sync: {e}")
             time.sleep(1)
@@ -315,10 +317,11 @@ class WakeWordDetector:
                 frames_per_buffer=self.oww_chunk_size,
             )
         self.is_request_processing = False
-        if shairport_handler is not None and shairport_handler.shairport_active:
+        if (shairport_handler is not None and shairport_handler.shairport_active) \
+            or (radio_player is not None and radio_player.running) and not self.is_awoken:
             self.is_awoken = True
-            socketio.emit('shairport_active', {'status': 'ready'})
-            print("Airplay active. Pausing chatbot vad...")
+            socketio.emit('music_active', {'status': 'ready'})
+            print("Music active. Pausing chatbot vad...")
         else:
             self.is_awoken = False
             socketio.emit('chatbot_ready', {'status': 'ready'})
@@ -404,53 +407,100 @@ class WakeWordDetector:
                 self._init_mic_stream()
                 return
             
-            # new_convo_phrases = [
-            #     "start a new conversation",
-            #     "start a new chat",
-            #     "forget the previous conversation",
-            #     "forget what I said",
-            #     "forget what I just said",
-            #     "let's start over",
-            # ]
+            radio_phrases = [
+                "play radio",
+                "play music",
+                "play some music",
+                "play some radio",
+                "play some tunes",
+                "play some songs",
+                "play the radio",
+                "play the music",
+                "play the tunes",
+                "play the songs",
+            ]
 
-            # if any(phrase in transcript for phrase in new_convo_phrases) and not image:
-            #     append2log(f"You: {transcript} \n")
-            #     self.sound_effect.play("done")
-            #     # clear all but the first item in the chat history
-            #     self.chat_gpt_service.history = self.chat_gpt_service.history[:1]
-            #     self._init_mic_stream()
-            #     return
-            
-            # time_phrases = [
-            #     "what time is it",
-            #     "what is the time",
-            #     "what is the current time",
-            #     "what's the time",
-            #     "what's the current time",
-            #     "do you have the time",
-            #     "do you have the current time",
-            #     "do you know the time",
-            #     "do you know the current time",
-            #     "tell me the time",
-            #     "tell me the current time",
-            #     "tell me what time it is",
-            # ]
-
-            # if any(phrase in transcript for phrase in time_phrases) and not image:
-            #     append2log(f"You: {transcript} \n")
-            #     # get the current time in am/pm format without leading zeros
-            #     current_time = time.strftime('%I:%M %p').lstrip("0").replace("AM", "a.m.").replace("PM", "p.m.")
-            #     response = f"{current_time}"
-            #     self.sound_effect.play(self.sound_effect.get_random_filler_sound())
-            #     #self.sound_effect.play("the_current_time_is")
-            #     append2log(f"{assistant_name}: {response} \n")
-            #     self.handle_led_event("VoiceStarted")
-            #     self.speech.speak(response)
-            #     self._init_mic_stream()
-            #     return
-
-            if "set an alarm" in transcript and not image:
+            if any(phrase in transcript.lower() for phrase in radio_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
+                print("Starting radio...")
+                append2log(f"You: {transcript} \n")
+                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                radio_player.start(config["radio_stream_url"])
+                response = "Radio started."
+                append2log(f"{assistant_name}: {response} \n")
+                self._init_mic_stream()
+                return
+            
+            radio_phrases = [
+                "play kids radio",
+                "play kids music",
+                "play kids songs",
+                "play kids tunes",
+                "play children's radio",
+                "play children's music",
+                "play children's songs",
+                "play children's tunes",
+                "play kids radio station",
+                "play the kids radio",
+                "play the children's radio",
+                "play the kids music",
+                "play the children's music",
+                "play the kids songs",
+                "play the children's songs",
+                "play the kids tunes",
+            ]
+
+            if any(phrase in transcript.lower() for phrase in radio_phrases) and not image:
+                self.handle_led_event("VoiceStarted")
+                print("Starting kids radio...")
+                append2log(f"You: {transcript} \n")
+                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                radio_player.start(config["kids_radio_stream_url"])
+                response = "Kids radio started."
+                append2log(f"{assistant_name}: {response} \n")
+                self._init_mic_stream()
+                return
+
+            radio_phrases = [
+                "stop playing",
+                "stop the radio",
+                "stop the music",
+                "stop the tunes",
+                "stop the songs",
+                "stop music",
+                "stop radio",
+                "stop tunes",
+                "stop songs",
+                "stop playing music",
+                "stop playing radio",
+                "stop playing tunes",
+                "stop playing songs",
+            ]
+
+            if any(phrase in transcript.lower() for phrase in radio_phrases) and not image:
+                self.handle_led_event("VoiceStarted")
+                print("Stopping radio...")
+                append2log(f"You: {transcript} \n")
+                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                radio_player.stop()
+                response = "Radio stopped."
+                append2log(f"{assistant_name}: {response} \n")
+                self.speech.speak(response)
+                self._init_mic_stream()
+                return
+
+            alarm_phrases = [
+                "set an alarm",
+                "set a alarm",
+                "set alarm",
+                "set the alarm",
+                "wake me up",
+            ]
+
+            if any(phrase in transcript.lower() for phrase in alarm_phrases) and not image:
+                self.handle_led_event("VoiceStarted")
+                print("Setting an alarm...")
+                append2log(f"You: {transcript} \n")
                 self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 # Extract time from transcript and set alarm
                 alarm_time = self.extract_time_from_transcript(transcript)
@@ -461,8 +511,16 @@ class WakeWordDetector:
                 self._init_mic_stream()
                 return
             
-            if "set a timer" in transcript and not image:
+            timer_phrases = [
+                "set a timer",
+                "set timer",
+                "set the timer",
+            ]
+
+            if any(phrase in transcript.lower() for phrase in timer_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
+                print("Setting a timer...")
+                append2log(f"You: {transcript} \n")
                 self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 # Extract duration from transcript and set timer
                 duration = self.extract_duration_from_transcript(transcript)
@@ -479,12 +537,18 @@ class WakeWordDetector:
                 return
 
             delete_phrases = [
-            "delete all alarms and timers",
             "delete all alarms",
             "delete all timers",
-            "delete all timers and alarms",
+            "reset all alarms",
+            "reset all timers",
+            "turn off all alarms",
+            "turn off all timers",
+            "cancel all alarms",
+            "cancel all timers",
+            "clear all alarms",
+            "clear all timers",
             ]
-            if any(phrase in transcript for phrase in delete_phrases) and not image:
+            if any(phrase in transcript.lower() for phrase in delete_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
                 self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 alarm_timer_service.delete_all_jobs()
@@ -513,7 +577,7 @@ class WakeWordDetector:
                 "switch your name",
             ]
 
-            if any(phrase in transcript for phrase in change_assistant_phrases) and not image:
+            if any(phrase in transcript.lower() for phrase in change_assistant_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
                 print("Changing assistant...")
                 append2log(f"You: {transcript} \n")
@@ -719,6 +783,25 @@ def history():
     chatlog = get_chat_log_for_date(today)
     return render_template('history.html', assistant_dict=assistant, chatlog=json.dumps(chatlog))
 
+@app.route('/play_radio', methods=['POST'])
+def play_radio():
+    global radio_player
+    if radio_player:
+        stream_url = config["radio_stream_url"] if radio_player.stream_url is None else None
+        radio_player.start(stream_url)
+        if radio_player.running:
+            return jsonify({"status": "done"}), 200
+    return jsonify({"status": "error"}), 500
+
+@app.route('/stop_radio', methods=['POST'])
+def stop_radio():
+    global radio_player
+    if radio_player:
+        radio_player.stop()
+        if not radio_player.running:
+            return jsonify({"status": "done"}), 200
+    return jsonify({"status": "error"}), 500
+
 @socketio.on('change_vad_threshold')
 def change_vad_threshold(data):
     global vad_threshold, config
@@ -767,16 +850,19 @@ def restart_app():
         detector.restart_app = True 
         detector.cleanup()
     if shairport_handler is not None:
-        shairport_handler.cleanup()  
+        shairport_handler.cleanup()
+    if radio_player is not None:
+        radio_player.stop()  
     print("restart_app() complete.")  
 
 def runApp():
-    global detector, shairport_handler, loading_sound
+    global detector, shairport_handler, loading_sound, radio_player
     while not is_exiting:
         loading_sound = SoundEffectService(config).play_loop("loading")
         detector = WakeWordDetector()
         if is_rpi and config["use_shairport-sync"]:
             shairport_handler = ShairportSyncHandler(detector)
+        radio_player = RadioPlayer(detector)
         app.config['detector'] = detector  # Attach detector to the Flask app config    
         detector.run()
         if not detector.restart_app:
@@ -784,6 +870,7 @@ def runApp():
         else:
             detector = None
             shairport_handler = None
+            radio_player = None
             gc.collect()
         time.sleep(0.1)
 
@@ -798,6 +885,8 @@ def signal_handler(sig, frame):
         detector.cleanup()
     if shairport_handler is not None:
         shairport_handler.cleanup()
+    if radio_player is not None:
+        radio_player.stop()
     if is_rpi:
         led_service.turn_off()
     if config["use_elevenlabs"]:

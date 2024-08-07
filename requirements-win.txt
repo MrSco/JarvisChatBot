@@ -12,3 +12,4 @@ pyttsx3
 numpy
 openwakeword
 gtts
+python-vlc
