@@ -337,11 +337,13 @@ class WakeWordDetector:
         self._init_mic_stream()
     
     def extract_time_from_transcript(self, transcript):
-        # Regular expression to match time in HH:MM AM/PM format
-        time_pattern = re.compile(r'(\d{1,2}:\d{2}\s?(?:AM|PM|am|pm)?)')
+        # Regular expression to match time in HH:MM AM/PM or HH:MM a.m./p.m. format
+        time_pattern = re.compile(r'(\d{1,2}:\d{2}\s?(?:AM|PM|am|pm|a\.m\.|p\.m\.)?)')
         match = time_pattern.search(transcript)
         if match:
             time_str = match.group(1)
+            # Normalize the time string to a standard format
+            time_str = time_str.replace('.', '').upper()
             # Convert the matched time string to a datetime object
             alarm_time = datetime.strptime(time_str, '%I:%M %p')
             return alarm_time
