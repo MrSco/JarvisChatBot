@@ -19,9 +19,6 @@ def timer_callback():
 if __name__ == "__main__":
     action = sys.argv[1]
 
-    # Add a delay of 5-7 seconds
-    time.sleep(7)  # Adjust the value as needed
-
     if action == "alarm":
         alarm_callback()
     elif action == "timer":
