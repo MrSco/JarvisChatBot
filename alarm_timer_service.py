@@ -116,7 +116,7 @@ class AlarmTimerService:
         path = os.path.join(SYSTEMD_PATH, name)
         with open(path, 'w') as timer_file:
             timer_file.write(content)
-        print(f"Created {"alarm" if is_alarm else "timer"} file at {path}")
+        print("Created " + ("alarm" if is_alarm else "timer") + f" file at {path}")
 
     def _edit_systemd_unit_file(self, name, content):
         # Use systemctl edit to create or modify the timer
