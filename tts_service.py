@@ -56,16 +56,15 @@ class TextToSpeechService:
     def speech_stream(self, text):
         try:
             # strip out emojis so we don't try to speak them
-            response = self.elevenlabs_client.generate(
+            response = self.elevenlabs_client.text_to_speech.convert_as_stream(
                 text=text,
-                voice=self.elevenlabs_voice_id,
-                model="eleven_multilingual_v2",
+                voice_id=self.elevenlabs_voice_id,
+                optimize_streaming_latency="0",                
                 output_format="mp3_44100_128",
                 voice_settings=VoiceSettings(
-                    stability=0.5,
+                    stability=0.8,
                     similarity_boost=0.8,
-                ),
-                stream=True
+                )
             )
             for chunk in response:
                 yield chunk
