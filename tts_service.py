@@ -39,9 +39,25 @@ class TextToSpeechService:
                     return None
                 self.speak_with_pyttsx3(textToSpeak)
                 return None
-            #print("Speaking with elevenlabs...")
-            audio = self.elevenlabs_client.generate(
-                text=textToSpeak,
+
+            if self.sound_effect is not None:
+                self.sound_effect.stop_sound()
+            print(f"{self.assistant_name}: {text}")
+            stream(self.speech_stream(textToSpeak))
+
+        except Exception as e:
+            print(f"Failed to use elevenlabs for speech ({text}): {e}")
+            if self.use_gtts:
+                self.speak_with_gtts(textToSpeak)
+            else:
+                self.speak_with_pyttsx3(textToSpeak)
+            return None
+        
+    def speech_stream(self, text):
+        try:
+            # strip out emojis so we don't try to speak them
+            response = self.elevenlabs_client.generate(
+                text=text,
                 voice=self.elevenlabs_voice_id,
                 model="eleven_multilingual_v2",
                 output_format="mp3_44100_128",
@@ -51,20 +67,15 @@ class TextToSpeechService:
                 ),
                 stream=True
             )
-            if self.sound_effect is not None:
-                self.sound_effect.stop_sound()
-            #self.end_time = time.time()
-            #print(f"Time taken: {self.end_time - self.start_time} seconds")
-            print(f"{self.assistant_name}: {text}")
-            stream(audio)
+            for chunk in response:
+                yield chunk
 
         except Exception as e:
             print(f"Failed to use elevenlabs for speech ({text}): {e}")
             if self.use_gtts:
-                self.speak_with_gtts(textToSpeak)
+                self.speak_with_gtts(text)
             else:
-                self.speak_with_pyttsx3(textToSpeak)
-            return None
+                self.speak_with_pyttsx3(text)
 
     def speak_with_gtts(self, text):
         try:
