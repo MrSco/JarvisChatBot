@@ -19,8 +19,7 @@ class AlarmTimerService:
         self._create_systemd_unit_file('jarvis_timer.service', self._generate_systemd_service('timer'), is_alarm=False)
         self._create_systemd_unit_file('jarvis_alarm.timer', self._generate_systemd_timer(datetime.now(), 'jarvis_alarm.service', is_alarm=True), is_alarm=True)
         self._create_systemd_unit_file('jarvis_timer.timer', self._generate_systemd_timer(timedelta(0), 'jarvis_timer.service', is_alarm=False), is_alarm=False)
-        for timer_name in ["jarvis_alarm.timer", "jarvis_timer.timer"]:
-            self._reload_timer(timer_name)
+        self._reload_timer()
         
     def add_alarm(self, alarm_time, callback):
         print(f"Setting alarm for {alarm_time}.")
@@ -127,14 +126,14 @@ class AlarmTimerService:
         self._reload_timer(timer_name)
         self._start_timer(timer_name)
     
-    def _reload_timer(self, timer_name):
+    def _reload_timer(self):
         os.system(f'sudo systemctl daemon-reload --now')
-        print(f"Enabled {timer_name}")
+        print(f"Systemd Daemon Reloaded")
 
     def _start_timer(self, timer_name):
         os.system(f'sudo systemctl enable --now {timer_name}')
         os.system(f'sudo systemctl try-reload-or-restart --now {timer_name}')
-        print(f"Started {timer_name}")
+        print(f"Enabled and Started {timer_name}")
     
     def clear_systemd_timers(self):
         timer_names = ["jarvis_alarm.timer", "jarvis_timer.timer"]
