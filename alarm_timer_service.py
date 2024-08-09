@@ -28,7 +28,8 @@ class AlarmTimerService:
         if self.is_windows:
             self._add_scheduled_task(alarm_time, "JarvisChatBotAlarmTask", "alarm")
         else:
-            self._edit_systemd_unit_file(timer_name, self._generate_systemd_timer(alarm_time, service_name, is_alarm=True))
+            unit_content = self._generate_systemd_timer(alarm_time, service_name, is_alarm=True)
+            self._edit_systemd_unit_file(timer_name, unit_content)
             self._start_timer(timer_name)
 
     def add_timer(self, duration, callback):
@@ -40,7 +41,8 @@ class AlarmTimerService:
         if self.is_windows:
             self._add_scheduled_task(timer_time, "JarvisChatBotTimerTask", "timer")
         else:
-            self._edit_systemd_unit_file(timer_name, self._generate_systemd_timer(duration, service_name, is_alarm=False))
+            unit_content = self._generate_systemd_timer(timedelta(seconds=duration), service_name, is_alarm=False)
+            self._edit_systemd_unit_file(timer_name, unit_content)
             self._start_timer(timer_name)
 
     def _add_scheduled_task(self, run_time, task_name, type):
