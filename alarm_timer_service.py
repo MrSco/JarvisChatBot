@@ -103,7 +103,7 @@ class AlarmTimerService:
 
         [Timer]
         OnCalendar={on_calendar}
-        Persistent=true
+        AccuracySec=1s
 
         [Install]
         WantedBy=timers.target
