@@ -128,7 +128,6 @@ class ChatGPTService:
             response = self.llm.chat.completions.create(
                 model=self.model, 
                 messages=self.history,
-                max_tokens=500,
                 temperature=0.7,
                 stream=True
             )
@@ -142,7 +141,7 @@ class ChatGPTService:
         def text_iterator():
             response_full_text = ""
             sentence = ""
-            sentence_endings = {'. ', '! ', '? '}
+            sentence_endings = {'.', '!', '?'}
             #print(f"{self.assistant_name}: ", end="")
             self.append2log(f"{self.assistant_name}: ", True)
             for chunk in response:
@@ -150,8 +149,8 @@ class ChatGPTService:
                 if delta.content:
                     sentence += delta.content.replace('\n', ' ')
                     response_full_text += sentence
-                    # Check if the current sentence ends with a sentence-ending pattern
-                    if any(sentence.endswith(ending) for ending in sentence_endings):
+                    # Check if the current character ends the sentence
+                    if delta.content[-1] in sentence_endings:
                         #print(sentence, end="")
                         self.append2log(sentence, True)
                         yield sentence
