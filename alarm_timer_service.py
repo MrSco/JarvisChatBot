@@ -14,7 +14,7 @@ class AlarmTimerService:
         self.cron_file = "/etc/cron.d/alarm_timer_cron"
         self.is_windows = is_windows
         self.python_exe = os.path.join(script_dir, "venv/bin/python3" if not self.is_windows else "venv/Scripts/python")
-        self.buffer_time = 0
+        self.buffer_time = 7
         
     def add_alarm(self, alarm_time, callback):
         print(f"Setting alarm for {alarm_time}.")
