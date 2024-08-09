@@ -15,11 +15,6 @@ class AlarmTimerService:
         self.is_windows = is_windows
         self.python_exe = os.path.join(script_dir, "venv/bin/python3" if not self.is_windows else "venv/Scripts/python")
         self.buffer_time = 0
-        self._create_systemd_unit_file('jarvis_alarm.service', self._generate_systemd_service('alarm'), is_alarm=True)
-        self._create_systemd_unit_file('jarvis_timer.service', self._generate_systemd_service('timer'), is_alarm=False)
-        self._create_systemd_unit_file('jarvis_alarm.timer', self._generate_systemd_timer(datetime.now(), 'jarvis_alarm.service', is_alarm=True), is_alarm=True)
-        self._create_systemd_unit_file('jarvis_timer.timer', self._generate_systemd_timer(timedelta(0), 'jarvis_timer.service', is_alarm=False), is_alarm=False)
-        self._reload_timer()
         
     def add_alarm(self, alarm_time, callback):
         print(f"Setting alarm for {alarm_time}.")
@@ -28,9 +23,9 @@ class AlarmTimerService:
         if self.is_windows:
             self._add_scheduled_task(alarm_time, "JarvisChatBotAlarmTask", "alarm")
         else:
-            unit_content = self._generate_systemd_timer(alarm_time, service_name, is_alarm=True)
-            self._edit_systemd_unit_file(timer_name, unit_content)
-            self._start_timer(timer_name)
+            self._create_systemd_service(service_name, 'alarm')
+            self._create_systemd_timer(timer_name, alarm_time, service_name, is_alarm=True)
+            self._reload_and_start_timer(timer_name)
 
     def add_timer(self, duration, callback):
         print(f"Setting timer for {duration} seconds.")
@@ -41,9 +36,9 @@ class AlarmTimerService:
         if self.is_windows:
             self._add_scheduled_task(timer_time, "JarvisChatBotTimerTask", "timer")
         else:
-            unit_content = self._generate_systemd_timer(timedelta(seconds=duration), service_name, is_alarm=False)
-            self._edit_systemd_unit_file(timer_name, unit_content)
-            self._start_timer(timer_name)
+            self._create_systemd_service(service_name, 'timer')
+            self._create_systemd_timer(timer_name, timedelta(seconds=duration + self.buffer_time), service_name, is_alarm=False)
+            self._reload_and_start_timer(timer_name)
 
     def _add_scheduled_task(self, run_time, task_name, type):
         today = datetime.now()
@@ -80,7 +75,7 @@ class AlarmTimerService:
         subprocess.run(command)
         print("Tasks deleted.")
     
-    def _generate_systemd_service(self, task_type):
+    def _create_systemd_service(self, service_name, task_type):
         service_content = f"""
         [Unit]
         Description=Jarvis {task_type.capitalize()} Service
@@ -88,9 +83,12 @@ class AlarmTimerService:
         [Service]
         ExecStart={self.python_exe} {trigger_script_path} {task_type}
         """
-        return service_content
+        service_path = os.path.join(SYSTEMD_PATH, service_name)
+        with open(service_path, 'w') as service_file:
+            service_file.write(service_content)
+        print(f"Created service file at {service_path}")
 
-    def _generate_systemd_timer(self, time_value, service_name, is_alarm=False):
+    def _create_systemd_timer(self, timer_name, time_value, service_name, is_alarm=False):
         if is_alarm:
             # Alarms should repeat at the same time every day
             on_calendar = time_value.strftime('*-*-* %H:%M:%S')
@@ -104,59 +102,43 @@ class AlarmTimerService:
         Description=Run Jarvis {service_name.split('_')[1].capitalize()} Timer
 
         [Timer]
-        AccuracySec=1s
         OnCalendar={on_calendar}
         Persistent=true
 
         [Install]
         WantedBy=timers.target
         """
-        return timer_content
-    
-    def _create_systemd_unit_file(self, name, content, is_alarm=False):
-        path = os.path.join(SYSTEMD_PATH, name)
-        with open(path, 'w') as timer_file:
-            timer_file.write(content)
-        print("Created " + ("alarm" if is_alarm else "timer") + f" file at {path}")
-
-    def _edit_systemd_unit_file(self, name, content):
-        # Use systemctl edit to create or modify the timer
-        os.system(f'echo "{content}" | sudo systemctl edit --full {name}')
-        print(f"Timer {name} created/modified using systemctl edit")
+        timer_path = os.path.join(SYSTEMD_PATH, timer_name)
+        with open(timer_path, 'w') as timer_file:
+            timer_file.write(timer_content)
+        print(f"Created timer file at {timer_path}")
 
     def _reload_and_start_timer(self, timer_name):
-        self._reload_timer(timer_name)
-        self._start_timer(timer_name)
-    
-    def _reload_timer(self):
         os.system(f'sudo systemctl daemon-reload --now')
-        print(f"Systemd Daemon Reloaded")
-
-    def _start_timer(self, timer_name):
         os.system(f'sudo systemctl enable --now {timer_name}')
         os.system(f'sudo systemctl try-reload-or-restart --now {timer_name}')
-        print(f"Enabled and Started {timer_name}")
+        print(f"Enabled and started {timer_name}")
     
     def clear_systemd_timers(self):
         timer_names = ["jarvis_alarm.timer", "jarvis_timer.timer"]
-        # service_names = ["jarvis_alarm.service", "jarvis_timer.service"]
+        service_names = ["jarvis_alarm.service", "jarvis_timer.service"]
         
         for timer_name in timer_names:
             print(f"Stopping and disabling {timer_name}...")
             os.system(f'sudo systemctl stop {timer_name}')
             os.system(f'sudo systemctl disable {timer_name}')
         
-        # for timer_name, service_name in zip(timer_names, service_names):
-        #     timer_path = os.path.join(SYSTEMD_PATH, timer_name)
-        #     service_path = os.path.join(SYSTEMD_PATH, service_name)
+        for timer_name, service_name in zip(timer_names, service_names):
+            timer_path = os.path.join(SYSTEMD_PATH, timer_name)
+            service_path = os.path.join(SYSTEMD_PATH, service_name)
             
-        #     if os.path.exists(timer_path):
-        #         print(f"Deleting {timer_path}...")
-        #         os.remove(timer_path)
+            if os.path.exists(timer_path):
+                print(f"Deleting {timer_path}...")
+                os.remove(timer_path)
             
-        #     if os.path.exists(service_path):
-        #         print(f"Deleting {service_path}...")
-        #         os.remove(service_path)
+            if os.path.exists(service_path):
+                print(f"Deleting {service_path}...")
+                os.remove(service_path)
         
-        #os.system('sudo systemctl daemon-reload')
+        os.system('sudo systemctl daemon-reload')
         print("Cleared all systemd timers and services.")
