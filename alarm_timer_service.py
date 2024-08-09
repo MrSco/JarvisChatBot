@@ -18,7 +18,7 @@ class AlarmTimerService:
         self._create_systemd_unit_file('jarvis_alarm.service', self._generate_systemd_service('alarm'), is_alarm=True)
         self._create_systemd_unit_file('jarvis_timer.service', self._generate_systemd_service('timer'), is_alarm=False)
         self._create_systemd_unit_file('jarvis_alarm.timer', self._generate_systemd_timer(datetime.now(), 'jarvis_alarm.service', is_alarm=True), is_alarm=True)
-        self._create_systemd_unit_file('jarvis_timer.timer', self._generate_systemd_timer(0, 'jarvis_timer.service', is_alarm=False), is_alarm=False)
+        self._create_systemd_unit_file('jarvis_timer.timer', self._generate_systemd_timer(timedelta(0), 'jarvis_timer.service', is_alarm=False), is_alarm=False)
         for timer_name in ["jarvis_alarm.timer", "jarvis_timer.timer"]:
             self._reload_timer(timer_name)
         
