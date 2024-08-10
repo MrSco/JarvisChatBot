@@ -157,10 +157,11 @@ function chatbot_ready(data) {
         enable_prompting();
         setStatusMsg(`Listening for '${assistant_wake_word}'...`);
         if (radio_playing) {
-            var button = document.getElementById("radioControlButton");
+            var radioControlButton = document.getElementById("radioControlButton");
+            var kidRadioControlButton = document.getElementById("kidRadioControlButton");
             redDot.style.visibility = 'hidden';
             setStatusMsg('Music active...');
-            button.textContent = "Stop Radio";
+            radioControlButton.textContent = kidRadioControlButton.textContent = "Stop Radio";
             disable_prompting();
         }
     }
