@@ -821,7 +821,12 @@ def history():
 def play_radio():
     global radio_player
     if radio_player:
-        stream_url = config["radio_stream_url"] if radio_player.stream_url is None else None
+        data = request.get_json()
+        print(data)
+        if data and data.get('radio') == 'kid':
+            stream_url = config["kids_radio_stream_url"]
+        else:
+            stream_url = config["radio_stream_url"]
         radio_player.start(stream_url)
         if radio_player.running:
             return jsonify({"status": "done"}), 200

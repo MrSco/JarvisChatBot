@@ -283,48 +283,72 @@ else {
         });
 
         socket.on('music_active', function(data) {
-            var button = document.getElementById("radioControlButton");
+            var radioControlButton = document.getElementById("radioControlButton");
+            var kidRadioControlButton = document.getElementById("kidRadioControlButton");
             if(data.status === 'ready') {
                 redDot.style.visibility = 'hidden';
                 setStatusMsg('Music active...');
-                button.textContent = "Stop Radio";
+                radioControlButton.textContent = kidRadioControlButton.textContent = "Stop Radio";
                 disable_prompting();
                 radio_playing = !radio_playing;
             }
             else {
                 setStatusMsg('Music stopped...');
-                button.textContent = "Play Radio";
+                radioControlButton.textContent = "Play Radio";
+                kidRadioControlButton.textContent = "Play Kid Radio";
                 enable_prompting();
                 radio_playing = !radio_playing;
             }
         });                
 
         window.toggleRadio = function() {
-            var button = document.getElementById("radioControlButton");
+            var radioControlButton = document.getElementById("radioControlButton");
+            var kidRadioControlButton = document.getElementById("kidRadioControlButton");
             if (radio_playing) {
-                stopRadio(button, "Play Radio");
+                stopRadio(radioControlButton, "Play Radio");
+                kidRadioControlButton.textContent = "Play Kid Radio";
             } else {
-                playRadio(button, "Stop Radio");
+                playRadio(radioControlButton, "Stop Radio");
+                kidRadioControlButton.textContent = "Stop Radio";
+            }
+        };
+
+        window.toggleKidRadio = function() {
+            var radioControlButton = document.getElementById("radioControlButton");
+            var kidRadioControlButton = document.getElementById("kidRadioControlButton");
+            if (radio_playing) {
+                stopRadio(kidRadioControlButton, "Play Kid Radio");
+                radioControlButton.textContent = "Play Radio";
+            } else {
+                playRadio(kidRadioControlButton, "Stop Radio");
+                radioControlButton.textContent = "Stop Radio";
             }
         };
         
         function playRadio(btn, text) {
-            fetch('/play_radio', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'error') {
-                        console.error("Error stopping radio");
-                        return;
-                    }
-                    redDot.style.visibility = 'hidden';
-                    setStatusMsg('Music active...');
-                    btn.textContent = text;
-                    disable_prompting();
-                    radio_playing = !radio_playing;
-                })
-                .catch(error => {
-                    console.error("Error starting radio:", error);
-                });
+            var radio = btn.id === 'radioControlButton' ? '' : 'kid';
+            fetch('/play_radio', { 
+                method: 'POST', 
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({radio: radio})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'error') {
+                    console.error("Error stopping radio");
+                    return;
+                }
+                redDot.style.visibility = 'hidden';
+                setStatusMsg('Music active...');
+                btn.textContent = text;
+                disable_prompting();
+                radio_playing = !radio_playing;
+            })
+            .catch(error => {
+                console.error("Error starting radio:", error);
+            });
         }
         
         function stopRadio(btn, text) {

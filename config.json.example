@@ -26,5 +26,7 @@
     "system_prompt": "You are a voice assistant named {assistant_name}.{assistant_descr} Your responses, speech patterns, humor and wit should reflect that character. Make your answers short and concise so they can be spoken back in 20 seconds or less. The main user will be a child between the ages of 5 and 12. Make the responses appropriate for that age group. Today is {today} and the current time is {theCurrentTime}. {weather_info}",
     "use_frontend": true,
     "use_shairport-sync": false,
-    "windows_task_author": "COMPUTERNAME\\USER"
+    "windows_task_author": "COMPUTERNAME\\USER",
+    "radio_stream_url": "https://cmg.streamguys1.com/mia931/mia931-iheart.aac",
+    "kids_radio_stream_url": "https://n32b-e2.revma.ihrhls.com/zc9414/50_bwfxhr2o54bp02/playlist.m3u8"
 }
