@@ -17,3 +17,4 @@ openwakeword
 gtts
 dbus-python
 python-vlc
+tzlocal

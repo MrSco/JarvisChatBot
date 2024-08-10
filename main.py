@@ -417,6 +417,33 @@ class WakeWordDetector:
                 self._init_mic_stream()
                 return
             
+            time_phrases = [
+                "what time is it",
+                "what is the time",
+                "what is the current time",
+                "what's the time",
+                "what's the current time",
+                "do you have the time",
+                "do you have the current time",
+                "do you know the time",
+                "do you know the current time",
+                "tell me the time",
+                "tell me the current time",
+                "tell me what time it is",
+            ]
+
+            if any(phrase in transcript for phrase in time_phrases) and "in" not in transcript and not image:
+                append2log(f"You: {transcript} \n")
+                self.handle_led_event("VoiceStarted")
+                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                # get the current time in am/pm format without leading zeros
+                current_time = time.strftime('%I:%M %p').lstrip("0").replace("AM", "a.m.").replace("PM", "p.m.")
+                response = f"{current_time}"
+                append2log(f"{assistant_name}: {response} \n")
+                self.speech.speak(response)
+                self._init_mic_stream()
+                return
+
             radio_phrases = [
                 "play radio",
                 "play music",

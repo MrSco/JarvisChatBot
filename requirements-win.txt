@@ -13,3 +13,4 @@ numpy
 openwakeword
 gtts
 python-vlc
+tzlocal

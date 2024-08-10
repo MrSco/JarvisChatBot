@@ -6,8 +6,9 @@ from groq import Groq
 import urllib
 import geocoder
 import time
-from datetime import date
+from datetime import date, datetime
 import requests
+from tzlocal import get_localzone
 
 class ChatGPTService:
     def __init__(self, config):
@@ -119,7 +120,8 @@ class ChatGPTService:
         # disable the history for now to save tokens
         self.history = self.history[:1]
         # replace the timestamp in the history with the current time
-        self.history[0]["content"] = self.history[0]["content"].replace("{today}", str(date.today())).replace("{theCurrentTime}", time.strftime('%I:%M %p').lstrip("0"))
+        current_time = datetime.now(get_localzone()).strftime('%I:%M %p %Z').lstrip("0")
+        self.history[0]["content"] = self.history[0]["content"].replace("{today}", str(date.today())).replace("{theCurrentTime}", current_time)
 
         self.history.append({"role": "user", "content": content})
         result = None
