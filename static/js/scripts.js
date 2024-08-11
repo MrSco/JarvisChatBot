@@ -187,6 +187,8 @@ if (location.toString().includes('/history')) {
         fetch(`/chatlog/${date}`)
             .then(response => response.json())
             .then(chatLogData => {
+                var chatLog = document.getElementById('chat-log');
+                chatLog.innerHTML = '';
                 chatLogData.forEach(function(message) {
                     update_chat(message);
                 });
