@@ -156,10 +156,11 @@ function chatbot_ready(data) {
     if(data.status === 'ready') {
         enable_prompting();
         setStatusMsg(`Listening for '${assistant_wake_word}'...`);
+        var radioControlButton = document.getElementById("radioControlButton");
+        var kidRadioControlButton = document.getElementById("kidRadioControlButton");
+        radioControlButton.disabled = kidRadioControlButton.disabled = false;
         if (radio_playing) {
-            var radioControlButton = document.getElementById("radioControlButton");
-            var kidRadioControlButton = document.getElementById("kidRadioControlButton");
-            redDot.style.visibility = 'hidden';
+            redDot.style.visibility = 'visible';
             setStatusMsg('Music active...');
             radioControlButton.textContent = kidRadioControlButton.textContent = "Stop Radio";
             disable_prompting();
@@ -272,21 +273,34 @@ else {
         socket.on('update_chat', update_chat);
 
         socket.on('prompt_received', function(data) {
+            var radioControlButton = document.getElementById("radioControlButton");
+            var kidRadioControlButton = document.getElementById("kidRadioControlButton");
             if(data.status === 'ready') {
+                redDot.style.visibility = 'hidden';
+                radioControlButton.disabled = kidRadioControlButton.disabled = true;
                 disable_prompting();
                 setStatusMsg('Generating response...');
             }
         });
 
         socket.on('awake', function(data) {
+            var radioControlButton = document.getElementById("radioControlButton");
+            var kidRadioControlButton = document.getElementById("kidRadioControlButton");
             if(data.status === 'ready') {
                 setStatusMsg('Wake word detected!');
+                redDot.style.visibility = 'hidden';
+                radioControlButton.disabled = kidRadioControlButton.disabled = true;
             }
         });
 
         socket.on('listening_for_prompt', function(data) {
+            var radioControlButton = document.getElementById("radioControlButton");
+            var kidRadioControlButton = document.getElementById("kidRadioControlButton");
             if(data.status === 'ready') {
+                redDot.style.visibility = 'hidden';
+                radioControlButton.disabled = kidRadioControlButton.disabled = true;
                 setStatusMsg('Listening for prompt...');
+                disable_prompting();
             }
         });
 
