@@ -172,6 +172,13 @@ class WakeWordDetector:
         self.chat_gpt_service = ChatGPTService(config)
         self.chat_gpt_service.append2log = append2log
         oww_model_path = os.path.join(script_dir, "oww_models", config["oww_model"].replace("{assistant_name}", assistant_name))
+        oww_additional = config["oww_model"].replace("{assistant_name}", f"{assistant_name}1")
+        oww_model_path1 = os.path.join(script_dir, "oww_models", oww_additional) if os.path.exists(os.path.join(script_dir, "oww_models", oww_additional)) else None
+        oww_models = [oww_model_path]
+        if oww_model_path1:
+            oww_models.append(oww_model_path1)
+        if assistant_name.lower() == "jarvis":
+            oww_models.append("hey jarvis")
         oww_inference_framework = config["oww_model"].split(".")[-1]
         self.language = config["language"]
         self.oww_chunk_size = config["oww_chunk_size"]
@@ -189,7 +196,7 @@ class WakeWordDetector:
         self.pre_wake_audio_buffer = collections.deque(maxlen=int(0.5 * self.oww_sample_rate))  # Buffer for 0.5 seconds of audio
 
         self.handle = Model(
-            wakeword_models=[oww_model_path], 
+            wakeword_models=oww_models, 
             inference_framework=oww_inference_framework
         )
 
