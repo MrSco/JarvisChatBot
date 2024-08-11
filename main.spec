@@ -9,7 +9,8 @@ added_files = [
     ('sounds', 'sounds'),
     ('oww_models', 'oww_models'),
     ('config.json.example', '.'), 
-    ('assistants.json.example', '.'), 
+    ('assistants.json.example', '.'),
+    ('scheduled_task.xml', ','),
     ('readme.md', '.')
 ]
 hiddenimports = ['engineio.async_drivers.threading']
