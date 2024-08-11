@@ -166,6 +166,8 @@ class ShairportSyncHandler:
         self.shairport_proxy = None
         self.blink_led_thread = None
         self.thread = None
+        self.wakeword_detector = None
+        self.radio_player = None
         
 class WakeWordDetector:
     def __init__(self):
@@ -948,7 +950,7 @@ def restart_app():
     if shairport_handler is not None:
         shairport_handler.cleanup()
     if radio_player is not None:
-        radio_player.stop()
+        radio_player.cleanup()
     if alarm_timer_service is not None:
         alarm_timer_service.cleanup()
     print("restart_app() complete.")  
@@ -967,13 +969,15 @@ def runApp():
         if not detector.restart_app:
             break
         else:
+            print("Restarting app...")
             detector = None
             shairport_handler = None
             radio_player = None
             alarm_timer_service = None
             loading_sound = None
             gc.collect()
-        time.sleep(0.1)
+        time.sleep(0.5)
+    print("Detector exited.")
 
 def signal_handler(sig, frame):
     print('Signal received: ', sig)

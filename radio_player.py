@@ -54,3 +54,6 @@ class RadioPlayer:
             if self.thread:
                 self.thread.join()
                 self.thread = None
+    def cleanup(self):
+        self.stop()
+        self.wakeword_detector = None
