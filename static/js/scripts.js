@@ -176,7 +176,12 @@ if (location.toString().includes('/history')) {
         window.addEventListener('resize', adjustChatContainerHeight);
 
         var dateSelector = document.getElementById('dateSelector');
-        dateSelector.value = (new Date()).toISOString().split('T')[0];
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+        const day = String(today.getDate()).padStart(2, '0');
+        const localDate = `${year}-${month}-${day}`;
+        dateSelector.value = localDate;
         dateSelector.addEventListener('change', function () {
             var selectedDate = dateSelector.value;
             fetchChatLogForDate(selectedDate);
