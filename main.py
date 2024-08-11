@@ -19,7 +19,6 @@ import pyaudio
 from sound_effect_service import SoundEffectService
 from tts_service import TextToSpeechService
 from alarm_timer_service import AlarmTimerService
-from trigger_alarm_timer import alarm_callback, timer_callback
 import threading
 from flask import Flask, jsonify, render_template, send_from_directory, request
 from flask_socketio import SocketIO
@@ -364,23 +363,29 @@ class WakeWordDetector:
             raise ValueError("No valid time found in transcript")
 
     def extract_duration_from_transcript(self, transcript):
-        # Regular expression to match duration in minutes or seconds
-        duration_pattern = re.compile(r'(\d+)\s?(seconds?|minutes?|hours?|days?)')
-        match = duration_pattern.search(transcript)
-        if match:
-            duration_value = int(match.group(1))
-            duration_unit = match.group(2).lower()
-            if 'day' in duration_unit:
-                duration_seconds = duration_value * 24 * 3600
-            elif 'hour' in duration_unit:
-                duration_seconds = duration_value * 3600
-            elif 'minute' in duration_unit:
-                duration_seconds = duration_value * 60
-            else:
-                duration_seconds = duration_value
-                # if not is_rpi:
-                #     duration_seconds = 60 if duration_seconds < 60 else duration_seconds
-            return duration_seconds
+        # Regular expression to match duration in format: 1 second, 2 minutes, 3 hours. 
+        # or 1 minute 30 seconds. 
+        # or 2 hours and 30 minutes. etc.
+        duration_pattern = re.compile(r'(\d+)\s?(second|minute|hour)s?(?:\s+and\s+(\d+)\s?(second|minute|hour)s?)?')
+        matches = duration_pattern.findall(transcript)
+        total_duration_seconds = 0
+
+        for match in matches:
+            for i in range(0, len(match), 2):
+                if match[i]:
+                    duration_value = int(match[i])
+                    duration_unit = match[i + 1].lower()
+                    if 'day' in duration_unit:
+                        total_duration_seconds += duration_value * 24 * 3600
+                    elif 'hour' in duration_unit:
+                        total_duration_seconds += duration_value * 3600
+                    elif 'minute' in duration_unit:
+                        total_duration_seconds += duration_value * 60
+                    else:
+                        total_duration_seconds += duration_value
+
+        if total_duration_seconds > 0:
+            return total_duration_seconds
         else:
             raise ValueError("No valid duration found in transcript")
         
@@ -549,7 +554,7 @@ class WakeWordDetector:
                 self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 # Extract time from transcript and set alarm
                 alarm_time = self.extract_time_from_transcript(transcript)
-                alarm_timer_service.add_alarm(alarm_time, alarm_callback)
+                alarm_timer_service.add_alarm(alarm_time)
                 response = "Alarm set for " + alarm_time.strftime('%I:%M %p')
                 append2log(f"{assistant_name}: {response} \n")
                 self.speech.speak(response)
@@ -569,7 +574,7 @@ class WakeWordDetector:
                 self.sound_effect.play(self.sound_effect.get_random_filler_sound())
                 # Extract duration from transcript and set timer
                 duration = self.extract_duration_from_transcript(transcript)
-                alarm_timer_service.add_timer(duration, timer_callback)
+                alarm_timer_service.add_timer(duration)
                 days, hours, minutes, seconds = self.durationSecondsToMaxUnits(duration)
                 day = f"{days} day" + ("s" if days > 1 else "") + ", " if days else ""
                 hour = f"{hours} hour" + ("s" if hours > 1 else "") + ", " if hours else ""
@@ -582,23 +587,47 @@ class WakeWordDetector:
                 return
 
             delete_phrases = [
-            "delete all alarms",
-            "delete all timers",
-            "reset all alarms",
-            "reset all timers",
-            "turn off all alarms",
-            "turn off all timers",
-            "cancel all alarms",
-            "cancel all timers",
-            "clear all alarms",
-            "clear all timers",
-            "forget all alarms",
-            "forget all timers",
+            "delete all alarm",
+            "reset all alarm",
+            "turn off all alarm",
+            "cancel all alarm",
+            "clear all alarm",
+            "forget all alarm",
+            "delete alarm",
+            "reset alarm",
+            "turn off alarm",
+            "cancel alarm",
+            "clear alarm",
+            "forget alarm",
             ]
             if any(phrase in transcript.lower() for phrase in delete_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
                 self.sound_effect.play(self.sound_effect.get_random_filler_sound())
-                alarm_timer_service.delete_all_jobs()
+                alarm_timer_service.delete_all_jobs("alarm")
+                response = "All alarms and timers deleted"
+                append2log(f"{assistant_name}: {response} \n")
+                self.speech.speak(response)
+                self._init_mic_stream()
+                return
+            
+            delete_phrases = [
+            "delete all timer",
+            "reset all timer",
+            "turn off all timer",
+            "cancel all timer",
+            "clear all timer",
+            "forget all timer",
+            "delete timer",
+            "reset timer",
+            "turn off timer",
+            "cancel timer",
+            "clear timer",
+            "forget timer",
+            ]
+            if any(phrase in transcript.lower() for phrase in delete_phrases) and not image:
+                self.handle_led_event("VoiceStarted")
+                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                alarm_timer_service.delete_all_jobs("timer")
                 response = "All alarms and timers deleted"
                 append2log(f"{assistant_name}: {response} \n")
                 self.speech.speak(response)
