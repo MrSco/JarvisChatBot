@@ -47,7 +47,7 @@ class AlarmTimerService:
             current_time = datetime.now()
             delay = (time_value - current_time).total_seconds()
             if delay < 60:
-                self.clean_up()
+                self.cleanup()
                 self.timer_thread = threading.Thread(target=self._run_command_after_delay, args=(delay, job_type))
                 self.timer_thread.start()
                 return
@@ -101,7 +101,8 @@ class AlarmTimerService:
             print(f"Running {type} command: " + " ".join(full_command))
             subprocess.run(full_command)
 
-    def clean_up(self):
+    def cleanup(self):
+        print("Cleaning up alarm_timer_service...")
         self.cancel_event.set()  # Signal any running thread to stop
         if self.timer_thread and self.timer_thread.is_alive():
             self.timer_thread.join()
@@ -112,7 +113,7 @@ class AlarmTimerService:
             self._delete_all_scheduled_tasks(self.alarm_task_name if job_type == "alarm" else self.timer_task_name)
         else:
             if job_type == "timer":
-                self.clean_up()
+                self.cleanup()
             self._delete_all_cron_jobs(job_type)
 
     def _delete_all_scheduled_tasks(self, task_name):

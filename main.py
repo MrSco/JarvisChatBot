@@ -31,6 +31,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 shairport_handler = None
 radio_player = None
 detector = None
+alarm_timer_service = None
 app = None
 socketio = None
 config = None
@@ -94,8 +95,6 @@ if not os.path.exists("chatlogs"):
 if config["use_frontend"]:
     app = Flask(__name__)
     socketio = SocketIO(app, async_mode='threading')
-
-alarm_timer_service = AlarmTimerService()
 
 # save conversation to a log file 
 def append2log(text, noNewLine=False):
@@ -928,15 +927,18 @@ def restart_app():
     if shairport_handler is not None:
         shairport_handler.cleanup()
     if radio_player is not None:
-        radio_player.stop()  
+        radio_player.stop()
+    if alarm_timer_service is not None:
+        alarm_timer_service.cleanup()
     print("restart_app() complete.")  
 
 def runApp():
-    global detector, shairport_handler, loading_sound, radio_player
+    global detector, shairport_handler, loading_sound, radio_player, alarm_timer_service
     while not is_exiting:
         loading_sound = SoundEffectService(config).play_loop("loading")
         detector = WakeWordDetector()
         radio_player = RadioPlayer(detector)
+        alarm_timer_service = AlarmTimerService()
         if is_rpi and config["use_shairport-sync"]:
             shairport_handler = ShairportSyncHandler(detector, radio_player)
         app.config['detector'] = detector  # Attach detector to the Flask app config    
@@ -947,6 +949,7 @@ def runApp():
             detector = None
             shairport_handler = None
             radio_player = None
+            alarm_timer_service = None
             gc.collect()
         time.sleep(0.1)
 
@@ -963,6 +966,8 @@ def signal_handler(sig, frame):
         shairport_handler.cleanup()
     if radio_player is not None:
         radio_player.stop()
+    if alarm_timer_service is not None:
+        alarm_timer_service.cleanup()
     if is_rpi:
         led_service.turn_off()
     if config["use_elevenlabs"]:
