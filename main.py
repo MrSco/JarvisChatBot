@@ -655,6 +655,9 @@ class WakeWordDetector:
             if any(phrase in transcript.lower() for phrase in change_assistant_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
                 print("Changing assistant...")
+                if "taurus" in transcript.lower():
+                    print("Handling mispronunciation of Taurus for TARS...")
+                    transcript = transcript.replace("Taurus", "taurus").replace("taurus", "Taurus (TARS)")
                 append2log(f"You: {transcript} \n")
                 # grab the assisant name from the transcript
                 new_assistant = next((assistant for assistant in assistants if assistants.get(assistant, {}).get('name', '').lower() in transcript.lower()), None)

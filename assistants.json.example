@@ -31,7 +31,7 @@
     },
     "tars": {
         "name": "TARS",
-        "wake_word": "tars",
+        "wake_word": "hey tars",
         "gender": "male",
         "accent": "us",
         "page_title": "T.A.R.S.",
