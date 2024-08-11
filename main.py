@@ -253,7 +253,8 @@ class WakeWordDetector:
                     socketio.emit('processing_audio', {'status': 'done', 'audio_level': audio_level})
                     last_audio_level_emit_time = time.time()
                 # Make the prediction using the pre_wake_audio_buffer audio
-                prediction = self.handle.predict(self.pre_wake_audio_buffer.pop())
+                prev_audio = self.pre_wake_audio_buffer[-2]
+                prediction = self.handle.predict(prev_audio)
                 prediction_models = list(prediction.keys())
                 mdl = prediction_models[0]
                 score = float(prediction[mdl])
