@@ -743,6 +743,8 @@ class WakeWordDetector:
         self.chat_gpt_service = None
         self.listener = None
         self.handle = None
+        self.audio_queue = None
+        self.pre_wake_audio_buffer = None
 
 @app.template_filter('find_url')
 def find_url_filter(text):
