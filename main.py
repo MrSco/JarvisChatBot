@@ -964,6 +964,7 @@ def runApp():
             shairport_handler = None
             radio_player = None
             alarm_timer_service = None
+            loading_sound = None
             gc.collect()
         time.sleep(0.1)
 
