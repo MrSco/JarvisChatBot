@@ -1,4 +1,5 @@
 import base64
+import collections
 from datetime import date, datetime
 import gc
 import json
@@ -165,7 +166,7 @@ class ShairportSyncHandler:
         self.shairport_proxy = None
         self.blink_led_thread = None
         self.thread = None
-
+        
 class WakeWordDetector:
     def __init__(self):
         self.chat_gpt_service = ChatGPTService(config)
@@ -185,6 +186,7 @@ class WakeWordDetector:
         self.consumer_thread = None
         self.restart_app = False
         self.mic_stream = None
+        self.pre_wake_audio_buffer = collections.deque(maxlen=int(0.5 * self.oww_sample_rate))  # Buffer for 0.5 seconds of audio
 
         self.handle = Model(
             wakeword_models=[oww_model_path], 
@@ -233,13 +235,14 @@ class WakeWordDetector:
                 self.handle_led_event("Running")
                 oww_audio = self.audio_queue.get()
                 audio_level = np.abs(oww_audio).mean()
+                self.pre_wake_audio_buffer.append(oww_audio)  # Add audio to buffer
                 if current_time - last_audio_level_emit_time >= 0.1:
                     socketio.emit('processing_audio', {'status': 'ready'})
                 current_time = time.time()
                 # if audio level is below the threshold, skip processing, 
                 # but if the audio level was just above the threshold in the last 0.5 seconds, 
                 # process the audio as its the tail end of the audio
-                if audio_level < vad_threshold and current_time - last_audio_level_over_threshold > 0.75:
+                if audio_level < vad_threshold and current_time - last_audio_level_over_threshold > 0.5:
                     continue
                 if audio_level > vad_threshold:
                     last_audio_level_over_threshold = current_time
@@ -249,7 +252,8 @@ class WakeWordDetector:
                 if current_time - last_audio_level_emit_time >= 0.1:
                     socketio.emit('processing_audio', {'status': 'done', 'audio_level': audio_level})
                     last_audio_level_emit_time = time.time()
-                prediction = self.handle.predict(oww_audio)
+                # Make the prediction using the pre_wake_audio_buffer audio
+                prediction = self.handle.predict(self.pre_wake_audio_buffer.pop())
                 prediction_models = list(prediction.keys())
                 mdl = prediction_models[0]
                 score = float(prediction[mdl])
@@ -280,9 +284,9 @@ class WakeWordDetector:
     def process_audio(self):
         self.producer_thread = threading.Thread(target=self.audio_producer)
         self.consumer_thread = threading.Thread(target=self.audio_consumer)
+        self.is_awoken = True
         self.producer_thread.start()
         self.consumer_thread.start()
-        self.is_awoken = True
         self.handle_led_event("VoiceStarted")
         if self.use_elevenlabs:
             self.sound_effect.play("ready")
