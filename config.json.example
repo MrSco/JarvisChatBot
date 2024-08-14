@@ -19,7 +19,7 @@
     "language": "en",
     "vad_threshold": 1000,
     "max_threshold": 5000,
-    "led_brightness": 15,
+    "led_brightness": 5,
     "print_audio_level": false,
     "dynamic_energy_threshold": false,
     "timeout": 10,

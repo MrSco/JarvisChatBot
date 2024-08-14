@@ -81,13 +81,14 @@ if not os.path.exists("chatlogs"):
     os.makedirs("chatlogs")
 
 led_service = None
+led_brightness = min(config["led_brightness"], 31)
 # Check if the script is running on rpi
 is_rpi= platform.system() == 'Linux' and is_running_on_raspberry_pi()
 if is_rpi:
     try:
         import dbus
         from led_service import LEDService        
-        led_service = LEDService(led_brightness=config["led_brightness"])
+        led_service = LEDService(led_brightness=led_brightness)
         led_service.handle_event("Starting")
     except ImportError:
         print("Make sure you're running this on a Raspberry Pi.")

@@ -26,7 +26,8 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 config_file = os.path.join(script_dir, "config.json")
 config = json.load(open(config_file))
 sound_effect = SoundEffectService()
-led_service = LEDService(led_brightness=config["led_brightness"])
+led_brightness = min(config["led_brightness"], 31)
+led_service = LEDService(led_brightness=led_brightness)
 led_service.handle_event("Starting")
 while True:
     #grab the current button state
