@@ -22,7 +22,7 @@ pin = 17
 GPIO.setup(pin, GPIO.IN, pull_up_down = GPIO.PUD_UP)
 buttonPressTime = None
 sound_effect = SoundEffectService()
-led_service = LEDService()
+led_service = LEDService(led_brightness=15)
 led_service.handle_event("Starting")
 while True:
     #grab the current button state

@@ -19,8 +19,9 @@ _PINK = (255, 105, 180)
 _ORANGE = (255, 165, 0)
 
 class LEDService:
-    def __init__(self,):
+    def __init__(self, led_brightness = None):
         self.led_power = gpiozero.LED(LEDS_GPIO, active_high=False)
+        self.led_brightness = led_brightness
         self.turn_on()
 
     def set_color(self,  rgb: Tuple[int, int, int]):
@@ -65,7 +66,10 @@ class LEDService:
     
     def turn_on(self):        
         self.led_power.on()
-        self.leds = APA102(num_led=NUM_LEDS)
+        if self.led_brightness is not None:
+            self.leds = APA102(num_led=NUM_LEDS, global_brightness=self.led_brightness)
+        else:
+            self.leds = APA102(num_led=NUM_LEDS)
         self.current_color = _BLACK
 
     def turn_off(self):

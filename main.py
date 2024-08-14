@@ -88,6 +88,7 @@ assistant_name = assistant["name"]
 assistant_acronym = assistant["acronym"]
 vad_threshold = config["vad_threshold"]
 print_audio_level = config["print_audio_level"]
+max_threshold = config["max_threshold"]
 today = str(date.today())
 chatlog_filename = os.path.join(script_dir, "chatlogs", f"{config['assistant']}_chatlog-{today}.txt")
 if not os.path.exists("chatlogs"):
@@ -199,7 +200,8 @@ class WakeWordDetector:
 
         self.handle = Model(
             wakeword_models=oww_models, 
-            inference_framework=oww_inference_framework
+            inference_framework=oww_inference_framework,
+            vad_threshold=vad_threshold/max_threshold,
         )
 
         self.pa = pyaudio.PyAudio()
@@ -811,7 +813,14 @@ def chatlog(date):
 @app.route('/')
 def index():
     chatlog = get_chat_log_for_date(today)
-    return render_template('index.html', vad_threshold=vad_threshold, assistants=assistants, assistant_dict=assistant, images_disabled=config["use_groq"], chatlog=json.dumps(chatlog), radio_playing=(radio_player is not None and radio_player.running))
+    return render_template('index.html', vad_threshold=vad_threshold, 
+                           max_threshold=max_threshold, 
+                           assistants=assistants, 
+                           assistant_dict=assistant, 
+                           images_disabled=config["use_groq"], 
+                           chatlog=json.dumps(chatlog), 
+                           radio_playing=(radio_player is not None and radio_player.running)
+                           )
 
 @socketio.on("file_chunk")
 def handle_file_chunk(data):

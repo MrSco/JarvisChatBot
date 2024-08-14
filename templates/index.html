@@ -11,6 +11,7 @@
         var chatLogData = {{ chatlog|safe }};
         var images_disabled = {{ 'true' if images_disabled else 'false' }};
         var radio_playing = {{ 'true' if radio_playing else 'false' }};
+        var max_threshold = {{ max_threshold }};
     </script>
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
     <link rel="icon" href='{{ url_for("static", filename="images/" + assistant_dict["name"].lower() + "-favicon.ico")}}'>
@@ -44,7 +45,7 @@
             </select>
             <div class="vad_container">
                 <label for="thresholdSlider">Voice Threshold: </label>
-                <input type="range" id="thresholdSlider" min="0" max="5000" value="{{ vad_threshold }}">
+                <input type="range" id="thresholdSlider" min="1" max="{{ max_threshold }}" value="{{ vad_threshold }}">
                 <span id="thresholdValue">{{ vad_threshold }}</span>
                 <span id="redDot"></span>
             </div>

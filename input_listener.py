@@ -5,7 +5,7 @@ class InputListener:
         self.rec = sr.Recognizer()
         self.mic = sr.Microphone()
         self.rec.dynamic_energy_threshold = config["dynamic_energy_threshold"]
-        self.rec.energy_threshold = config["energy_threshold"]
+        self.rec.energy_threshold = config["vad_threshold"]
         self.timeout = config["timeout"]
         self.phrase_time_limit = config["phrase_time_limit"]
         self.language = config["language"] + "-US"
