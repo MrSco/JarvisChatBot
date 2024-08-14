@@ -343,6 +343,9 @@ class WakeWordDetector:
             return (in_data, pyaudio.paContinue)
 
         if self.pa is not None:
+            if self.mic_stream is not None:
+                self.mic_stream.stop_stream()
+                self.mic_stream.close()
             self.mic_stream = self.pa.open(
                 rate=self.oww_sample_rate,
                 channels=self.oww_channels,
@@ -446,7 +449,6 @@ class WakeWordDetector:
                     self.speech.speak(f"Hi, how can I help?")
                 append2log(f"You: {transcript} \n")
                 append2log(f"{assistant_name}: {short_response} \n")
-                self._init_mic_stream()
                 return
             
             time_phrases = [
@@ -473,7 +475,6 @@ class WakeWordDetector:
                 response = f"{current_time}"
                 append2log(f"{assistant_name}: {response} \n")
                 self.speech.speak(response)
-                self._init_mic_stream()
                 return
 
             radio_phrases = [
@@ -497,7 +498,6 @@ class WakeWordDetector:
                 radio_player.start(config["radio_stream_url"])
                 response = "Radio started."
                 append2log(f"{assistant_name}: {response} \n")
-                self._init_mic_stream()
                 return
             
             radio_phrases = [
@@ -535,7 +535,6 @@ class WakeWordDetector:
                 radio_player.start(config["kids_radio_stream_url"])
                 response = "Kids radio started."
                 append2log(f"{assistant_name}: {response} \n")
-                self._init_mic_stream()
                 return
 
             radio_phrases = [
@@ -563,7 +562,6 @@ class WakeWordDetector:
                 response = "Radio stopped."
                 append2log(f"{assistant_name}: {response} \n")
                 self.speech.speak(response)
-                self._init_mic_stream()
                 return
 
             alarm_phrases = [
@@ -585,7 +583,6 @@ class WakeWordDetector:
                 response = "Alarm set for " + alarm_time.strftime('%I:%M %p')
                 append2log(f"{assistant_name}: {response} \n")
                 self.speech.speak(response)
-                self._init_mic_stream()
                 return
             
             timer_phrases = [
@@ -610,7 +607,6 @@ class WakeWordDetector:
                 response = "Timer set for " + f"{day}{hour}{minute}{second}"
                 append2log(f"{assistant_name}: {response} \n")
                 self.speech.speak(response)
-                self._init_mic_stream()
                 return
 
             delete_phrases = [
@@ -634,7 +630,6 @@ class WakeWordDetector:
                 response = "All alarms and timers deleted"
                 append2log(f"{assistant_name}: {response} \n")
                 self.speech.speak(response)
-                self._init_mic_stream()
                 return
             
             delete_phrases = [
@@ -658,7 +653,6 @@ class WakeWordDetector:
                 response = "All alarms and timers deleted"
                 append2log(f"{assistant_name}: {response} \n")
                 self.speech.speak(response)
-                self._init_mic_stream()
                 return
             
             change_assistant_phrases = [
@@ -703,7 +697,6 @@ class WakeWordDetector:
                     print(response)
                     append2log(f"{assistant_name}: {response} \n")
                     self.speech.speak(response)
-                self._init_mic_stream()
                 return
 
             self.sound_effect.play(self.sound_effect.get_random_filler_sound())
