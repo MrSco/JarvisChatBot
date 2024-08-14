@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import json
 import RPi.GPIO as GPIO
 import time
 import os
@@ -21,8 +22,11 @@ GPIO.setmode(GPIO.BCM)
 pin = 17
 GPIO.setup(pin, GPIO.IN, pull_up_down = GPIO.PUD_UP)
 buttonPressTime = None
+script_dir = os.path.dirname(os.path.abspath(__file__))
+config_file = os.path.join(script_dir, "config.json")
+config = json.load(open(config_file))
 sound_effect = SoundEffectService()
-led_service = LEDService(led_brightness=15)
+led_service = LEDService(led_brightness=config["led_brightness"])
 led_service.handle_event("Starting")
 while True:
     #grab the current button state
