@@ -224,8 +224,7 @@ class WakeWordDetector:
                     while self.is_running and self.is_awoken:
                         time.sleep(1)
                 #print("Audio producer resumed")
-                oww_audio = np.frombuffer(self.mic_stream.read(self.oww_chunk_size, exception_on_overflow=False), dtype=np.int16)
-                self.audio_queue.put(oww_audio)
+                time.sleep(0.1)
             except IOError as e:
                 if e.errno == pyaudio.paStreamIsStopped:
                     self._init_mic_stream()
@@ -337,6 +336,12 @@ class WakeWordDetector:
 
     def _init_mic_stream(self):
         self.handle_led_event("Connected")
+
+        def audio_callback(in_data, frame_count, time_info, status):
+            audio = np.frombuffer(in_data, dtype=np.int16)
+            self.audio_queue.put(audio)
+            return (in_data, pyaudio.paContinue)
+
         if self.pa is not None:
             self.mic_stream = self.pa.open(
                 rate=self.oww_sample_rate,
@@ -344,7 +349,9 @@ class WakeWordDetector:
                 format=pyaudio.paInt16,
                 input=True,
                 frames_per_buffer=self.oww_chunk_size,
+                stream_callback=audio_callback,
             )
+            self.mic_stream.start_stream()
         self.is_request_processing = False
         if (shairport_handler is not None and shairport_handler.shairport_active) \
             or (radio_player is not None and radio_player.running) and not self.is_awoken:
@@ -745,6 +752,7 @@ class WakeWordDetector:
         if self.consumer_thread.is_alive() and self.consumer_thread != current_thread:
             self.consumer_thread.join()
         if self.mic_stream is not None:
+            self.mic_stream.stop_stream()
             self.mic_stream.close()
         if self.pa is not None:
             self.pa.terminate()
