@@ -117,13 +117,14 @@ class ChatGPTService:
                 return None
         else:
             content = request
-        # disable the history for now to save tokens
-        self.history = self.history[:1]
+
         # replace the timestamp in the history with the current time
         current_time = datetime.now(get_localzone()).strftime('%I:%M %p %Z').lstrip("0")
         self.history[0]["content"] = self.history[0]["content"].replace("{today}", str(date.today())).replace("{theCurrentTime}", current_time)
 
         self.history.append({"role": "user", "content": content})
+        if len(self.history) > 5:
+            self.history = [self.history[0]] + self.history[-4:]
         result = None
         try:
             #print(self.history)
@@ -150,7 +151,7 @@ class ChatGPTService:
                 delta = chunk.choices[0].delta
                 if delta.content:
                     sentence += delta.content.replace('\n', ' ')
-                    response_full_text += sentence
+                    response_full_text += delta.content.replace('\n', ' ')
                     # Check if the current character ends the sentence
                     if delta.content[-1] in sentence_endings:
                         #print(sentence, end="")
