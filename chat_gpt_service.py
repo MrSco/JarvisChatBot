@@ -104,7 +104,6 @@ class ChatGPTService:
         return link
 
     def send_to_chat_gpt(self, request, image=None, image_link=''):
-        start_time = time.time()
         if not self.use_groq and image is not None:
             if self.use_imgur:
                 image_link = self.upload_image_to_imgur(image)
@@ -165,8 +164,6 @@ class ChatGPTService:
                 yield sentence
             else:
                 self.append2log("")
-            end_time = time.time()
-            print(f"Time taken: {end_time - start_time} seconds")
             self.history.append({"role": "assistant", "content": response_full_text})
         
         return text_iterator()

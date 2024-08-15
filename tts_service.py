@@ -21,15 +21,12 @@ class TextToSpeechService:
         self.language = config["language"]
         self.accent = config["assistant_dict"]["accent"]
         self.sound_effect = None
-        #self.start_time = None
-        #self.end_time = None
 
     def remove_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', '', text)
 
     def speak(self, text):
         textToSpeak = text
-        #self.start_time = time.time()
         try:
             # strip out emojis so we don't try to speak them
             textToSpeak = self.remove_non_ascii(text)
@@ -92,8 +89,6 @@ class TextToSpeechService:
             
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
-            #self.end_time = time.time()
-            #print(f"Time taken: {self.end_time - self.start_time} seconds")
             print(f"{self.assistant_name}: {text}")
             
             # Play the audio
@@ -109,8 +104,6 @@ class TextToSpeechService:
             engine.setProperty('voice', voices[self.assistant_gender].id)
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
-            #self.end_time = time.time()
-            #print(f"Time taken: {self.end_time - self.start_time} seconds")
             print(f"{self.assistant_name}: {text}")
             engine.say(text)
             engine.runAndWait()

@@ -193,11 +193,9 @@ class WakeWordDetector:
         self.use_elevenlabs = config["use_elevenlabs"]
         self.audio_queue = queue.Queue()
         self.is_running = True
-        self.producer_thread = None
         self.consumer_thread = None
         self.restart_app = False
         self.mic_stream = None
-        self.pre_wake_audio_buffer = collections.deque(maxlen=int(0.5 * self.oww_sample_rate))  # Buffer for 0.5 seconds of audio
 
         self.handle = Model(
             wakeword_models=oww_models, 
@@ -215,28 +213,11 @@ class WakeWordDetector:
 
         self.sound_effect = SoundEffectService(config)        
 
-    def audio_producer(self):
-        self._init_mic_stream()
-        while self.is_running:
-            try:
-                if self.is_awoken:
-                    #print("Audio producer paused")
-                    while self.is_running and self.is_awoken:
-                        time.sleep(1)
-                #print("Audio producer resumed")
-                oww_audio = np.frombuffer(self.mic_stream.read(self.oww_chunk_size, exception_on_overflow=False), dtype=np.int16)
-                self.audio_queue.put(oww_audio)
-            except IOError as e:
-                if e.errno == pyaudio.paStreamIsStopped:
-                    self._init_mic_stream()
-                    continue
-                else:
-                    raise
-
     def audio_consumer(self):
         current_time = time.time()
         last_audio_level_emit_time = current_time
         last_audio_level_over_threshold = current_time
+        self._init_mic_stream()
         while self.is_running:
             try:
                 if self.is_awoken:
@@ -247,7 +228,6 @@ class WakeWordDetector:
                 self.handle_led_event("Running")
                 oww_audio = self.audio_queue.get()
                 audio_level = np.abs(oww_audio).mean()
-                self.pre_wake_audio_buffer.append(oww_audio)  # Add audio to buffer
                 if current_time - last_audio_level_emit_time >= 0.1:
                     socketio.emit('processing_audio', {'status': 'ready'})
                 current_time = time.time()
@@ -264,13 +244,8 @@ class WakeWordDetector:
                 if current_time - last_audio_level_emit_time >= 0.1:
                     socketio.emit('processing_audio', {'status': 'done', 'audio_level': audio_level})
                     last_audio_level_emit_time = time.time()
-                # Make the prediction using the pre_wake_audio_buffer audio
-                # get the second to last audio as the last audio is the current audio if it exists
-                if len(self.pre_wake_audio_buffer) > 1:
-                    prev_audio = self.pre_wake_audio_buffer[-2]
-                else:
-                    prev_audio = self.pre_wake_audio_buffer[-1]
-                prediction = self.handle.predict(prev_audio)
+                # Make the prediction
+                prediction = self.handle.predict(oww_audio)
                 prediction_models = list(prediction.keys())
                 mdl = prediction_models[0]
                 score = float(prediction[mdl])
@@ -299,10 +274,8 @@ class WakeWordDetector:
                 continue
 
     def process_audio(self):
-        self.producer_thread = threading.Thread(target=self.audio_producer)
         self.consumer_thread = threading.Thread(target=self.audio_consumer)
         self.is_awoken = True
-        self.producer_thread.start()
         self.consumer_thread.start()
         self.handle_led_event("VoiceStarted")
         if self.use_elevenlabs:
@@ -338,13 +311,22 @@ class WakeWordDetector:
     def _init_mic_stream(self):
         self.handle_led_event("Connected")
 
+        def audio_callback(in_data, frame_count, time_info, status):
+            audio = np.frombuffer(in_data, dtype=np.int16)
+            self.audio_queue.put(audio)
+            return (in_data, pyaudio.paContinue)
+        
         if self.pa is not None:
+            if self.mic_stream is not None:
+                self.mic_stream.stop_stream()
+                self.mic_stream.close()
             self.mic_stream = self.pa.open(
                 rate=self.oww_sample_rate,
                 channels=self.oww_channels,
                 format=pyaudio.paInt16,
                 input=True,
                 frames_per_buffer=self.oww_chunk_size,
+                stream_callback=audio_callback
             )
         self.is_request_processing = False
         if (shairport_handler is not None and shairport_handler.shairport_active) \
@@ -702,7 +684,6 @@ class WakeWordDetector:
                 self.something_went_wrong()
                 return
 
-            end_time = time.time()
             socketio.emit('chat_response_ready', {'status': 'ready'})
             self.handle_led_event("VoiceStarted")
             if isinstance(text_iterator, str):
@@ -714,6 +695,7 @@ class WakeWordDetector:
             for text in text_iterator:
                 if text.strip():
                     self.speech.speak(text)
+            end_time = time.time()
 
             print(f"Total Time: {end_time - start_time} seconds")
         finally:
@@ -731,11 +713,10 @@ class WakeWordDetector:
         print("Cleaning up detector...")
         self.is_running = False
         current_thread = threading.current_thread()
-        if self.producer_thread.is_alive() and self.producer_thread != current_thread:
-            self.producer_thread.join()
         if self.consumer_thread.is_alive() and self.consumer_thread != current_thread:
             self.consumer_thread.join()
         if self.mic_stream is not None:
+            self.mic_stream.stop_stream()
             self.mic_stream.close()
         if self.pa is not None:
             self.pa.terminate()
@@ -747,7 +728,6 @@ class WakeWordDetector:
         self.listener = None
         self.handle = None
         self.audio_queue = None
-        self.pre_wake_audio_buffer = None
 
 @app.template_filter('find_url')
 def find_url_filter(text):
