@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Settings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script>
+        var openai_model = "{{ config['openai_model'] }}";
+        var groq_model = "{{ config['groq_model'] }}";
+        var use_groq = {{ 'true' if config['use_groq'] else 'false' }};
+        var radio_stream_url = "{{ config['radio_stream_url'] }}";
+        var kids_radio_stream_url = "{{ config['kids_radio_stream_url'] }}";
+        var elevenlabs_key = "{{ config['elevenlabs_key'] }}";
+        var use_elevenlabs = {{ 'true' if config['use_elevenlabs'] else 'false' }};
+        var use_gtts = {{ 'true' if config['use_gtts'] else 'false' }};
+        var imgur_client_id = "{{ config['imgur_client_id'] }}";
+        var imgur_client_secret = "{{ config['imgur_client_secret'] }}";
+        var max_threshold = {{ config['max_threshold'] }};
+        var led_brightness = {{ config['led_brightness'] }};
+    </script>
+    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+</head>
+<body>
+    <div id="sideNav" class="sidenav">
+        <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>
+        <a id="homeLink" href="/">Home</a>
+        <a id="historyLink" href="/history">History</a>
+        <a id="settingsLink" href="/settings">Settings</a>
+    </div>
+    <div id="settingsContainer">
+        <h1 id="header">
+            <span class="hamburger" onclick="openNav()">&#9776;</span>
+            <span>Settings</span>
+        </h1>
+        <form id="settingsForm">
+            <div>
+                <label for="openai_modelSelect">ChatGPT Model:</label>
+                <select id="openai_modelSelect" name="openai_model">
+                    <option value="chatgpt-4o-latest">GPT-4o Latest</option>
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="gpt-4o-mini">GPT-4o Mini</option>
+                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                </select>
+            </div>
+            <div>
+                <label for="useGroq">Enable Groq:</label>
+                <input type="checkbox" id="useGroq" name="use_groq" {% if config['use_groq'] %}checked{% endif %}>
+            </div>
+            <div>
+                <label for="groq_modelSelect">Groq Model:</label>
+                <select id="groq_modelSelect" name="groq_model">
+                    <option value="llama-3.1-70b-versatile">Llama 3.1 70b</option>
+                    <option value="llama-3.1-8b-instant">Llama 3.1 8b</option>
+                    <option value="mixtral-8x7b-32768">Mixtral 8x7b</option>
+                </select>
+            </div>
+            <div>
+                <label for="radio_stream_url">Radio Stream URL:</label>
+                <input type="text" id="radio_stream_url" name="radio_stream_url" value="{{ config['radio_stream_url'] }}">
+            </div>
+            <div>
+                <label for="kids_radio_stream_url">Kids Radio Stream URL:</label>
+                <input type="text" id="kids_radio_stream_url" name="kids_radio_stream_url" value="{{ config['kids_radio_stream_url'] }}">
+            </div>
+            <div>
+                <label for="elevenlabs_key">ElevenLabs Key:</label>
+                <input type="text" id="elevenlabs_key" name="elevenlabs_key" value="{{ config['elevenlabs_key'] }}">
+            </div>
+            <div>
+                <label for="use_elevenlabs">Use ElevenLabs:</label>
+                <input type="checkbox" id="use_elevenlabs" name="use_elevenlabs" {% if config['use_elevenlabs'] %}checked{% endif %}>
+            </div>
+            <div>
+                <label for="use_gtts">Use GTTS:</label>
+                <input type="checkbox" id="use_gtts" name="use_gtts" {% if config['use_gtts'] %}checked{% endif %}>
+            </div>
+            <div>
+                <label for="imgur_client_id">Imgur Client ID:</label>
+                <input type="text" id="imgur_client_id" name="imgur_client_id" value="{{ config['imgur_client_id'] }}">
+            </div>
+            <div>
+                <label for="imgur_client_secret">Imgur Client Secret:</label>
+                <input type="text" id="imgur_client_secret" name="imgur_client_secret" value="{{ config['imgur_client_secret'] }}">
+            </div>
+            <div>
+                <label for="max_threshold">Max Threshold:</label>
+                <input type="number" id="max_threshold" name="max_threshold" value="{{ config['max_threshold'] }}">
+            </div>
+            <div>
+                <label for="led_brightness">LED Brightness:</label>
+                <input type="number" id="led_brightness" name="led_brightness" value="{{ config['led_brightness'] }}">
+            </div>
+            <button type="submit">Save Settings</button>
+        </form>
+    </div>
+</body>
+</html>

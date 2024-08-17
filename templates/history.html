@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Chat History</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <script>
@@ -16,6 +16,7 @@
         <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>
         <a id="homeLink" href="/">Home</a>
         <a id="historyLink" href="/history">History</a>
+        <a id="settingsLink" href="/settings">Settings</a>
     </div>
     <div id="chatContainer">
         <h1 id="header">

@@ -223,3 +223,67 @@ label[for="file-upload"]:hover {
         width: 90%;
     }
 }
+
+#settingsForm {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#settingsForm div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+#settingsForm label {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+#settingsForm input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+#settingsForm input[type="number"]::-webkit-inner-spin-button, 
+#settingsForm input[type="number"]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+}
+
+#settingsForm select,
+#settingsForm input[type="text"],
+#settingsForm input[type="number"],
+#settingsForm input[type="checkbox"] {
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+#settingsForm input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+#settingsForm button {
+    padding: 10px 20px;
+    font-size: 16px;
+    color: white;
+    background-color: #4CAF50;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#settingsForm button:hover {
+    background-color: #45a049;
+}

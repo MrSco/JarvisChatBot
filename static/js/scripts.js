@@ -202,6 +202,32 @@ if (location.toString().includes('/history')) {
             .catch(error => console.error('Error fetching chat log:', error));
     }        
 }
+else if (location.toString().includes('/settings')) {
+    document.addEventListener('DOMContentLoaded', function () {
+        setActiveLink();
+
+        // set the openai_model and groq_model select elements to the current values
+        var openai_modelSelect = document.getElementById('openai_modelSelect');
+        var groq_modelSelect = document.getElementById('groq_modelSelect');
+        openai_modelSelect.value = openai_model;
+        groq_modelSelect.value = groq_model;
+
+        document.getElementById('settingsForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            var formData = new FormData(this);
+            fetch('/settings', {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    alert('Settings saved successfully!');
+                } else {
+                    alert('Failed to save settings.');
+                }
+            });
+        });
+    });
+}
 else {
     document.addEventListener('DOMContentLoaded', function () {
         setActiveLink();

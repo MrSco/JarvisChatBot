@@ -846,6 +846,7 @@ def handle_file_chunk(data):
             # delete the chunks from memory
             del file_chunks[file_id]
     else:
+        detector.is_awoken = True
         response = detector.process_transcript(text_prompt)
 
 @app.route('/uploads/<filename>')
@@ -856,6 +857,29 @@ def uploaded_file(filename):
 def history():
     chatlog = get_chat_log_for_date(today)
     return render_template('history.html', assistant_dict=assistant, chatlog=json.dumps(chatlog))
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    global config
+    if request.method == 'POST':
+        config['openai_model'] = request.form['openai_model']
+        config['groq_model'] = request.form['groq_model']
+        config['use_groq'] = 'use_groq' in request.form
+        config['radio_stream_url'] = request.form['radio_stream_url']
+        config['kids_radio_stream_url'] = request.form['kids_radio_stream_url']
+        config['elevenlabs_key'] = request.form['elevenlabs_key']
+        config['use_elevenlabs'] = 'use_elevenlabs' in request.form
+        config['use_gtts'] = 'use_gtts' in request.form
+        config['imgur_client_id'] = request.form['imgur_client_id']
+        config['imgur_client_secret'] = request.form['imgur_client_secret']
+        config['max_threshold'] = int(request.form['max_threshold'])
+        config['led_brightness'] = int(request.form['led_brightness'])
+        # Save the updated config to the file
+        with open('config.json', 'w') as f:
+            json.dump(config, f, indent=4)
+        restart_app()
+        return jsonify({"status": "ok"}), 200
+    return render_template('settings.html', config=config)
 
 @app.route('/play_radio', methods=['POST'])
 def play_radio():
