@@ -222,8 +222,12 @@ class WakeWordDetector:
             try:
                 if self.is_awoken:
                     #print("Audio consumer paused")
+                    if self.mic_stream is not None:
+                        self.mic_stream.stop_stream()
                     while self.is_running and self.is_awoken:
                         time.sleep(1)
+                    if self.mic_stream is not None:
+                        self.mic_stream.start_stream()
                 #print("Audio consumer resumed")
                 self.handle_led_event("Running")
                 oww_audio = self.audio_queue.get()
