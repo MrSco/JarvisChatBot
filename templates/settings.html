@@ -91,6 +91,10 @@
                 <label for="led_brightness">LED Brightness:</label>
                 <input type="number" id="led_brightness" name="led_brightness" value="{{ config['led_brightness'] }}">
             </div>
+            <div>
+                <label for="system_prompt">System Prompt:</label>
+                <input type="text" id="system_prompt" name="system_prompt" value="{{ config['system_prompt'] }}">
+            </div>
             <button type="submit">Save Settings</button>
         </form>
     </div>
