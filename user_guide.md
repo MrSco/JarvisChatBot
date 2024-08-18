@@ -1,7 +1,3 @@
-Sure! Here's a simple user guide for the Bluey ChatBot:
-
----
-
 # Bluey ChatBot User Guide
 
 ## What is Bluey ChatBot?
@@ -44,7 +40,6 @@ Bluey ChatBot is a talking robot that listens to you and talks back! You can ask
    - After waking it up, you can ask it questions or give it commands like:
      - "What time is it?"
      - "Tell me a joke"
-     - "What's the weather today?"
      - "Set an alarm for 6:30 AM"
      - "Set a timer for 10 minutes"
      - "Change your name to Jarvis"
