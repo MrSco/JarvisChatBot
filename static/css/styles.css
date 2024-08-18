@@ -257,6 +257,7 @@ label[for="file-upload"]:hover {
 
 #settingsForm select,
 #settingsForm input[type="text"],
+#settingsForm textarea,
 #settingsForm input[type="number"],
 #settingsForm input[type="checkbox"] {
     padding: 10px;
@@ -265,13 +266,13 @@ label[for="file-upload"]:hover {
     border-radius: 5px;
 }
 
+#settingsForm textarea {
+    resize: vertical;
+}
+
 #settingsForm input[type="checkbox"] {
     width: 20px;
     height: 20px;
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
 }
 
 #settingsForm button {
