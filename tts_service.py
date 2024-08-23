@@ -1,12 +1,12 @@
 import re
 import time
 from elevenlabs import VoiceSettings
-from elevenlabs import stream
+from elevenlabs import stream, play
 from elevenlabs.client import ElevenLabs
 import pyttsx3
 from gtts import gTTS
 from pydub import AudioSegment
-from pydub.playback import play
+from pydub.playback import play as pyDubPlay
 import io
 
 class TextToSpeechService:
@@ -21,10 +21,16 @@ class TextToSpeechService:
         self.language = config["language"]
         self.accent = config["assistant_dict"]["accent"]
         self.sound_effect = None
+        self.is_running = True
 
     def remove_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', '', text)
 
+    def stop(self):
+        self.is_running = False
+        if self.sound_effect is not None:
+            self.sound_effect.stop_sound()
+    
     def speak(self, text):
         textToSpeak = text
         try:
@@ -64,6 +70,8 @@ class TextToSpeechService:
                 )
             )
             for chunk in response:
+                if not self.is_running:
+                    break
                 yield chunk
 
         except Exception as e:
@@ -92,7 +100,7 @@ class TextToSpeechService:
             print(f"{self.assistant_name}: {text}")
             
             # Play the audio
-            play(audio)
+            pyDubPlay(audio)
         except Exception as e:
             print(f"Failed to use gTTS for speech: {e}")
 

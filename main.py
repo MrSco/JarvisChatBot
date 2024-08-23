@@ -718,6 +718,8 @@ class WakeWordDetector:
     def cleanup(self):
         print("Cleaning up detector...")
         self.is_running = False
+        if self.speech is not None:
+            self.speech.stop()
         current_thread = threading.current_thread()
         if self.consumer_thread.is_alive() and self.consumer_thread != current_thread:
             self.consumer_thread.join()
