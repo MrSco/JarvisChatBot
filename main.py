@@ -42,7 +42,6 @@ assistant_name = None
 assistant_acronym = None
 led_service = None
 is_rpi = False
-today = None
 loading_sound = None
 file_chunks = {}
 is_exiting = False
@@ -75,8 +74,7 @@ assistant_acronym = assistant["acronym"]
 vad_threshold = config["vad_threshold"]
 print_audio_level = config["print_audio_level"]
 max_threshold = config["max_threshold"]
-today = str(date.today())
-chatlog_filename = os.path.join(script_dir, "chatlogs", f"{config['assistant']}_chatlog-{today}.txt")
+
 if not os.path.exists("chatlogs"):
     os.makedirs("chatlogs")
 
@@ -99,9 +97,13 @@ if config["use_frontend"]:
     app = Flask(__name__)
     socketio = SocketIO(app, async_mode='threading')
 
+def getChatFilename(dateStr):    
+    chatlog_filename = os.path.join(script_dir, "chatlogs", f"{config['assistant']}_chatlog-{dateStr}.txt")
+    return chatlog_filename
+
 # save conversation to a log file 
 def append2log(text, noNewLine=False):
-    global today
+    chatlog_filename = getChatFilename(str(date.today()))
     with open(chatlog_filename, "a", encoding='utf-8') as f:
         f.write(text + ("\n" if not noNewLine else ""))
         f.close
@@ -741,8 +743,9 @@ def find_url_filter(text):
     return url if url else None
 
 # Function to get chat logs for a specific date
-def get_chat_log_for_date(date):
-    filename = chatlog_filename.split("-")[0] + f"-{date}.txt"
+def get_chat_log_for_date(dateStr):
+    chatlog_filename = getChatFilename(dateStr)
+    filename = chatlog_filename.split("-")[0] + f"-{dateStr}.txt"
     print(f"Getting chat log for {filename}...")
     try:
         with open(filename, 'r', encoding='utf-8') as f:
@@ -788,6 +791,7 @@ def chatlog(date):
 
 @app.route('/')
 def index():
+    today = str(date.today())
     chatlog = get_chat_log_for_date(today)
     return render_template('index.html', vad_threshold=vad_threshold, 
                            max_threshold=max_threshold, 
@@ -859,6 +863,7 @@ def uploaded_file(filename):
 
 @app.route('/history')
 def history():
+    today = str(date.today())
     chatlog = get_chat_log_for_date(today)
     return render_template('history.html', assistant_dict=assistant, chatlog=json.dumps(chatlog))
 
@@ -943,7 +948,7 @@ def change_assistant(data):
         assistant = assistants[config["assistant"]]
         assistant_name = assistant["name"]
         assistant_acronym = assistant["acronym"]
-        chatlog_filename = os.path.join(script_dir, "chatlogs", f"{config['assistant']}_chatlog-{today}.txt")
+        chatlog_filename = chatlog_filename = getChatFilename(str(date.today()))
         socketio.emit('assistant_changed', {'assistant': new_assistant})
         restart_app()
         return
