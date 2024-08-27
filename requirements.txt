@@ -13,6 +13,7 @@ spidev
 pyttsx3
 RPi.GPIO
 numpy
+onnxruntime
 openwakeword
 gtts
 dbus-python
