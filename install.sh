@@ -21,6 +21,9 @@ python3 -m venv venv
 # For Windows, use venv\Scripts\activate instead
 source venv/bin/activate
 
+#update pip
+pip install --upgrade pip
+
 # Install requirements
 pip3 install -r requirements.txt
 
