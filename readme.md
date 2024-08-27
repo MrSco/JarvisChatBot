@@ -115,9 +115,7 @@ cd JarvisChatBot
 3. **Upgrade pip and install the required Python packages in a virtual environment**
 
 ```bash
-python3 -m pip install --upgrade pip
-chmod +x install.sh
-./install.sh
+bash ./install.sh
 ```
 
 Now, your Raspberry Pi is set up to run the project. Remember to add your API keys to the `config.json` file before running the `main.py` script.
