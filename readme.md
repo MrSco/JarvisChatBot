@@ -98,10 +98,8 @@ Below are the commands to set up the project on your Raspberry Pi:
 ```bash
 sudo apt update -y
 sudo apt upgrade -y
-sudo apt install portaudio19-dev libatlas-base-dev git python3-pip ffmpeg flac espeak mpv build-essential libpython3-dev libdbus-1-dev libglib2.0-dev vlc -y
-sudo apt remove wireplumber -y
-KERNEL_VERSION=$(uname -r | cut -d'.' -f1,2)
-git clone --branch v$KERNEL_VERSION https://github.com/HinTak/seeed-voicecard
+sudo apt install portaudio19-dev libatlas-base-dev git python3-venv python3-pip ffmpeg flac espeak mpv build-essential libpython3-dev libdbus-1-dev libglib2.0-dev vlc -y
+git clone https://github.com/respeaker/seeed-voicecard
 cd seeed-voicecard
 sudo ./install.sh
 sudo reboot now
@@ -117,6 +115,7 @@ cd JarvisChatBot
 3. **Upgrade pip and install the required Python packages in a virtual environment**
 
 ```bash
+python3 -m pip install --upgrade pip
 chmod +x install.sh
 ./install.sh
 ```
