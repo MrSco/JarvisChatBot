@@ -12,7 +12,7 @@ gpiozero
 spidev
 pyttsx3
 RPi.GPIO
-numpy
+numpy==1.26.4
 openwakeword
 gtts
 dbus-python

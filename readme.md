@@ -214,11 +214,8 @@ sudo systemctl start shairport-sync
 Use the included jarvischatbot.service file to create a service that will run the JarvisChatBot script on startup. Modify the file to include the correct path to the JarvisChatBot directory.
 
 ```bash
-nano jarvischatbot.service
-```
-
-```bash
 sudo cp jarvischatbot.service /etc/systemd/system/jarvischatbot.service
+sudo nano /etc/systemd/system/jarvischatbot.service
 ```
 
 2. **Enable the Service**
@@ -242,11 +239,8 @@ Use the included 2mic_button.service file to create a service that will run the 
 Modify the file to include the correct path to the JarvisChatBot directory.
 
 ```bash
-nano 2mic_button.service
-```
-
-```bash
 sudo cp 2mic_button.service /etc/systemd/system/2mic_button.service
+sudo nano /etc/systemd/system/2mic_button.service
 ```
 
 2. **Enable the Service**
@@ -269,11 +263,8 @@ Now, the button script will run as a service on startup.
 Use the included startup_shutdown_sounds.service file to create a service that will play a startup sound and a shutdown sound on startup and shutdown. Modify the file to include the correct path to the JarvisChatBot directory.
 
 ```bash
-nano startup_shutdown_sounds.service
-```
-
-```bash
 sudo cp startup_shutdown_sounds.service /etc/systemd/system/startup_shutdown_sounds.service
+sudo nano /etc/systemd/system/startup_shutdown_sounds.service
 ```
 
 2. **Enable the Service**
