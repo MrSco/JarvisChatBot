@@ -99,7 +99,9 @@ Below are the commands to set up the project on your Raspberry Pi:
 sudo apt update -y
 sudo apt upgrade -y
 sudo apt install portaudio19-dev libatlas-base-dev git python3-venv python3-pip ffmpeg flac espeak mpv build-essential libpython3-dev libdbus-1-dev libglib2.0-dev vlc -y
-git clone https://github.com/respeaker/seeed-voicecard
+sudo apt remove wireplumber -y
+KERNEL_VERSION=$(uname -r | cut -d'.' -f1,2)
+git clone --branch v$KERNEL_VERSION https://github.com/HinTak/seeed-voicecard
 cd seeed-voicecard
 sudo ./install.sh
 sudo reboot now
