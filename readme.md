@@ -169,6 +169,7 @@ After you've selected the appropriate option, the system should use this device 
 
 ```bash
 alsamixer
+mkdir -p ~/.config
 alsactl -f ~/.config/asound.state store
 sudo cp ~/.config/asound.state /var/lib/alsa/asound.state
 ```
