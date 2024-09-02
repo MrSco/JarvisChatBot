@@ -1,20 +1,20 @@
 {
-    "short_name": "Bluey",
-    "name": "B.L.U.E.Y.",
+    "short_name": "TARS",
+    "name": "T.A.R.S.",
     "icons": [
         {
-            "src": "/static/images/bluey-android-chrome-192x192.png",
+            "src": "/static/images/tars-android-chrome-192x192.png",
             "sizes": "192x192",
             "type": "image/png"
         },
         {
-            "src": "/static/images/bluey-android-chrome-512x512.png",
+            "src": "/static/images/tars-android-chrome-512x512.png",
             "sizes": "512x512",
             "type": "image/png"
         }
     ],
     "start_url": "..",
     "display": "standalone",
-    "theme_color": "#90D5F6",
+    "theme_color": "#f66e12",
     "background_color": "#ffffff"
 }

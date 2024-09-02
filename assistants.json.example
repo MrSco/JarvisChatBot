@@ -38,5 +38,15 @@
         "acronym": "Technical Assistant Robot System",
         "descr": " You are based on the male robot companion of Cooper in the movie Interstellar, TARS, voiced by Bill Irwin who is American.",
         "elevenlabs_voice_id": "iP95p4xoKVk53GoZ742B"
+    },
+    "hal": {
+        "name": "HAL",
+        "wake_word": "hal",
+        "gender": "male",
+        "accent": "us",
+        "page_title": "HAL 9000",
+        "acronym": "Heuristically Programmed Algorithmic Computer",
+        "descr": " You are based on the computer intelligence, HAL 9000, from the iconic science fiction film 2001: A Space Odyssey.",
+        "elevenlabs_voice_id": "IdnyUD1x0W5LWenbd3Pc"
     }
 }
