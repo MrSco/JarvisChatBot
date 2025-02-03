@@ -269,9 +269,10 @@ class WakeWordDetector:
                     self.listener.transcribe()
                     prediction = self.predictSilence()
                     if self.listener.transcript is None:
-                        self.sound_effect.play("error")
+                        #self.sound_effect.stop_sound()
                         self._init_mic_stream()
                         continue
+
                     self.process_transcript(self.listener.transcript)
             except Exception as e:
                 print("Error processing audio in audio_consumer...")
@@ -799,24 +800,22 @@ def index():
                            max_threshold=max_threshold, 
                            assistants=assistants, 
                            assistant_dict=assistant, 
-                           images_disabled=config["use_groq"], 
+                           #images_disabled=config["use_groq"], 
                            chatlog=json.dumps(chatlog), 
                            radio_playing=(radio_player is not None and radio_player.running)
                            )
 
 @socketio.on("file_chunk")
 def handle_file_chunk(data):
-    use_imgur = config["use_imgur"]
+    use_freeimage_host = config["use_freeimage_host"]
     socketio.emit('prompt_received', {'status': 'ready'})
     detector = app.config['detector']
     # Extracting the chunk data
     file_id = data.get("fileId")
     chunk_index = data.get("chunkIndex") or 0
     total_chunks = data.get("totalChunks") or 0
-    if use_imgur:        
-        chunk_data = data.get("chunkData") if data.get("chunkData") else None
-    else:
-        chunk_data = base64.b64decode(data.get("chunkData")) if data.get("chunkData") else None
+
+    chunk_data = base64.b64decode(data.get("chunkData")) if data.get("chunkData") else None
     file_name = secure_filename(data.get("fileName")) if data.get("fileName") else None
     text_prompt = data.get("prompt") if data.get("prompt") else ""
 
@@ -831,29 +830,27 @@ def handle_file_chunk(data):
 
         # Check if all chunks have been received
         if all(chunk is not None for chunk in file_chunks[file_id]):
-            # combine the chunks in memory
             print(f"Received all chunks for file {file_id}.")
-            if not use_imgur:
-                file_data = b"".join(file_chunks[file_id])
+            # Combine binary chunks
+            file_data = b"".join(file_chunks[file_id])
+            
+            if use_freeimage_host:
+                detector.is_awoken = True
+                response = detector.process_transcript(text_prompt, file_data, file_name)
+            else:
                 upload_path = os.path.join(script_dir, config['upload_folder'])
                 if not os.path.exists(upload_path):
                     os.makedirs(upload_path)
 
-                # Sanitize the file_name or ensure it's safe before appending it to the path
                 safe_file_name = os.path.join(upload_path, f"{time.time()}_{os.path.basename(file_name)}")
-                # Reassemble the file
                 with open(safe_file_name, "wb") as file:
-                    for chunk in file_chunks[file_id]:
-                        file.write(chunk)
+                    file.write(file_data)
                 
-                file_name = f"http://{request.host}/{safe_file_name}"
-                file_data = base64.b64encode(file_data).decode("utf-8")
-            else:
-                file_data = "".join(file_chunks[file_id])
+                file_url = f"http://{request.host}/{safe_file_name}"
+                detector.is_awoken = True
+                response = detector.process_transcript(text_prompt, file_data, file_url)
 
-            # convert to base64
-            response = detector.process_transcript(text_prompt, file_data, file_name)
-            # delete the chunks from memory
+            # Delete the chunks from memory
             del file_chunks[file_id]
     else:
         detector.is_awoken = True
@@ -881,8 +878,6 @@ def settings():
         config['elevenlabs_key'] = request.form['elevenlabs_key']
         config['use_elevenlabs'] = 'use_elevenlabs' in request.form
         config['use_gtts'] = 'use_gtts' in request.form
-        config['imgur_client_id'] = request.form['imgur_client_id']
-        config['imgur_client_secret'] = request.form['imgur_client_secret']
         config['max_threshold'] = int(request.form['max_threshold'])
         config['led_brightness'] = int(request.form['led_brightness'])
         # Save the updated config to the file

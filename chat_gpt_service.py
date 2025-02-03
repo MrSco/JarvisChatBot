@@ -1,6 +1,7 @@
 #import os
 #from os import environ
 #environ['OPENAI_LOG'] = 'debug'
+import base64
 import openai
 from groq import Groq
 import urllib
@@ -9,6 +10,7 @@ import time
 from datetime import date, datetime
 import requests
 from tzlocal import get_localzone
+import os
 
 class ChatGPTService:
     def __init__(self, config):
@@ -16,6 +18,7 @@ class ChatGPTService:
         self.use_groq = config["use_groq"]
         if (self.use_groq):
             self.model = config["groq_model"]
+            self.groq_vision_model = config["groq_vision_model"]
             self.llm = Groq(api_key=config["groq_key"])
         else:
             openai.api_key = config["openai_key"]
@@ -31,10 +34,12 @@ class ChatGPTService:
             .replace("{assistant_acronym}", self.assistant_acronym) \
             .replace("{assistant_descr}", self.assistant_descr) \
             .replace("{weather_info}", self.weather_info)
-        self.history = [{"role": "system", "content": self.system_prompt}]
+        self.system_prompt_msg = {"role": "system", "content": self.system_prompt}
+        self.history = [self.system_prompt_msg]
         self.sound_effect = None
-        self.imgur_client_id = config["imgur_client_id"]
-        self.use_imgur = config["use_imgur"]
+        self.use_freeimage_host = config["use_freeimage_host"]
+        self.freeimage_key = config["freeimage_key"]
+
 
     def get_current_location(self):
         try:
@@ -73,73 +78,121 @@ class ChatGPTService:
         except urllib.error.URLError as e:
             print(f"Failed to get weather information: {e.reason}")
             return ""
-        
-    def upload_image_to_imgur(self, image_data):
-        url = "https://api.imgur.com/3/image"
-        headers = {
-            "Authorization": f"Client-ID {self.imgur_client_id}"
-        }
-        payload = {
-            "image": image_data,
-            "type": "base64"
-        }
-        print("Uploading image to imgur...")
-        #print(image_data)
-        response = requests.post(url, headers=headers, data=payload)
-        link = ''
-        if response.status_code == 200:
-            data = response.json()
-            print("Image uploaded successfully!")
-            link = data['data']['link']
-            print("Link to the image:", link)
-        else:
-            print("Failed to upload image. Status code:", response.status_code)
-            # Detailed request printing
-            # request_details = f"Method: {response.request.method}\n" \
-            #                 f"URL: {response.request.url}\n" \
-            #                 f"Headers: {response.request.headers}\n" \
-            #                 f"Body: {response.request.body.decode('utf-8') if response.request.body else 'No body'}"
-            # print(f"Request details:\n{request_details}")
-            print("Response:", response.json())
-        return link
+
+    def upload_image_to_freeimage(self, image_data, filename=''):
+        """
+        Upload an image to FreeImage.host service
+        Args:
+            image_data: Either a URL string or binary image data
+            filename: Original filename
+        Returns:
+            str: URL of the uploaded image or empty string if upload fails
+        """
+        try:
+            upload_url = "https://freeimage.host/api/1/upload"
+            
+            # Check if input is bytes (binary data) or string (URL)
+            if isinstance(image_data, str):
+                # For URL uploads
+                params = {
+                    'key': self.freeimage_key,
+                    'source': image_data,
+                    'action': 'upload'
+                }
+                response = requests.post(upload_url, data=params)
+            else:
+                # Map common file extensions to MIME types
+                mime_map = {
+                    '.jpg': 'image/jpeg',
+                    '.jpeg': 'image/jpeg',
+                    '.png': 'image/png',
+                    '.gif': 'image/gif',
+                    '.webp': 'image/webp',
+                    '.bmp': 'image/bmp'
+                }
+                # Get file extension from filename
+                ext = os.path.splitext(filename)[1].lower()
+                mime_type = mime_map.get(ext, 'image/jpeg')  # Default to jpeg if unknown extension
+                
+                # For direct file uploads using binary data
+                files = {
+                    'source': (filename, image_data, mime_type)
+                }
+                params = {
+                    'key': self.freeimage_key,
+                    'action': 'upload'
+                }
+                response = requests.post(upload_url, data=params, files=files)
+            
+            if response.status_code != 200:
+                raise Exception(f"Failed to upload: {response.text}")
+            
+            file_url = response.json()["image"]["url"]
+            print("Image uploaded successfully to FreeImage.host!")
+            return file_url
+
+        except Exception as e:
+            print(f"Failed to upload image to FreeImage.host: {e}")
+            return ""
+
 
     def send_to_chat_gpt(self, request, image=None, image_link=''):
-        if not self.use_groq and image is not None:
-            if self.use_imgur:
-                image_link = self.upload_image_to_imgur(image)
-                image_url = image_link
-            else:
-                image_url = f"data:image/jpeg;base64,{image}"
-            if image_link != '':
-                content = [{"type": "text", "text": request}, {"type": "image_url", "image_url": {"url": image_url}}]
-            else:
-                return None
-        else:
-            content = request
-
+        modelToUse = self.model
+        image_url = ''
         # replace the timestamp in the history with the current time
         current_time = datetime.now(get_localzone()).strftime('%I:%M %p %Z').lstrip("0")
-        self.history[0]["content"] = self.history[0]["content"].replace("{today}", str(date.today())).replace("{theCurrentTime}", current_time)
+        if self.history and self.history[0]["role"] == "system":
+            self.history[0]["content"] = self.history[0]["content"].replace("{today}", str(date.today())).replace("{theCurrentTime}", current_time)
+        
+        if image is not None:
+            if self.use_freeimage_host:
+                image_url = self.upload_image_to_freeimage(image, image_link)
+            else:                
+                image_url = f"data:image/jpeg;base64,{base64.b64encode(image).decode('utf-8')}"
+
+            if image_link != '':
+                if request == '':
+                    request = 'Describe this image.'
+                content = [{"type": "text", "text": "respond as concisely as possible to the following request: " + request}, {"type": "image_url", "image_url": {"url": image_url}}]
+            else:
+                return None
+
+            if self.use_groq:
+                modelToUse = self.groq_vision_model
+                # Clear history for image requests
+                self.history = []
+        else:
+            content = request
+            # For non-image requests, ensure system prompt is first in history
+            if not self.history or self.history[0]["role"] != "system":
+                self.history.insert(0, self.system_prompt_msg)
+            # Clean up history to ensure all content is strings
+            self.history = [
+                msg if isinstance(msg["content"], str) else 
+                {"role": msg["role"], "content": msg["content"][0]["text"] if isinstance(msg["content"], list) else ""} 
+                for msg in self.history
+            ]
 
         self.history.append({"role": "user", "content": content})
-        if len(self.history) > 5:
+        if len(self.history) > 5 and not image:
             self.history = [self.history[0]] + self.history[-4:]
         result = None
         try:
-            #print(self.history)
+            print(self.history)
             response = self.llm.chat.completions.create(
-                model=self.model, 
+                model=modelToUse, 
                 messages=self.history,
                 temperature=0.7,
                 stream=True
             )
+
+            self.append2log(f" {image_url} \n\n", True)
+        
         except Exception as e:
             result = "Unknown Error "
             print(result + str(e))
             return result
         
-        self.append2log(f" {image_link} \n\n", True)
-
         def text_iterator():
             response_full_text = ""
             sentence = ""

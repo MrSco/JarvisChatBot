@@ -3,14 +3,14 @@
     "use_elevenlabs": true,
     "use_gtts": false,
     "openai_key":"sk-...",
-    "openai_model":"gpt-4o-mini",
-    "use_groq": false,
+    "openai_model":"gpt-4o-latest",
+    "use_groq": true,
     "groq_key": "gsk_...",
-    "groq_model": "llama-3.1-8b-instant",
-    "imgur_client_id": "d4...",
-    "imgur_client_secret": "fa4...",
-    "use_imgur": true,
+    "groq_model": "llama-3.3-70b-versatile",
+    "groq_vision_model": "llama-3.2-90b-vision-preview",
     "upload_folder": "uploads",
+    "use_freeimage_host": true,
+    "freeimage_key": "6d2...",
     "assistant": "jarvis",
     "oww_sample_rate": 16000,
     "oww_channels": 1,
@@ -29,5 +29,5 @@
     "use_shairport-sync": false,
     "windows_task_author": "COMPUTERNAME\\USER",
     "radio_stream_url": "https://cmg.streamguys1.com/mia931/mia931-iheart.aac",
-    "kids_radio_stream_url": "https://n32b-e2.revma.ihrhls.com/zc9414/50_bwfxhr2o54bp02/playlist.m3u8"
+    "kids_radio_stream_url": "https://ample-a.revma.ihrhls.com/zc9414/29_17s11y3iq7oip02/playlist.m3u8"
 }

@@ -9,7 +9,7 @@ This project is a voice-activated Raspberry Pi based system that listens for a w
 There is also a button service that can be used to start/stop the JarvisChatBot service with a quick press. And if held will shutdown the pi.
 
 Flask is used to create a web interface that can be used to interact with the chatbot using websockets. The web interface can be accessed by navigating to the IP address of the Raspberry Pi on port 5000 (e.g., `http://localhost:5000`).
-From there the chat log can be viewed and the chatbot can be sent text prompts along with images. Imgur is the default for storing the images and the link is sent to OpenAI for analysis.
+From there the chat log can be viewed and the chatbot can be sent text prompts along with images. FreeImage.host is the default for storing the images and the link is sent to OpenAI for analysis.
 
 This was a quick hodge-podge project that still has lots of room for improvement. 
 
@@ -63,13 +63,14 @@ python main.py
 
 # Obtaining Required Keys
 
-This project requires keys from imgur, OpenAI and ElevenLabs. Here is how to obtain them:
+This project requires keys from FreeImage.host, OpenAI and ElevenLabs. Here is how to obtain them:
 
 1. **OpenAI Key**: Sign up at [openai.com](https://www.openai.com/) and follow the instructions [here](https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key) to obtain your secret API key.
 
 2. **ElevenLabs Key**: Sign up at [ElevenLabs](https://elevenlabs.io/).
 
-3. **Imgur Key**: Sign up at [imgur.com](https://imgur.com/). Then go to [this page](https://api.imgur.com/oauth2/addclient) to create a new application and obtain your client ID.
+3. **FreeImage.host Key**: Sign up at [FreeImage.host](https://freeimage.host/).
+
 
 After obtaining these keys, add them to your `config.json` file.
 

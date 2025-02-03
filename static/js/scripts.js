@@ -134,7 +134,7 @@ function update_chat(data) {
 }
 function enable_prompting() {
     if (images_disabled)
-        document.querySelector('label[for="file-upload"]').title = 'Groq does not support image analysis. Image uploads are disabled!';
+        document.querySelector('label[for="file-upload"]').title = 'AI Model does not support image analysis. Image uploads are disabled!';
     document.getElementById('image').disabled = images_disabled;
     document.getElementById('sendButton').disabled = false;
     document.getElementById('imagePreview').style.display = 'none';
