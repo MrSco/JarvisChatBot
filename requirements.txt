@@ -9,6 +9,7 @@ geocoder
 flask
 flask_socketio
 gpiozero
+lgpio
 spidev
 pyttsx3
 RPi.GPIO
