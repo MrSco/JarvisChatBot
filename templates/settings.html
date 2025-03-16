@@ -8,15 +8,16 @@
     <script>
         var openai_model = "{{ config['openai_model'] }}";
         var groq_model = "{{ config['groq_model'] }}";
-        var use_groq = {{ 'true' if config['use_groq'] else 'false' }};
+        var google_model = "{{ config['google_model'] }}";
+        var ai_service = "{{ config.get('ai_service', 'openai') }}";
         var radio_stream_url = "{{ config['radio_stream_url'] }}";
         var kids_radio_stream_url = "{{ config['kids_radio_stream_url'] }}";
         var elevenlabs_key = "{{ config['elevenlabs_key'] }}";
-        var use_elevenlabs = {{ 'true' if config['use_elevenlabs'] else 'false' }};
-        var use_gtts = {{ 'true' if config['use_gtts'] else 'false' }};
+        var use_elevenlabs = "{{ 'true' if config['use_elevenlabs'] else 'false' }}";
+        var use_gtts = "{{ 'true' if config['use_gtts'] else 'false' }}";
         var freeimage_key = "{{ config['freeimage_key'] }}";
-        var max_threshold = {{ config['max_threshold'] }};
-        var led_brightness = {{ config['led_brightness'] }};
+        var max_threshold = "{{ config['max_threshold'] }}";
+        var led_brightness = "{{ config['led_brightness'] }}";
     </script>
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
 </head>
@@ -34,17 +35,21 @@
         </h1>
         <form id="settingsForm">
             <div>
-                <label for="openai_modelSelect">ChatGPT Model:</label>
+                <label for="ai_service">AI Service:</label>
+                <select id="ai_service" name="ai_service">
+                    <option value="openai">OpenAI</option>
+                    <option value="groq">Groq</option>
+                    <option value="google">Google Gemini</option>
+                </select>
+            </div>
+            <div>
+                <label for="openai_modelSelect">OpenAI Model:</label>
                 <select id="openai_modelSelect" name="openai_model">
                     <option value="chatgpt-4o-latest">GPT-4o Latest</option>
                     <option value="gpt-4o">GPT-4o</option>
                     <option value="gpt-4o-mini">GPT-4o Mini</option>
                     <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
                 </select>
-            </div>
-            <div>
-                <label for="useGroq">Enable Groq:</label>
-                <input type="checkbox" id="useGroq" name="use_groq" {% if config['use_groq'] %}checked{% endif %}>
             </div>
             <div>
                 <label for="groq_modelSelect">Groq Model:</label>
@@ -54,6 +59,14 @@
                     <option value="llama-3.1-70b-versatile">Llama 3.1 70b</option>
                     <option value="llama-3.1-8b-instant">Llama 3.1 8b</option>
                     <option value="mixtral-8x7b-32768">Mixtral 8x7b</option>
+                </select>
+            </div>
+            <div>
+                <label for="google_modelSelect">Google Gemini Model:</label>
+                <select id="google_modelSelect" name="google_model">
+                    <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Experimental</option>
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                 </select>
             </div>
             <div>

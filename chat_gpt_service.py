@@ -1,12 +1,11 @@
-#import os
-#from os import environ
-#environ['OPENAI_LOG'] = 'debug'
 import base64
+import types
 import openai
 from groq import Groq
+from google import genai
+from google.genai import types
 import urllib
 import geocoder
-import time
 from datetime import date, datetime
 import requests
 from tzlocal import get_localzone
@@ -15,13 +14,20 @@ import os
 class ChatGPTService:
     def __init__(self, config):
         self.append2log = None
-        self.use_groq = config["use_groq"]
-        if (self.use_groq):
+        self.ai_service = config.get("ai_service", "openai")
+        
+        if self.ai_service == "google":
+            os.environ["GOOGLE_API_KEY"] = config["google_key"]
+            self.model = config["google_model"]
+            # Initialize Google Gemini client
+            self.llm = genai.Client()
+        elif self.ai_service == "groq":
+            os.environ["GROQ_API_KEY"] = config["groq_key"]
             self.model = config["groq_model"]
             self.groq_vision_model = config["groq_vision_model"]
             self.llm = Groq(api_key=config["groq_key"])
         else:
-            openai.api_key = config["openai_key"]
+            os.environ["OPENAI_API_KEY"] = config["openai_key"]
             self.model = config["openai_model"]
             self.llm = openai
         self.assistant_name = config["assistant_dict"]["name"]
@@ -40,6 +46,17 @@ class ChatGPTService:
         self.use_freeimage_host = config["use_freeimage_host"]
         self.freeimage_key = config["freeimage_key"]
 
+    def getMimeType(self, fileExtension):
+        mime_types = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'bmp': 'image/bmp',
+            'webp': 'image/webp',
+            'tiff': 'image/tiff'
+        }
+        return mime_types.get(fileExtension, 'image/jpeg')
 
     def get_current_location(self):
         try:
@@ -101,18 +118,9 @@ class ChatGPTService:
                 }
                 response = requests.post(upload_url, data=params)
             else:
-                # Map common file extensions to MIME types
-                mime_map = {
-                    '.jpg': 'image/jpeg',
-                    '.jpeg': 'image/jpeg',
-                    '.png': 'image/png',
-                    '.gif': 'image/gif',
-                    '.webp': 'image/webp',
-                    '.bmp': 'image/bmp'
-                }
                 # Get file extension from filename
                 ext = os.path.splitext(filename)[1].lower()
-                mime_type = mime_map.get(ext, 'image/jpeg')  # Default to jpeg if unknown extension
+                mime_type = self.getMimeType(ext)
                 
                 # For direct file uploads using binary data
                 files = {
@@ -139,25 +147,30 @@ class ChatGPTService:
     def send_to_chat_gpt(self, request, image=None, image_link=''):
         modelToUse = self.model
         image_url = ''
+        image_format = 'image/jpeg'
+        emptyRequest = request == ''
+        defaultImageRequest = 'Describe this image.'
         # replace the timestamp in the history with the current time
         current_time = datetime.now(get_localzone()).strftime('%I:%M %p %Z').lstrip("0")
         if self.history and self.history[0]["role"] == "system":
             self.history[0]["content"] = self.history[0]["content"].replace("{today}", str(date.today())).replace("{theCurrentTime}", current_time)
         
         if image is not None:
-            if self.use_freeimage_host:
+            if self.use_freeimage_host and not self.ai_service == "google":
                 image_url = self.upload_image_to_freeimage(image, image_link)
-            else:                
-                image_url = f"data:image/jpeg;base64,{base64.b64encode(image).decode('utf-8')}"
+            else:
+                # determine image mime type file extension
+                image_format = self.getMimeType(image_link.split('.')[-1] if image_link else 'jpg')
+                image_url = f"data:{image_format};base64,{base64.b64encode(image).decode('utf-8')}"
 
             if image_link != '':
-                if request == '':
-                    request = 'Describe this image.'
+                if emptyRequest:
+                    request = defaultImageRequest
                 content = [{"type": "text", "text": "respond as concisely as possible to the following request: " + request}, {"type": "image_url", "image_url": {"url": image_url}}]
             else:
                 return None
 
-            if self.use_groq:
+            if self.ai_service == "groq":
                 modelToUse = self.groq_vision_model
                 # Clear history for image requests
                 self.history = []
@@ -178,15 +191,56 @@ class ChatGPTService:
             self.history = [self.history[0]] + self.history[-4:]
         result = None
         try:
-            print(self.history)
-            response = self.llm.chat.completions.create(
-                model=modelToUse, 
-                messages=self.history,
-                temperature=0.7,
-                stream=True
-            )
-
-            self.append2log(f" {image_url} \n\n", True)
+            #print(self.history)
+            print(f"Sending to {self.ai_service} {modelToUse}...")
+            if self.ai_service == "google":
+                # Use the Gemini API according to documentation
+                if image is not None:
+                    # For image inputs
+                    if isinstance(content, list):
+                        # Extract text and image parts
+                        prompt_text = next((item["text"] for item in content if item["type"] == "text"), "")
+                        #image_part = next((item["image_url"]["url"] for item in content if item["type"] == "image_url"), "")
+                        image_part = types.Part.from_bytes(
+                            data=image,
+                            mime_type=image_format
+                        )
+                        # Create multipart content for Gemini
+                        gemini_contents = [prompt_text, image_part]
+                        response = self.llm.models.generate_content_stream(
+                            model=modelToUse,
+                            config=types.GenerateContentConfig(
+                                system_instruction=self.system_prompt),
+                            contents=gemini_contents
+                        )
+                    else:
+                        response = self.llm.models.generate_content_stream(
+                            model=modelToUse,
+                            config=types.GenerateContentConfig(
+                                system_instruction=self.system_prompt),
+                            contents=[content]
+                        )
+                else:
+                    # Create a chat for text-only conversations
+                    chat = self.llm.chats.create(model=modelToUse, config=types.GenerateContentConfig(system_instruction=self.system_prompt))
+                    
+                    # Add previous messages to chat history, if any
+                    if len(self.history) > 1:
+                        for msg in self.history[1:-1]:  # Skip system message and latest user message
+                            if msg["role"] == "user":
+                                chat.send_message(msg["content"])
+                    
+                    # Send the current message and stream the response
+                    response = chat.send_message_stream(self.history[-1]["content"])
+            else:
+                response = self.llm.chat.completions.create(
+                    model=modelToUse, 
+                    messages=self.history,
+                    temperature=0.7,
+                    stream=True
+                )
+            
+            self.append2log(f"{defaultImageRequest if emptyRequest else ''} {image_url if not image_link else image_link} \n\n", True)
         
         except Exception as e:
             result = "Unknown Error "
@@ -197,22 +251,35 @@ class ChatGPTService:
             response_full_text = ""
             sentence = ""
             sentence_endings = {'.', '!', '?'}
-            #print(f"{self.assistant_name}: ", end="")
             self.append2log(f"{self.assistant_name}: ", True)
-            for chunk in response:
-                delta = chunk.choices[0].delta
-                if delta.content:
-                    sentence += delta.content.replace('\n', ' ')
-                    response_full_text += delta.content.replace('\n', ' ')
-                    # Check if the current character ends the sentence
-                    if delta.content[-1] in sentence_endings:
-                        #print(sentence, end="")
-                        self.append2log(sentence, True)
-                        yield sentence
-                        sentence = ""
+            
+            if self.ai_service == "google":
+                # Process Google Gemini response stream
+                for chunk in response:
+                    if hasattr(chunk, 'text') and chunk.text:
+                        text_content = chunk.text
+                        sentence += text_content.replace('\n', ' ')
+                        response_full_text += text_content.replace('\n', ' ')
+                        # Check if the current text ends with sentence ending
+                        if text_content and text_content[-1] in sentence_endings:
+                            self.append2log(sentence, True)
+                            yield sentence
+                            sentence = ""
+            else:
+                # Process OpenAI/Groq response stream
+                for chunk in response:
+                    delta = chunk.choices[0].delta
+                    if delta.content:
+                        sentence += delta.content.replace('\n', ' ')
+                        response_full_text += delta.content.replace('\n', ' ')
+                        # Check if the current character ends the sentence
+                        if delta.content[-1] in sentence_endings:
+                            self.append2log(sentence, True)
+                            yield sentence
+                            sentence = ""
+                            
             # Yield any remaining text after the loop ends
             if sentence:
-                #print(sentence)
                 self.append2log(sentence)
                 yield sentence
             else:

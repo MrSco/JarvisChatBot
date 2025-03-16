@@ -679,8 +679,7 @@ class WakeWordDetector:
                     self.speech.speak(response)
                 return
 
-            self.sound_effect.play(self.sound_effect.get_random_filler_sound())
-            print("Sending to chat GPT...")
+            self.sound_effect.play(self.sound_effect.get_random_filler_sound())            
             append2log(f"You: {transcript}", noNewLine=True)
             self.chat_gpt_service.sound_effect = self.sound_effect.play_loop("loading")
             self.speech.sound_effect = self.chat_gpt_service.sound_effect
@@ -818,7 +817,6 @@ def handle_file_chunk(data):
     chunk_data = base64.b64decode(data.get("chunkData")) if data.get("chunkData") else None
     file_name = secure_filename(data.get("fileName")) if data.get("fileName") else None
     text_prompt = data.get("prompt") if data.get("prompt") else ""
-
     if file_id:
         print(f"Received chunk {chunk_index + 1} of {total_chunks} for file {file_id}")
         # Initialize the file's chunk list if not already
@@ -834,7 +832,7 @@ def handle_file_chunk(data):
             # Combine binary chunks
             file_data = b"".join(file_chunks[file_id])
             
-            if use_freeimage_host:
+            if use_freeimage_host and not config["ai_service"] == "google":
                 detector.is_awoken = True
                 response = detector.process_transcript(text_prompt, file_data, file_name)
             else:
@@ -842,11 +840,12 @@ def handle_file_chunk(data):
                 if not os.path.exists(upload_path):
                     os.makedirs(upload_path)
 
-                safe_file_name = os.path.join(upload_path, f"{time.time()}_{os.path.basename(file_name)}")
+                filename = f"{time.time()}_{os.path.basename(file_name)}"
+                safe_file_name = os.path.join(upload_path, filename)
                 with open(safe_file_name, "wb") as file:
                     file.write(file_data)
                 
-                file_url = f"http://{request.host}/{safe_file_name}"
+                file_url = f"http://{request.host}/{config['upload_folder']}/{filename}"
                 detector.is_awoken = True
                 response = detector.process_transcript(text_prompt, file_data, file_url)
 
@@ -872,12 +871,14 @@ def settings():
     if request.method == 'POST':
         config['openai_model'] = request.form['openai_model']
         config['groq_model'] = request.form['groq_model']
-        config['use_groq'] = 'use_groq' in request.form
+        config['google_model'] = request.form['google_model']
+        config['ai_service'] = request.form['ai_service']
         config['radio_stream_url'] = request.form['radio_stream_url']
         config['kids_radio_stream_url'] = request.form['kids_radio_stream_url']
         config['elevenlabs_key'] = request.form['elevenlabs_key']
         config['use_elevenlabs'] = 'use_elevenlabs' in request.form
         config['use_gtts'] = 'use_gtts' in request.form
+        config['use_freeimage_host'] = 'use_freeimage_host' in request.form
         config['max_threshold'] = int(request.form['max_threshold'])
         config['led_brightness'] = int(request.form['led_brightness'])
         # Save the updated config to the file

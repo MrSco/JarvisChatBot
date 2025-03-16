@@ -18,3 +18,5 @@ gtts
 dbus-python
 python-vlc
 tzlocal
+google-genai
+httpx==0.27.2

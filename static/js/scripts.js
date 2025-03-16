@@ -114,7 +114,7 @@ function update_chat(data) {
         var lastMessage = chatLog.lastChild;
         if (messageContent && lastMessage)
            lastMessage.innerHTML += ' ' + messageContent;
-        else if (ahref)
+        if (ahref && lastMessage)
             lastMessage.appendChild(ahref);
     }
     else {
@@ -127,7 +127,7 @@ function update_chat(data) {
         if(ahref) {
             newMessage.appendChild(ahref);
         }
-        if (messageContent)
+        if (messageContent || ahref)
             chatLog.appendChild(newMessage);
     }
     scrollToBottom();
@@ -206,11 +206,48 @@ else if (location.toString().includes('/settings')) {
     document.addEventListener('DOMContentLoaded', function () {
         setActiveLink();
 
-        // set the openai_model and groq_model select elements to the current values
+        // Get the model selection dropdowns
         var openai_modelSelect = document.getElementById('openai_modelSelect');
         var groq_modelSelect = document.getElementById('groq_modelSelect');
+        var google_modelSelect = document.getElementById('google_modelSelect');
+        var ai_serviceSelect = document.getElementById('ai_service');
+        
+        // Set the initial values
         openai_modelSelect.value = openai_model;
         groq_modelSelect.value = groq_model;
+        google_modelSelect.value = google_model;
+        ai_serviceSelect.value = ai_service;
+        
+        // Function to show/hide model dropdowns based on selected service
+        function updateModelVisibility() {
+            var selectedService = ai_serviceSelect.value;
+            
+            // Hide all model dropdowns first
+            document.querySelector('label[for="openai_modelSelect"]').parentNode.style.display = 'none';
+            document.querySelector('label[for="groq_modelSelect"]').parentNode.style.display = 'none';
+            document.querySelector('label[for="google_modelSelect"]').parentNode.style.display = 'none';
+            
+            // Show only the relevant model dropdown
+            if (selectedService === 'openai') {
+                document.querySelector('label[for="openai_modelSelect"]').parentNode.style.display = 'block';
+            } else if (selectedService === 'groq') {
+                document.querySelector('label[for="groq_modelSelect"]').parentNode.style.display = 'block';
+            } else if (selectedService === 'google') {
+                document.querySelector('label[for="google_modelSelect"]').parentNode.style.display = 'block';
+            }
+        }
+        
+        // Set initial visibility
+        updateModelVisibility();
+        
+        // Update visibility when service selection changes
+        ai_serviceSelect.addEventListener('change', updateModelVisibility);
+
+        // uncheck and disable the use_freeimage_host checkbox if the ai_service is google
+        if (ai_service === 'google') {
+            document.getElementById('use_freeimage_host').checked = false;
+            document.getElementById('use_freeimage_host').disabled = true;
+        }
 
         document.getElementById('settingsForm').addEventListener('submit', function(event) {
             event.preventDefault();
@@ -273,6 +310,18 @@ else {
                     fileId: null,
                     ...dataToSend,
                 });
+
+            // Validate that the file is an image
+            const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp', 'image/tiff'];
+            if (!acceptedImageTypes.includes(file.type)) {
+                return setStatusMsg('Please upload only image files (JPEG, PNG, GIF, BMP, WebP, TIFF)', true);
+            }
+            // Check file size (limit to 20MB)
+            const maxSize = 20 * 1024 * 1024; // 20MB
+            if (file.size > maxSize) {
+                return setStatusMsg('Image file size must be less than 20MB', true);
+            }
+
             // if CHUNK_SIZE >= 1MB then the socket header gets overwritten and throws errors
             const CHUNK_SIZE = 1024 * 512; // 0.5MB
             const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
