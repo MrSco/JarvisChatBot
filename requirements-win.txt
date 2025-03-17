@@ -10,7 +10,7 @@ flask
 flask_socketio
 pyttsx3
 numpy
-openwakeword
+pvporcupine
 gtts
 python-vlc
 tzlocal

@@ -14,8 +14,7 @@ from typing import Iterable
 import numpy as np
 from chat_gpt_service import ChatGPTService
 from input_listener import InputListener
-import openwakeword
-from openwakeword.model import Model
+import pvporcupine
 import pyaudio
 from sound_effect_service import SoundEffectService
 from tts_service import TextToSpeechService
@@ -46,8 +45,6 @@ loading_sound = None
 file_chunks = {}
 is_exiting = False
 
-# One-time download of all pre-trained models (or only select models)
-openwakeword.utils.download_models()
 
 def is_running_on_raspberry_pi():
     try:
@@ -74,6 +71,7 @@ assistant_acronym = assistant["acronym"]
 vad_threshold = config["vad_threshold"]
 print_audio_level = config["print_audio_level"]
 max_threshold = config["max_threshold"]
+picovoice_key = config["picovoice_key"]
 
 if not os.path.exists("chatlogs"):
     os.makedirs("chatlogs")
@@ -177,19 +175,26 @@ class WakeWordDetector:
     def __init__(self):
         self.chat_gpt_service = ChatGPTService(config)
         self.chat_gpt_service.append2log = append2log
-        oww_model_path = os.path.join(script_dir, "oww_models", config["oww_model"].replace("{assistant_name}", assistant_name))
-        oww_additional = config["oww_model"].replace("{assistant_name}", f"{assistant_name}1")
-        oww_model_path1 = os.path.join(script_dir, "oww_models", oww_additional) if os.path.exists(os.path.join(script_dir, "oww_models", oww_additional)) else None
-        oww_models = [oww_model_path]
-        if oww_model_path1:
-            oww_models.append(oww_model_path1)
-        if assistant_name.lower() == "jarvis":
-            oww_models.append("hey jarvis")
-        oww_inference_framework = config["oww_model"].split(".")[-1]
+        
+        # Get the wake word from the assistant configuration
+        assistant_wake_word = assistant["wake_word"].lower()
+        
+        # Porcupine configuration
+        self.sample_rate = 16000  # Porcupine requires 16kHz
+        self.chunk_size = 512  # Smaller chunk size for faster detection
+        self.channels = 1  # Mono audio
+        
+        try:
+            # Initialize Porcupine with the selected keyword
+            self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=[assistant_wake_word])
+            print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
+        except Exception as e:
+            print(f"Error initializing Porcupine: {e}")
+            # Fallback to Jarvis if there was an error
+            self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=["jarvis"])
+            print("Falling back to 'jarvis' keyword")
+            
         self.language = config["language"]
-        self.oww_chunk_size = config["oww_chunk_size"]
-        self.oww_sample_rate = config["oww_sample_rate"]
-        self.oww_channels = config["oww_channels"]
         self.is_request_processing = False
         self.is_awoken = False
         self.use_elevenlabs = config["use_elevenlabs"]
@@ -198,12 +203,6 @@ class WakeWordDetector:
         self.consumer_thread = None
         self.restart_app = False
         self.mic_stream = None
-
-        self.handle = Model(
-            wakeword_models=oww_models, 
-            inference_framework=oww_inference_framework,
-            vad_threshold=vad_threshold/max_threshold,
-        )
 
         self.pa = pyaudio.PyAudio()
         
@@ -223,42 +222,47 @@ class WakeWordDetector:
         while self.is_running:
             try:
                 if self.is_awoken:
-                    #print("Audio consumer paused")
                     if self.mic_stream is not None:
                         self.mic_stream.stop_stream()
                     while self.is_running and self.is_awoken:
                         time.sleep(1)
                     if self.mic_stream is not None:
                         self.mic_stream.start_stream()
-                #print("Audio consumer resumed")
+                        
                 self.handle_led_event("Running")
-                oww_audio = self.audio_queue.get()
-                audio_level = np.abs(oww_audio).mean()
-                if current_time - last_audio_level_emit_time >= 0.1:
-                    socketio.emit('processing_audio', {'status': 'ready'})
-                current_time = time.time()
-                # if audio level is below the threshold, skip processing, 
-                # but if the audio level was just above the threshold in the last 0.5 seconds, 
-                # process the audio as its the tail end of the audio
-                if audio_level < vad_threshold and current_time - last_audio_level_over_threshold > 0.75:
-                    continue
-                if audio_level > vad_threshold:
-                    last_audio_level_over_threshold = current_time
-                if print_audio_level:
-                    print(f"Audio level threshold ({audio_level}) triggered. Processing audio...")
-                # we don't want to send too many messages to the frontend. only send every audio level if its been 0.1 seconds
-                if current_time - last_audio_level_emit_time >= 0.1:
-                    socketio.emit('processing_audio', {'status': 'done', 'audio_level': audio_level})
-                    last_audio_level_emit_time = time.time()
-                # Make the prediction
-                prediction = self.handle.predict(oww_audio)
-                prediction_models = list(prediction.keys())
-                mdl = prediction_models[0]
-                score = float(prediction[mdl])
-                if score >= 0.5 and not self.is_request_processing:
+                pcm = self.audio_queue.get()
+                """      
+                    # Calculate audio level for threshold detection
+                    audio_level = np.abs(pcm).mean()
+                    
+                    if current_time - last_audio_level_emit_time >= 0.1:
+                        socketio.emit('processing_audio', {'status': 'ready'})
+                    
+                    current_time = time.time()
+                    
+                    # Skip processing if audio level is below threshold
+                    if audio_level < vad_threshold and current_time - last_audio_level_over_threshold > 0.75:
+                        continue
+                        
+                    if audio_level > vad_threshold:
+                        last_audio_level_over_threshold = current_time 
+                        
+                    if print_audio_level:
+                        print(f"Audio level threshold ({audio_level}) triggered. Processing audio...")
+                        
+                    if current_time - last_audio_level_emit_time >= 0.1:
+                        socketio.emit('processing_audio', {'status': 'done', 'audio_level': audio_level})
+                        last_audio_level_emit_time = time.time()
+                """
+                # Process audio with Porcupine
+                pcm_16bit = pcm.astype(np.int16)
+                keyword_index = self.porcupine.process(pcm_16bit)
+                
+                # Keyword detected (not -1)
+                if keyword_index >= 0 and not self.is_request_processing:
                     socketio.emit('awake', {'status': 'ready'})
                     self.is_awoken = True
-                    print(f"Awoken with score {round(score, 3)}!")
+                    print(f"Wake word detected! Keyword index: {keyword_index}")
                     self.handle_led_event("Transcript")
                     self.sound_effect.play(self.sound_effect.get_random_wake_sound())
                     socketio.emit('listening_for_prompt', {'status': 'ready'})
@@ -267,9 +271,8 @@ class WakeWordDetector:
                     socketio.emit('prompt_received', {'status': 'ready'})
                     self.listener.sound_effect = self.sound_effect.play_loop("loading")
                     self.listener.transcribe()
-                    prediction = self.predictSilence()
+                    
                     if self.listener.transcript is None:
-                        #self.sound_effect.stop_sound()
                         self._init_mic_stream()
                         continue
 
@@ -302,19 +305,6 @@ class WakeWordDetector:
                 return
             print(f"LED event: {event}")
 
-    def predictSilence(self):
-        # Calculate the number of samples for the given duration of silence
-        duration_seconds=2
-        num_samples = int(self.oww_sample_rate * duration_seconds)
-        silence_data = np.zeros(num_samples, dtype=np.int16)
-        # Predict the silence data to initialize the model
-        try:
-            prediction = self.handle.predict(silence_data)
-        except Exception as e:
-            print(f"Error: {e}")
-            pass
-        return prediction
-
     def _init_mic_stream(self):
         self.handle_led_event("Connected")
 
@@ -328,11 +318,11 @@ class WakeWordDetector:
                 self.mic_stream.stop_stream()
                 self.mic_stream.close()
             self.mic_stream = self.pa.open(
-                rate=self.oww_sample_rate,
-                channels=self.oww_channels,
+                rate=self.sample_rate,
+                channels=self.channels,
                 format=pyaudio.paInt16,
                 input=True,
-                frames_per_buffer=self.oww_chunk_size,
+                frames_per_buffer=self.chunk_size,
                 stream_callback=audio_callback
             )
         self.is_request_processing = False
@@ -721,20 +711,23 @@ class WakeWordDetector:
         if self.speech is not None:
             self.speech.stop()
         current_thread = threading.current_thread()
-        if self.consumer_thread.is_alive() and self.consumer_thread != current_thread:
+        if self.consumer_thread is not None and self.consumer_thread.is_alive() and self.consumer_thread != current_thread:
             self.consumer_thread.join()
         if self.mic_stream is not None:
             self.mic_stream.stop_stream()
             self.mic_stream.close()
         if self.pa is not None:
             self.pa.terminate()
+        if self.porcupine is not None:
+            self.porcupine.delete()
+            
+        self.porcupine = None
         self.mic_stream = None
         self.pa = None
         self.speech = None
         self.sound_effect = None
         self.chat_gpt_service = None
         self.listener = None
-        self.handle = None
         self.audio_queue = None
 
 @app.template_filter('find_url')
@@ -870,8 +863,11 @@ def settings():
     global config
     if request.method == 'POST':
         config['openai_model'] = request.form['openai_model']
+        config['openai_key'] = request.form['openai_key']
         config['groq_model'] = request.form['groq_model']
+        config['groq_key'] = request.form['groq_key']
         config['google_model'] = request.form['google_model']
+        config['google_key'] = request.form['google_key']
         config['ai_service'] = request.form['ai_service']
         config['radio_stream_url'] = request.form['radio_stream_url']
         config['kids_radio_stream_url'] = request.form['kids_radio_stream_url']
@@ -879,6 +875,7 @@ def settings():
         config['use_elevenlabs'] = 'use_elevenlabs' in request.form
         config['use_gtts'] = 'use_gtts' in request.form
         config['use_freeimage_host'] = 'use_freeimage_host' in request.form
+        config['picovoice_key'] = request.form['picovoice_key']
         config['max_threshold'] = int(request.form['max_threshold'])
         config['led_brightness'] = int(request.form['led_brightness'])
         # Save the updated config to the file

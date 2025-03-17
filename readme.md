@@ -35,14 +35,12 @@ The project is divided into several main python files:
 
 8. **radio_player.py**: Handles playing radio streams from configured URLs.
 
-9. **jarvis_v2.tflite** and **jarvis_v2.onnx**: The wake word model(s) used by OpenWakeWord.
 
 There is also a configuration file, **config.json**, which stores important parameters and keys.
 
 ## Dependencies
 This project uses:
-
-- [OpenWakeWord](https://github.com/dscripka/openWakeWord) (OpenWakeWord's wake word engine): This is used to listen for the wake word.
+- [Picovoice](https://picovoice.ai/): This is used to listen for the wake word.
 - [SpeechRecognition](https://pypi.org/project/SpeechRecognition) (Google's legacy speech recognition engine)
 - [OpenAI](https://openai.com/): One of the AI services used to respond to requests. You will need an API key from OpenAI to use this service.
 - [Groq](https://groq.com/): Alternative AI service provider. You will need a Groq API key to use this service.
@@ -62,7 +60,7 @@ All the keys and important parameters are stored in the `config.json` file. This
 - AI service selection (`ai_service`): Choose between "openai", "groq", or "google".
 - Radio streams (`radio_stream_url`, `kids_radio_stream_url`): URLs for radio streaming.
 - SpeechRecognition (`language`, `dynamic_energy_threshold`, `timeout`, `phrase_time_limit`): The language code for the speech recognition engine.
-- OpenWakeWord (`oww_model_path`, `oww_inference_framework`): The wake word model and inference framework to use. For more models see [Home Assistant Wake-Word Collection](https://github.com/fwartner/home-assistant-wakewords-collection/)
+- Picovoice (`picovoice_key`): The Picovoice API key.
 
 ## UI Features
 
@@ -105,15 +103,7 @@ This project has been tested on a RaspberryPi 3b+ and a windows 11 desktop. The 
 
 For raspberry pi, I used the ReSpeaker 2-Mics Pi HAT as the sound card. More information about this sound card can be found [here](https://wiki.seeedstudio.com/ReSpeaker_2_Mics_Pi_HAT_Raspberry/).
 
-For windows, I used a usb webcam mic and standard desktop speakers. (I had difficulty running the openwakeword engine using tflite on windows so onnx was used instead)
-
-To convert tflite models to onnx, you can use the following command:
-[tf2onnx](https://onnxruntime.ai/docs/tutorials/tf-get-started.html)
-
-```bash
-pip install tf2onnx
-python -m tf2onnx.convert --opset 13 --tflite path/to/your/model.tflite --output path/to/your/model.onnx
-```
+For windows, I used a usb webcam mic and standard desktop speakers. 
 
 ## Raspberry Pi Setup
 
@@ -125,9 +115,7 @@ Below are the commands to set up the project on your Raspberry Pi:
 sudo apt update -y
 sudo apt upgrade -y
 sudo apt install portaudio19-dev libatlas-base-dev git python3-venv python3-pip ffmpeg flac espeak mpv build-essential libpython3-dev libdbus-1-dev libglib2.0-dev vlc -y
-sudo apt remove wireplumber -y
-KERNEL_VERSION=$(uname -r | cut -d'.' -f1,2)
-git clone --branch v$KERNEL_VERSION https://github.com/HinTak/seeed-voicecard
+git clone https://github.com/HinTak/seeed-voicecard
 cd seeed-voicecard
 sudo ./install.sh
 sudo reboot now

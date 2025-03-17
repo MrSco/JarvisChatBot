@@ -43,6 +43,10 @@
                 </select>
             </div>
             <div>
+                <label for="openai_key">OpenAI Key:</label>
+                <input id="openai_key" name="openai_key" type="password" value="{{ config['openai_key'] }}">
+            </div>
+            <div>
                 <label for="openai_modelSelect">OpenAI Model:</label>
                 <select id="openai_modelSelect" name="openai_model">
                     <option value="chatgpt-4o-latest">GPT-4o Latest</option>
@@ -50,6 +54,10 @@
                     <option value="gpt-4o-mini">GPT-4o Mini</option>
                     <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
                 </select>
+            </div>
+            <div>
+                <label for="groq_key">Groq Key:</label>
+                <input id="groq_key" name="groq_key" type="password" value="{{ config['groq_key'] }}">
             </div>
             <div>
                 <label for="groq_modelSelect">Groq Model:</label>
@@ -60,6 +68,10 @@
                     <option value="llama-3.1-8b-instant">Llama 3.1 8b</option>
                     <option value="mixtral-8x7b-32768">Mixtral 8x7b</option>
                 </select>
+            </div>
+            <div>
+                <label for="google_key">Google Key:</label>
+                <input id="google_key" name="google_key" type="password" value="{{ config['google_key'] }}">
             </div>
             <div>
                 <label for="google_modelSelect">Google Gemini Model:</label>
@@ -78,8 +90,12 @@
                 <input type="text" id="kids_radio_stream_url" name="kids_radio_stream_url" value="{{ config['kids_radio_stream_url'] }}">
             </div>
             <div>
+                <label for="picovoice_key">Picovoice Key:</label>
+                <input id="picovoice_key" name="picovoice_key" type="password" value="{{ config['picovoice_key'] }}">
+            </div>
+            <div>
                 <label for="elevenlabs_key">ElevenLabs Key:</label>
-                <input type="text" id="elevenlabs_key" name="elevenlabs_key" value="{{ config['elevenlabs_key'] }}">
+                <input id="elevenlabs_key" name="elevenlabs_key" type="password" value="{{ config['elevenlabs_key'] }}">
             </div>
             <div>
                 <label for="use_elevenlabs">Use ElevenLabs:</label>
@@ -95,7 +111,7 @@
             </div>
             <div>
                 <label for="freeimage_key">FreeImage Key:</label>
-                <input type="text" id="freeimage_key" name="freeimage_key" value="{{ config['freeimage_key'] }}">
+                <input id="freeimage_key" name="freeimage_key" type="password" value="{{ config['freeimage_key'] }}">
             </div>
             <div>
                 <label for="max_threshold">Max Threshold:</label>

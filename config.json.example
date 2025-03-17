@@ -1,4 +1,5 @@
 {
+    "picovoice_key": "cH4..."
     "elevenlabs_key": "d64...",
     "use_elevenlabs": true,
     "use_gtts": false,
@@ -14,10 +15,6 @@
     "use_freeimage_host": true,
     "freeimage_key": "6d2...",
     "assistant": "jarvis",
-    "oww_sample_rate": 16000,
-    "oww_channels": 1,
-    "oww_chunk_size": 1280,
-    "oww_model": "{assistant_name}.tflite",
     "language": "en",
     "vad_threshold": 1000,
     "max_threshold": 5000,

@@ -224,16 +224,22 @@ else if (location.toString().includes('/settings')) {
             
             // Hide all model dropdowns first
             document.querySelector('label[for="openai_modelSelect"]').parentNode.style.display = 'none';
+            document.querySelector('label[for="openai_key"]').parentNode.style.display = 'none';
             document.querySelector('label[for="groq_modelSelect"]').parentNode.style.display = 'none';
+            document.querySelector('label[for="groq_key"]').parentNode.style.display = 'none';
             document.querySelector('label[for="google_modelSelect"]').parentNode.style.display = 'none';
+            document.querySelector('label[for="google_key"]').parentNode.style.display = 'none';
             
             // Show only the relevant model dropdown
             if (selectedService === 'openai') {
                 document.querySelector('label[for="openai_modelSelect"]').parentNode.style.display = 'block';
+                document.querySelector('label[for="openai_key"]').parentNode.style.display = 'block';
             } else if (selectedService === 'groq') {
                 document.querySelector('label[for="groq_modelSelect"]').parentNode.style.display = 'block';
+                document.querySelector('label[for="groq_key"]').parentNode.style.display = 'block';
             } else if (selectedService === 'google') {
                 document.querySelector('label[for="google_modelSelect"]').parentNode.style.display = 'block';
+                document.querySelector('label[for="google_key"]').parentNode.style.display = 'block';
             }
         }
         

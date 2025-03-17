@@ -257,6 +257,7 @@ label[for="file-upload"]:hover {
 
 #settingsForm select,
 #settingsForm input[type="text"],
+#settingsForm input[type="password"],
 #settingsForm textarea,
 #settingsForm input[type="number"],
 #settingsForm input[type="checkbox"] {

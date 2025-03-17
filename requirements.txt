@@ -14,7 +14,7 @@ spidev
 pyttsx3
 RPi.GPIO
 numpy==1.26.4
-openwakeword
+pvporcupine
 gtts
 dbus-python
 python-vlc
