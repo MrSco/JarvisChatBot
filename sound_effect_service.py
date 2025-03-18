@@ -20,7 +20,19 @@ class SoundEffectService:
         self.awake_sound_names = ["listening", "you_called", "yes", "hello"]
         self.filler_sound_names = ["ummm", "ehhh", "uhhhh", "hmmm"]
         # Initialize pygame mixer
-        pygame.mixer.init()
+        self.init_mixer()
+
+    @staticmethod
+    def init_mixer():
+        """Initialize pygame mixer if not already initialized"""
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
+
+    @staticmethod
+    def quit_mixer():
+        """Quit pygame mixer if initialized"""
+        if pygame.mixer.get_init():
+            pygame.mixer.quit()
 
     def get_random_wake_sound(self):
         return self.awake_sound_names[random.randint(0, len(self.awake_sound_names) - 1)]
@@ -57,6 +69,9 @@ class SoundEffectService:
         # Clean up any existing audio
         self._cleanup_audio()
         
+        # Ensure mixer is initialized
+        self.init_mixer()
+        
         # Load the sound
         self.current_sound = pygame.mixer.Sound(sound_path)
         
@@ -81,4 +96,27 @@ class SoundEffectService:
 
     def cleanup(self):
         """Clean up the pygame mixer when the service is done"""
-        pygame.mixer.quit()
+        self._cleanup_audio()
+        self.quit_mixer()
+
+    def play_from_bytes(self, audio_bytes, loop=False):
+        """Play audio from a BytesIO object"""
+        # Clean up any existing audio
+        self._cleanup_audio()
+        
+        # Ensure mixer is initialized
+        self.init_mixer()
+        
+        # Load the sound
+        self.current_sound = pygame.mixer.Sound(audio_bytes)
+        
+        if loop:
+            self.is_looping = True
+            self.loop_thread = threading.Thread(target=self._play_sound_loop)
+            self.loop_thread.start()
+        else:
+            # Play the sound once
+            self.current_sound.play()
+            while pygame.mixer.get_busy():
+                pygame.time.wait(100)
+            self._cleanup_audio()

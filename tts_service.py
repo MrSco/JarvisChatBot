@@ -6,6 +6,7 @@ import pyttsx3
 from gtts import gTTS
 import pygame
 import io
+from sound_effect_service import SoundEffectService
 
 class TextToSpeechService:
     def __init__(self, config):
@@ -22,8 +23,7 @@ class TextToSpeechService:
         self.is_running = True
         self.current_sound = None
         # Initialize pygame mixer if not already initialized
-        if not pygame.mixer.get_init():
-            pygame.mixer.init()
+        SoundEffectService.init_mixer()
 
     def remove_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', '', text)
@@ -34,8 +34,7 @@ class TextToSpeechService:
             self.current_sound.stop()
         self.current_sound = None
         # Ensure pygame mixer is ready
-        if not pygame.mixer.get_init():
-            pygame.mixer.init()
+        SoundEffectService.init_mixer()
 
     def stop(self):
         self.is_running = False
@@ -43,7 +42,7 @@ class TextToSpeechService:
             self.sound_effect.stop_sound()
         self._cleanup_audio()
         # Quit pygame mixer when stopping
-        pygame.mixer.quit()
+        SoundEffectService.quit_mixer()
     
     def speak(self, text):
         textToSpeak = text
@@ -61,10 +60,10 @@ class TextToSpeechService:
                 self.sound_effect.stop_sound()
             print(f"{self.assistant_name}: {text}")
             # Ensure pygame mixer is quit before using ElevenLabs
-            pygame.mixer.quit()
+            SoundEffectService.quit_mixer()
             stream(self.speech_stream(textToSpeak))
             # Reinitialize pygame mixer after ElevenLabs
-            pygame.mixer.init()
+            SoundEffectService.init_mixer()
 
         except Exception as e:
             print(f"Failed to use elevenlabs for speech ({text}): {e}")
@@ -113,17 +112,9 @@ class TextToSpeechService:
                 self.sound_effect.stop_sound()
             print(f"{self.assistant_name}: {text}")
             
-            # Clean up any existing audio
-            self._cleanup_audio()
-            
-            # Load and play the sound using pygame
-            self.current_sound = pygame.mixer.Sound(audio_bytes)
-            self.current_sound.play()
-            while pygame.mixer.get_busy():
-                pygame.time.wait(100)
-            
-            # Clean up
-            self._cleanup_audio()
+            # Create a temporary SoundEffectService instance to play the audio
+            temp_sound_service = SoundEffectService()
+            temp_sound_service.play_from_bytes(audio_bytes)
                 
         except Exception as e:
             print(f"Failed to use gTTS for speech: {e}")
@@ -132,7 +123,7 @@ class TextToSpeechService:
     def speak_with_pyttsx3(self, text):
         try:
             # Ensure pygame mixer is quit before using pyttsx3
-            pygame.mixer.quit()
+            SoundEffectService.quit_mixer()
             engine = pyttsx3.init()
             voices = engine.getProperty('voices') 
             engine.setProperty('voice', voices[self.assistant_gender].id)
@@ -142,8 +133,8 @@ class TextToSpeechService:
             engine.say(text)
             engine.runAndWait()
             # Reinitialize pygame mixer after pyttsx3
-            pygame.mixer.init()
+            SoundEffectService.init_mixer()
         except Exception as e:
             print(f"Failed to use pyttsx3: {e}")
             # Try to reinitialize pygame mixer even if there was an error
-            pygame.mixer.init()
+            SoundEffectService.init_mixer()

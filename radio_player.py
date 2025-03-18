@@ -1,6 +1,7 @@
 import vlc
 import threading
 import time
+from sound_effect_service import SoundEffectService
 
 class RadioPlayer:
     def __init__(self, wakeword_detector):
@@ -10,6 +11,8 @@ class RadioPlayer:
         self.running = False
         self.stream_url = None
         self.blink_led_thread = None
+        # Initialize pygame mixer if not already initialized
+        SoundEffectService.init_mixer()
 
     def start(self, stream_url=None):
         if not self.running:
@@ -20,6 +23,8 @@ class RadioPlayer:
             if stream_url is None:
                 print("No stream URL provided")
                 return
+            # Ensure pygame mixer is quit before starting VLC
+            SoundEffectService.quit_mixer()
             self.running = True
             self.wakeword_detector.is_awoken = True
             self.blink_led_thread = threading.Thread(target=self.blink_led)
@@ -54,6 +59,11 @@ class RadioPlayer:
             if self.thread:
                 self.thread.join()
                 self.thread = None
+            # Reinitialize pygame mixer after stopping VLC
+            SoundEffectService.init_mixer()
+
     def cleanup(self):
         self.stop()
         self.wakeword_detector = None
+        # Ensure pygame mixer is cleaned up
+        SoundEffectService.quit_mixer()
