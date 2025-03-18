@@ -5,8 +5,7 @@ from elevenlabs import stream, play
 from elevenlabs.client import ElevenLabs
 import pyttsx3
 from gtts import gTTS
-from pydub import AudioSegment
-from pydub.playback import play as pyDubPlay
+import pygame
 import io
 
 class TextToSpeechService:
@@ -22,6 +21,7 @@ class TextToSpeechService:
         self.accent = config["assistant_dict"]["accent"]
         self.sound_effect = None
         self.is_running = True
+        pygame.mixer.init()
 
     def remove_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', '', text)
@@ -83,7 +83,6 @@ class TextToSpeechService:
 
     def speak_with_gtts(self, text):
         try:
-            #print("Speaking with gTTS...")
             # Create a gTTS object for the current text chunk
             tts = gTTS(text=text, lang=self.language, tld=self.accent, slow=False)
             
@@ -92,15 +91,15 @@ class TextToSpeechService:
             tts.write_to_fp(audio_bytes)
             audio_bytes.seek(0)
             
-            # Load the audio with pydub
-            audio = AudioSegment.from_file(audio_bytes, format="mp3")
-            
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
             print(f"{self.assistant_name}: {text}")
             
-            # Play the audio
-            pyDubPlay(audio)
+            # Play the audio using pygame
+            pygame.mixer.music.load(audio_bytes)
+            pygame.mixer.music.play()
+            while pygame.mixer.music.get_busy():
+                pygame.time.Clock().tick(10)
         except Exception as e:
             print(f"Failed to use gTTS for speech: {e}")
 

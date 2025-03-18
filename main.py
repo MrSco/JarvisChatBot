@@ -25,6 +25,7 @@ from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
 import requests
 from radio_player import RadioPlayer
+import struct
 
 transcript_seperator = f"_"*40
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -179,123 +180,132 @@ class WakeWordDetector:
         # Get the wake word from the assistant configuration
         assistant_wake_word = assistant["wake_word"].lower()
         
-        # Porcupine configuration
-        self.sample_rate = 16000  # Porcupine requires 16kHz
-        self.chunk_size = 512  # Smaller chunk size for faster detection
-        self.channels = 1  # Mono audio
+        # Initialize audio objects
+        self.porcupine = None
+        self.pa = None
+        self.audio_stream = None
         
         try:
             # Initialize Porcupine with the selected keyword
             self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=[assistant_wake_word])
             print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
+            
+            # Initialize PyAudio
+            self.pa = pyaudio.PyAudio()
+            
+            # Initialize audio stream
+            self.audio_stream = self.pa.open(
+                rate=self.porcupine.sample_rate,
+                channels=1,
+                format=pyaudio.paInt16,
+                input=True,
+                frames_per_buffer=self.porcupine.frame_length
+            )
+            
         except Exception as e:
-            print(f"Error initializing Porcupine: {e}")
-            # Fallback to Jarvis if there was an error
-            self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=["jarvis"])
-            print("Falling back to 'jarvis' keyword")
+            print(f"Error initializing audio: {e}")
+            self.cleanup()
+            raise
             
         self.language = config["language"]
         self.is_request_processing = False
         self.is_awoken = False
         self.use_elevenlabs = config["use_elevenlabs"]
-        self.audio_queue = queue.Queue()
         self.is_running = True
-        self.consumer_thread = None
         self.restart_app = False
-        self.mic_stream = None
 
-        self.pa = pyaudio.PyAudio()
-        
         #stop loading sound so we can test ambient noise properly
         loading_sound.stop_sound()
         self.listener = InputListener(config)
-
         self.speech = TextToSpeechService(config)
+        self.sound_effect = SoundEffectService(config)
 
-        self.sound_effect = SoundEffectService(config)        
+    def _cleanup_audio_stream(self):
+        """Clean up the PyAudio stream"""
+        if self.audio_stream is not None:
+            self.audio_stream.close()
+        if self.pa is not None:
+            self.pa.terminate()
+        self.audio_stream = None
+        self.pa = None
 
-    def audio_consumer(self):
-        current_time = time.time()
-        last_audio_level_emit_time = current_time
-        last_audio_level_over_threshold = current_time
-        self._init_mic_stream()
-        while self.is_running:
-            try:
-                if self.is_awoken:
-                    if self.mic_stream is not None:
-                        self.mic_stream.stop_stream()
-                    while self.is_running and self.is_awoken:
-                        time.sleep(1)
-                    if self.mic_stream is not None:
-                        self.mic_stream.start_stream()
-                        
-                self.handle_led_event("Running")
-                pcm = self.audio_queue.get()
-                """      
-                    # Calculate audio level for threshold detection
-                    audio_level = np.abs(pcm).mean()
-                    
-                    if current_time - last_audio_level_emit_time >= 0.1:
-                        socketio.emit('processing_audio', {'status': 'ready'})
-                    
-                    current_time = time.time()
-                    
-                    # Skip processing if audio level is below threshold
-                    if audio_level < vad_threshold and current_time - last_audio_level_over_threshold > 0.75:
-                        continue
-                        
-                    if audio_level > vad_threshold:
-                        last_audio_level_over_threshold = current_time 
-                        
-                    if print_audio_level:
-                        print(f"Audio level threshold ({audio_level}) triggered. Processing audio...")
-                        
-                    if current_time - last_audio_level_emit_time >= 0.1:
-                        socketio.emit('processing_audio', {'status': 'done', 'audio_level': audio_level})
-                        last_audio_level_emit_time = time.time()
-                """
-                # Process audio with Porcupine
-                pcm_16bit = pcm.astype(np.int16)
-                keyword_index = self.porcupine.process(pcm_16bit)
-                
-                # Keyword detected (not -1)
-                if keyword_index >= 0 and not self.is_request_processing:
-                    socketio.emit('awake', {'status': 'ready'})
-                    self.is_awoken = True
-                    print(f"Wake word detected! Keyword index: {keyword_index}")
-                    self.handle_led_event("Transcript")
-                    self.sound_effect.play(self.sound_effect.get_random_wake_sound())
-                    socketio.emit('listening_for_prompt', {'status': 'ready'})
-                    self.listener.listen()
-                    self.handle_led_event("StreamingStarted")
-                    socketio.emit('prompt_received', {'status': 'ready'})
-                    self.listener.sound_effect = self.sound_effect.play_loop("loading")
-                    self.listener.transcribe()
-                    
-                    if self.listener.transcript is None:
-                        self._init_mic_stream()
-                        continue
-
-                    self.process_transcript(self.listener.transcript)
-            except Exception as e:
-                print("Error processing audio in audio_consumer...")
-                self.something_went_wrong()
-                print(f"Error: {e}")
-                continue
+    def _init_audio_stream(self):
+        """Initialize the PyAudio stream"""
+        self.pa = pyaudio.PyAudio()
+        self.audio_stream = self.pa.open(
+            rate=self.porcupine.sample_rate,
+            channels=1,
+            format=pyaudio.paInt16,
+            input=True,
+            frames_per_buffer=self.porcupine.frame_length
+        )
 
     def process_audio(self):
-        self.consumer_thread = threading.Thread(target=self.audio_consumer)
-        self.is_awoken = True
-        self.consumer_thread.start()
         self.handle_led_event("VoiceStarted")
         if self.use_elevenlabs:
             self.sound_effect.play("ready")
         else:
             self.speech.speak(f"{assistant_name} ready!")
-        self.is_awoken = False
+            
+        print(f"Listening for '{assistant['wake_word']}'...")
+        
         while self.is_running:
-            sys.stdout.flush()
-            time.sleep(1)
+            try:
+                if self.is_awoken:
+                    if self.audio_stream is not None:
+                        self.audio_stream.stop_stream()
+                    while self.is_running and self.is_awoken:
+                        time.sleep(1)
+                    if self.audio_stream is not None:
+                        self.audio_stream.start_stream()
+                        
+                self.handle_led_event("Running")
+                
+                try:
+                    # Read audio data
+                    keyword = self.audio_stream.read(self.porcupine.frame_length)
+                    keyword = struct.unpack_from("h" * self.porcupine.frame_length, keyword)
+                    
+                    # Process with Porcupine
+                    keyword_index = self.porcupine.process(keyword)
+                    
+                    if keyword_index >= 0 and not self.is_request_processing:
+                        socketio.emit('awake', {'status': 'ready'})
+                        self.is_awoken = True
+                        print(f"Wake word detected! Keyword index: {keyword_index}")
+                        self.handle_led_event("Transcript")
+                        
+                        # Clean up PyAudio stream before using microphone
+                        self._cleanup_audio_stream()
+                        
+                        self.sound_effect.play(self.sound_effect.get_random_wake_sound())
+                        socketio.emit('listening_for_prompt', {'status': 'ready'})
+                        self.listener.listen()
+                        self.handle_led_event("StreamingStarted")
+                        socketio.emit('prompt_received', {'status': 'ready'})
+                        self.listener.sound_effect = self.sound_effect.play_loop("loading")
+                        self.listener.transcribe()
+                        
+                        if self.listener.transcript is None:
+                            self.is_awoken = False
+                            self._init_audio_stream()
+                            continue
+
+                        self.process_transcript(self.listener.transcript)
+                        
+                        # Reinitialize PyAudio stream for wake word detection
+                        self._init_audio_stream()
+                        print(f"Listening for '{assistant['wake_word']}'...")
+                        
+                except Exception as e:
+                    print(f"Error processing audio: {e}")
+                    self.something_went_wrong()
+                    time.sleep(1)
+                    
+            except Exception as e:
+                print(f"Error in main loop: {e}")
+                self.something_went_wrong()
+                time.sleep(1)
 
     def handle_led_event(self, event):
         if led_service is not None:
@@ -305,37 +315,6 @@ class WakeWordDetector:
                 return
             print(f"LED event: {event}")
 
-    def _init_mic_stream(self):
-        self.handle_led_event("Connected")
-
-        def audio_callback(in_data, frame_count, time_info, status):
-            audio = np.frombuffer(in_data, dtype=np.int16)
-            self.audio_queue.put(audio)
-            return (in_data, pyaudio.paContinue)
-        
-        if self.pa is not None:
-            if self.mic_stream is not None:
-                self.mic_stream.stop_stream()
-                self.mic_stream.close()
-            self.mic_stream = self.pa.open(
-                rate=self.sample_rate,
-                channels=self.channels,
-                format=pyaudio.paInt16,
-                input=True,
-                frames_per_buffer=self.chunk_size,
-                stream_callback=audio_callback
-            )
-        self.is_request_processing = False
-        if (shairport_handler is not None and shairport_handler.shairport_active) \
-            or (radio_player is not None and radio_player.running) and not self.is_awoken:
-            self.is_awoken = True
-            socketio.emit('music_active', {'status': 'ready'})
-            print("Music active. Pausing chatbot vad...")
-        else:
-            self.is_awoken = False
-            socketio.emit('chatbot_ready', {'status': 'ready'})
-            print("Listening for '" + assistant["wake_word"] + "'...")
-    
     def something_went_wrong(self):
         if self.listener.sound_effect is not None:
             self.listener.sound_effect.stop_sound()
@@ -346,8 +325,8 @@ class WakeWordDetector:
             self.sound_effect.play("something_went_wrong")
         else:
             self.speech.speak(f"Something went wrong!")
-        self._init_mic_stream()
-    
+        self._cleanup_audio_stream()
+        
     def extract_time_from_transcript(self, transcript):
         # Regular expression to match time in HH:MM AM/PM or HH:MM a.m./p.m. format
         time_pattern = re.compile(r'(\d{1,2}:\d{2}\s?(?:AM|PM|am|pm|a\.m\.|p\.m\.)?)')
@@ -695,7 +674,7 @@ class WakeWordDetector:
 
             print(f"Total Time: {end_time - start_time} seconds")
         finally:
-            self._init_mic_stream()
+            self._cleanup_audio_stream()
 
     def run(self):
         try:            
@@ -710,25 +689,20 @@ class WakeWordDetector:
         self.is_running = False
         if self.speech is not None:
             self.speech.stop()
-        current_thread = threading.current_thread()
-        if self.consumer_thread is not None and self.consumer_thread.is_alive() and self.consumer_thread != current_thread:
-            self.consumer_thread.join()
-        if self.mic_stream is not None:
-            self.mic_stream.stop_stream()
-            self.mic_stream.close()
-        if self.pa is not None:
-            self.pa.terminate()
+            
+        self._cleanup_audio_stream()
+                
         if self.porcupine is not None:
-            self.porcupine.delete()
+            try:
+                self.porcupine.delete()
+            except Exception as e:
+                print(f"Error deleting Porcupine: {e}")
             
         self.porcupine = None
-        self.mic_stream = None
-        self.pa = None
         self.speech = None
         self.sound_effect = None
         self.chat_gpt_service = None
         self.listener = None
-        self.audio_queue = None
 
 @app.template_filter('find_url')
 def find_url_filter(text):

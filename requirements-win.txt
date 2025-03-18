@@ -3,8 +3,7 @@ openai
 groq
 elevenlabs
 SpeechRecognition
-pydub
-simpleaudio
+pygame
 geocoder
 flask
 flask_socketio
