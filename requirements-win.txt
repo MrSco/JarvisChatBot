@@ -1,4 +1,3 @@
-pyaudio
 openai
 groq
 elevenlabs
@@ -10,6 +9,7 @@ flask_socketio
 pyttsx3
 numpy
 pvporcupine
+pvrecorder
 gtts
 python-vlc
 tzlocal

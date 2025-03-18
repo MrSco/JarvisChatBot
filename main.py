@@ -26,6 +26,7 @@ from werkzeug.utils import secure_filename
 import requests
 from radio_player import RadioPlayer
 import struct
+from pvrecorder import PvRecorder
 
 transcript_seperator = f"_"*40
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -182,31 +183,17 @@ class WakeWordDetector:
         
         # Initialize audio objects
         self.porcupine = None
-        self.pa = None
-        self.audio_stream = None
+        self.recorder = None
         
-        try:
-            # Initialize Porcupine with the selected keyword
-            self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=[assistant_wake_word])
-            print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
-            
-            # Initialize PyAudio
-            self.pa = pyaudio.PyAudio()
-            
-            # Initialize audio stream
-            self.audio_stream = self.pa.open(
-                rate=self.porcupine.sample_rate,
-                channels=1,
-                format=pyaudio.paInt16,
-                input=True,
-                frames_per_buffer=self.porcupine.frame_length
-            )
-            
-        except Exception as e:
-            print(f"Error initializing audio: {e}")
-            self.cleanup()
-            raise
-            
+        # Initialize Porcupine with the selected keyword
+        self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=[assistant_wake_word])
+        print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
+
+        #stop loading sound so we can test ambient noise properly
+        loading_sound.stop_sound()
+        self.listener = InputListener(config)
+        self._init_audio_stream()
+
         self.language = config["language"]
         self.is_request_processing = False
         self.is_awoken = False
@@ -214,86 +201,71 @@ class WakeWordDetector:
         self.is_running = True
         self.restart_app = False
 
-        #stop loading sound so we can test ambient noise properly
-        loading_sound.stop_sound()
-        self.listener = InputListener(config)
         self.speech = TextToSpeechService(config)
         self.sound_effect = SoundEffectService(config)
 
     def _cleanup_audio_stream(self):
-        """Clean up the PyAudio stream"""
-        if self.audio_stream is not None:
-            self.audio_stream.close()
-        if self.pa is not None:
-            self.pa.terminate()
-        self.audio_stream = None
-        self.pa = None
+        """Clean up the audio stream"""
+        if self.recorder is not None:
+            self.recorder.stop()
+            self.recorder.delete()
+        self.recorder = None
 
     def _init_audio_stream(self):
-        """Initialize the PyAudio stream"""
-        self.pa = pyaudio.PyAudio()
-        self.audio_stream = self.pa.open(
-            rate=self.porcupine.sample_rate,
-            channels=1,
-            format=pyaudio.paInt16,
-            input=True,
-            frames_per_buffer=self.porcupine.frame_length
+        """Initialize the audio stream"""
+        print("Initializing PvRecorder...")
+        self.recorder = PvRecorder(
+            frame_length=self.porcupine.frame_length,
+            device_index=-1  # Use default device
         )
+        print("Starting recorder...")
+        self.recorder.start()
+        print("Audio stream initialized")
 
     def process_audio(self):
         self.handle_led_event("VoiceStarted")
         if self.use_elevenlabs:
+            print("Playing ready sound...")
             self.sound_effect.play("ready")
         else:
+            print("Speaking ready sound...")
             self.speech.speak(f"{assistant_name} ready!")
             
         print(f"Listening for '{assistant['wake_word']}'...")
         
         while self.is_running:
             try:
-                if self.is_awoken:
-                    if self.audio_stream is not None:
-                        self.audio_stream.stop_stream()
-                    while self.is_running and self.is_awoken:
-                        time.sleep(1)
-                    if self.audio_stream is not None:
-                        self.audio_stream.start_stream()
-                        
                 self.handle_led_event("Running")
                 
                 try:
                     # Read audio data
-                    keyword = self.audio_stream.read(self.porcupine.frame_length)
-                    keyword = struct.unpack_from("h" * self.porcupine.frame_length, keyword)
+                    pcm = self.recorder.read()
                     
                     # Process with Porcupine
-                    keyword_index = self.porcupine.process(keyword)
+                    keyword_index = self.porcupine.process(pcm)
                     
                     if keyword_index >= 0 and not self.is_request_processing:
-                        socketio.emit('awake', {'status': 'ready'})
-                        self.is_awoken = True
                         print(f"Wake word detected! Keyword index: {keyword_index}")
-                        self.handle_led_event("Transcript")
                         
-                        # Clean up PyAudio stream before using microphone
+                        # Clean up audio stream before using microphone
                         self._cleanup_audio_stream()
                         
+                        socketio.emit('awake', {'status': 'ready'})
+                        self.handle_led_event("Transcript")
                         self.sound_effect.play(self.sound_effect.get_random_wake_sound())
                         socketio.emit('listening_for_prompt', {'status': 'ready'})
+                        
+                        # Listen for command
                         self.listener.listen()
                         self.handle_led_event("StreamingStarted")
                         socketio.emit('prompt_received', {'status': 'ready'})
                         self.listener.sound_effect = self.sound_effect.play_loop("loading")
                         self.listener.transcribe()
                         
-                        if self.listener.transcript is None:
-                            self.is_awoken = False
-                            self._init_audio_stream()
-                            continue
-
-                        self.process_transcript(self.listener.transcript)
+                        if self.listener.transcript is not None:
+                            self.process_transcript(self.listener.transcript)
                         
-                        # Reinitialize PyAudio stream for wake word detection
+                        # Reinitialize audio stream for wake word detection
                         self._init_audio_stream()
                         print(f"Listening for '{assistant['wake_word']}'...")
                         
@@ -674,7 +646,7 @@ class WakeWordDetector:
 
             print(f"Total Time: {end_time - start_time} seconds")
         finally:
-            self._cleanup_audio_stream()
+            self.is_request_processing = False
 
     def run(self):
         try:            

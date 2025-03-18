@@ -2,8 +2,12 @@ import speech_recognition as sr
 
 class InputListener:
     def __init__(self, config):
+        print("Initializing InputListener Recognizer...")
         self.rec = sr.Recognizer()
+        print("Recognizer initialized")
+        print("Initializing Microphone...")
         self.mic = sr.Microphone()
+        print("Microphone initialized")
         self.rec.dynamic_energy_threshold = config["dynamic_energy_threshold"]
         self.rec.energy_threshold = config["vad_threshold"]
         self.timeout = config["timeout"]
@@ -14,6 +18,7 @@ class InputListener:
         with self.mic as source:
             print("Adjusting for ambient noise...")
             self.rec.adjust_for_ambient_noise(source, duration=1)
+            print("Adjusted for ambient noise")
 
     def listen(self):
         if self.sound_effect is not None:
@@ -30,6 +35,8 @@ class InputListener:
         self.transcript = None
         if self.audio_data is None:
             print("No audio request detected.")
+            if self.sound_effect is not None:
+                self.sound_effect.stop_sound()
             return None
         try:
             print("Processing speech request to text...")

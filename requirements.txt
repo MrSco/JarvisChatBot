@@ -1,4 +1,3 @@
-pyaudio
 openai
 groq
 elevenlabs
@@ -14,6 +13,7 @@ pyttsx3
 RPi.GPIO
 numpy==1.26.4
 pvporcupine
+pvrecorder
 gtts
 dbus-python
 python-vlc

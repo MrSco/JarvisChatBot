@@ -7,6 +7,7 @@ import pyttsx3
 from gtts import gTTS
 import pygame
 import io
+import threading
 
 class TextToSpeechService:
     def __init__(self, config):
@@ -21,15 +22,22 @@ class TextToSpeechService:
         self.accent = config["assistant_dict"]["accent"]
         self.sound_effect = None
         self.is_running = True
-        pygame.mixer.init()
+        self.current_sound = None
 
     def remove_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', '', text)
+
+    def _cleanup_audio(self):
+        """Helper function to clean up audio resources"""
+        if self.current_sound is not None:
+            self.current_sound.stop()
+        self.current_sound = None
 
     def stop(self):
         self.is_running = False
         if self.sound_effect is not None:
             self.sound_effect.stop_sound()
+        self._cleanup_audio()
     
     def speak(self, text):
         textToSpeak = text
@@ -95,17 +103,24 @@ class TextToSpeechService:
                 self.sound_effect.stop_sound()
             print(f"{self.assistant_name}: {text}")
             
-            # Play the audio using pygame
-            pygame.mixer.music.load(audio_bytes)
-            pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                pygame.time.Clock().tick(10)
+            # Clean up any existing audio
+            self._cleanup_audio()
+            
+            # Load and play the sound using pygame
+            self.current_sound = pygame.mixer.Sound(audio_bytes)
+            self.current_sound.play()
+            while pygame.mixer.get_busy():
+                pygame.time.wait(100)
+            
+            # Clean up
+            self._cleanup_audio()
+                
         except Exception as e:
             print(f"Failed to use gTTS for speech: {e}")
+            self._cleanup_audio()
 
     def speak_with_pyttsx3(self, text):
         try:
-            #print("Speaking with pyttsx3...")            
             engine = pyttsx3.init()
             voices = engine.getProperty('voices') 
             engine.setProperty('voice', voices[self.assistant_gender].id)
