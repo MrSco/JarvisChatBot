@@ -1,5 +1,4 @@
 import re
-import time
 from elevenlabs import VoiceSettings
 from elevenlabs import stream, play
 from elevenlabs.client import ElevenLabs
@@ -7,7 +6,6 @@ import pyttsx3
 from gtts import gTTS
 import pygame
 import io
-import threading
 
 class TextToSpeechService:
     def __init__(self, config):
@@ -23,6 +21,9 @@ class TextToSpeechService:
         self.sound_effect = None
         self.is_running = True
         self.current_sound = None
+        # Initialize pygame mixer if not already initialized
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
 
     def remove_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', '', text)
@@ -32,12 +33,17 @@ class TextToSpeechService:
         if self.current_sound is not None:
             self.current_sound.stop()
         self.current_sound = None
+        # Ensure pygame mixer is ready
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
 
     def stop(self):
         self.is_running = False
         if self.sound_effect is not None:
             self.sound_effect.stop_sound()
         self._cleanup_audio()
+        # Quit pygame mixer when stopping
+        pygame.mixer.quit()
     
     def speak(self, text):
         textToSpeak = text
@@ -54,7 +60,11 @@ class TextToSpeechService:
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
             print(f"{self.assistant_name}: {text}")
+            # Ensure pygame mixer is quit before using ElevenLabs
+            pygame.mixer.quit()
             stream(self.speech_stream(textToSpeak))
+            # Reinitialize pygame mixer after ElevenLabs
+            pygame.mixer.init()
 
         except Exception as e:
             print(f"Failed to use elevenlabs for speech ({text}): {e}")
@@ -121,6 +131,8 @@ class TextToSpeechService:
 
     def speak_with_pyttsx3(self, text):
         try:
+            # Ensure pygame mixer is quit before using pyttsx3
+            pygame.mixer.quit()
             engine = pyttsx3.init()
             voices = engine.getProperty('voices') 
             engine.setProperty('voice', voices[self.assistant_gender].id)
@@ -129,5 +141,9 @@ class TextToSpeechService:
             print(f"{self.assistant_name}: {text}")
             engine.say(text)
             engine.runAndWait()
+            # Reinitialize pygame mixer after pyttsx3
+            pygame.mixer.init()
         except Exception as e:
             print(f"Failed to use pyttsx3: {e}")
+            # Try to reinitialize pygame mixer even if there was an error
+            pygame.mixer.init()
