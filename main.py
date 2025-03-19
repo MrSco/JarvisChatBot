@@ -186,7 +186,10 @@ class WakeWordDetector:
         self.recorder = None
         
         # Initialize Porcupine with the selected keyword
-        self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=[assistant_wake_word])
+        if assistant_wake_word != "jarvis":
+            self.porcupine = pvporcupine.create(access_key=picovoice_key, keyword_paths=[os.path.join(script_dir, "porcupine_models", f"{assistant_name}.ppn")])
+        else:
+            self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=[assistant_wake_word])
         print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
 
         #stop loading sound so we can test ambient noise properly
