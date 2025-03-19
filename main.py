@@ -41,7 +41,6 @@ led_service = None
 is_rpi = False
 loading_sound = None
 file_chunks = {}
-is_exiting = False
 
 
 def is_running_on_raspberry_pi():
@@ -880,9 +879,6 @@ def update_services_with_new_settings():
         # Update sound effect service
         detector.sound_effect = SoundEffectService(config)
         print("Sound effect service updated")
-        # Clean up and update input listener with new VAD threshold
-        if detector.listener is not None:
-            detector.listener.cleanup()
         detector.listener = InputListener(config)
         print("Input listener updated")
         # Update Porcupine with new key if needed
@@ -989,23 +985,18 @@ def run_flask_app():
 
 def runApp():
     global detector, shairport_handler, loading_sound, radio_player, alarm_timer_service
-    while not is_exiting:
-        loading_sound = SoundEffectService(config).play_loop("loading")
-        detector = WakeWordDetector()
-        radio_player = RadioPlayer(detector)
-        alarm_timer_service = AlarmTimerService()
-        if is_rpi and config["use_shairport-sync"]:
-            shairport_handler = ShairportSyncHandler(detector, radio_player)
-        app.config['detector'] = detector  # Attach detector to the Flask app config    
-        detector.run()
+    loading_sound = SoundEffectService(config).play_loop("loading")
+    detector = WakeWordDetector()
+    radio_player = RadioPlayer(detector)
+    alarm_timer_service = AlarmTimerService()
+    if is_rpi and config["use_shairport-sync"]:
+        shairport_handler = ShairportSyncHandler(detector, radio_player)
+    app.config['detector'] = detector  # Attach detector to the Flask app config    
+    detector.run()
     print("Detector exited.")
 
 def signal_handler(sig, frame):
     print('Signal received: ', sig)
-    global is_exiting
-    if is_exiting:
-        return
-    is_exiting = True
     print('Exiting gracefully...')
     if detector is not None:
         detector.cleanup()
