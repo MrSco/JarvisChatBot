@@ -243,6 +243,7 @@ class WakeWordDetector:
             self.is_awoken = False
             self.is_request_processing = False
             self.sound_effect.play("ready")
+            self.sound_effect.cleanup()
         finally:
             self.is_updating = False  # Always reset updating flag
 
