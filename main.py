@@ -210,7 +210,7 @@ class WakeWordDetector:
                 print(f"Error deleting old Porcupine instance: {e}")
         
         if wake_word != "jarvis":
-            self.porcupine = pvporcupine.create(access_key=picovoice_key, keyword_paths=[os.path.join(script_dir, "porcupine_models", f"{assistant_name}.ppn")])
+            self.porcupine = pvporcupine.create(access_key=picovoice_key, keyword_paths=[os.path.join(script_dir, "porcupine_models", f"{assistant_name.lower()}.ppn")])
         else:
             self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=[wake_word])
 
