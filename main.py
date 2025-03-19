@@ -195,7 +195,6 @@ class WakeWordDetector:
         self.is_awoken = False
         self.use_elevenlabs = config["use_elevenlabs"]
         self.is_running = True
-        self.restart_app = False
         self.is_updating = False  # New flag to track assistant updates
 
         self.speech = TextToSpeechService(config)
@@ -316,6 +315,7 @@ class WakeWordDetector:
                         # Reinitialize audio stream for wake word detection
                         self._init_audio_stream()
                         print(f"Listening for '{assistant['wake_word']}'...")
+                        socketio.emit('chatbot_ready', {'status': 'ready'})
                         
                 except Exception as e:
                     print(f"Error processing audio: {e}")
@@ -789,11 +789,9 @@ def chatlog(date):
 def index():
     today = str(date.today())
     chatlog = get_chat_log_for_date(today)
-    return render_template('index.html', vad_threshold=vad_threshold, 
-                           max_threshold=max_threshold, 
+    return render_template('index.html',
                            assistants=assistants, 
                            assistant_dict=assistant, 
-                           #images_disabled=config["use_groq"], 
                            chatlog=json.dumps(chatlog), 
                            radio_playing=(radio_player is not None and radio_player.running)
                            )
@@ -859,10 +857,46 @@ def history():
     chatlog = get_chat_log_for_date(today)
     return render_template('history.html', assistant_dict=assistant, chatlog=json.dumps(chatlog))
 
+def update_services_with_new_settings():
+    """Update all services with new configuration settings"""
+    global detector, radio_player, alarm_timer_service, led_service
+    print("Updating services with new settings...")
+    # Update LED service if brightness changed
+    if is_rpi and led_service is not None:
+        led_service.led_brightness = min(config["led_brightness"], 31)
+        print(f"LED brightness updated to {led_service.led_brightness}")
+    
+    # Update detector services if it exists
+    if detector is not None:
+        # Update ChatGPT service
+        detector.chat_gpt_service = ChatGPTService(config)
+        print("ChatGPT service updated")
+        detector.chat_gpt_service.append2log = append2log
+        print("append2log updated")
+        # Update TTS service
+        detector.speech = TextToSpeechService(config)
+        print("TTS service updated")
+        # Update sound effect service
+        detector.sound_effect = SoundEffectService(config)
+        print("Sound effect service updated")
+        # Update input listener with new VAD threshold
+        detector.listener = InputListener(config)
+        print("Input listener updated")
+        # Update Porcupine with new key if needed
+        if picovoice_key != config["picovoice_key"]:
+            detector._init_porcupine(assistant["wake_word"].lower())
+            print("Porcupine updated")
+    
+    # Update radio player URLs if it exists
+    if radio_player is not None:
+        radio_player.update_stream_urls(config["radio_stream_url"], config["kids_radio_stream_url"])
+        print("Radio player updated")
+
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     global config
     if request.method == 'POST':
+        print(f"Updating settings... with new settings {request.form}")
         config['openai_model'] = request.form['openai_model']
         config['openai_key'] = request.form['openai_key']
         config['groq_model'] = request.form['groq_model']
@@ -881,12 +915,19 @@ def settings():
         config['vad_threshold'] = int(request.form['vad_threshold'])
         config['max_threshold'] = int(request.form['max_threshold'])
         config['led_brightness'] = int(request.form['led_brightness'])
-        # Save the updated config to the file
-        with open('config.json', 'w') as f:
-            json.dump(config, f, indent=4)
-        restart_app()
-        return jsonify({"status": "ok"}), 200
-    return render_template('settings.html', config=config, vad_threshold=vad_threshold, max_threshold=max_threshold)
+        try:
+            print(f"Saving settings to config.json")
+            # Save the updated config to the file
+            with open('config.json', 'w') as f:
+                json.dump(config, f, indent=4)
+            print("Settings saved to config.json")
+            # Update services with new settings instead of restarting
+            update_services_with_new_settings()
+            return jsonify({"status": "ok"}), 200
+        except Exception as e:
+            print(f"Error updating settings: {e}")
+            return jsonify({"status": "error"}), 500
+    return render_template('settings.html', config=config)
 
 @app.route('/play_radio', methods=['POST'])
 def play_radio():
@@ -943,18 +984,6 @@ def change_assistant(data):
 def run_flask_app():
     socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=True, host="0.0.0.0")
 
-def restart_app():
-    if detector is not None:
-        detector.restart_app = True 
-        detector.cleanup()
-    if shairport_handler is not None:
-        shairport_handler.cleanup()
-    if radio_player is not None:
-        radio_player.cleanup()
-    if alarm_timer_service is not None:
-        alarm_timer_service.cleanup()
-    print("restart_app() complete.")  
-
 def runApp():
     global detector, shairport_handler, loading_sound, radio_player, alarm_timer_service
     while not is_exiting:
@@ -966,19 +995,6 @@ def runApp():
             shairport_handler = ShairportSyncHandler(detector, radio_player)
         app.config['detector'] = detector  # Attach detector to the Flask app config    
         detector.run()
-        if not detector.restart_app:
-            break
-        else:
-            print("Restarting app...")
-            detector = None
-            shairport_handler = None
-            radio_player = None
-            alarm_timer_service = None
-            loading_sound = None
-            print("objects cleaned up")
-            gc.collect()
-            print("garbage collected")
-        time.sleep(0.5)
     print("Detector exited.")
 
 def signal_handler(sig, frame):

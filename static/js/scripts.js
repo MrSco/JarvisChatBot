@@ -1,3 +1,4 @@
+/*
 window.addEventListener("visibilitychange", function () {
     console.log("Visibility changed");
     if (document.visibilityState === "visible") {
@@ -5,6 +6,7 @@ window.addEventListener("visibilitychange", function () {
       window.location.reload();
     }
   });
+*/
 
 function openNav() {
     document.getElementById("sideNav").style.width = "250px";
@@ -139,7 +141,6 @@ function enable_prompting() {
     document.getElementById('sendButton').disabled = false;
     document.getElementById('imagePreview').style.display = 'none';
     document.getElementById("assistantSelect").disabled = false;
-    document.getElementById('thresholdSlider').disabled = false;
 }
 
 function disable_prompting() {
@@ -149,7 +150,6 @@ function disable_prompting() {
     image.disabled = true;
     document.getElementById('sendButton').disabled = true;
     document.getElementById("assistantSelect").disabled = true;
-    document.getElementById('thresholdSlider').disabled = true;
 }
 
 function chatbot_ready(data) {
@@ -160,7 +160,6 @@ function chatbot_ready(data) {
         var kidRadioControlButton = document.getElementById("kidRadioControlButton");
         radioControlButton.disabled = kidRadioControlButton.disabled = false;
         if (radio_playing) {
-            redDot.style.visibility = 'visible';
             setStatusMsg('Music active...');
             radioControlButton.textContent = kidRadioControlButton.textContent = "Stop Radio";
             disable_prompting();
@@ -264,6 +263,7 @@ else if (location.toString().includes('/settings')) {
         document.getElementById('settingsForm').addEventListener('submit', function(event) {
             event.preventDefault();
             var formData = new FormData(this);
+            console.log('Submitting settings form', formData);
             fetch('/settings', {
                 method: 'POST',
                 body: formData
@@ -284,10 +284,6 @@ else {
         adjustChatContainerHeight();
         window.onload = scrollToBottom;
         window.addEventListener('resize', adjustChatContainerHeight);
-        var thresholdValue = document.getElementById('thresholdValue');
-        var thresholdSlider = document.getElementById('thresholdSlider');
-        var vad_threshold = thresholdSlider.value;
-        var redDot = document.getElementById('redDot');
 
         var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port, {
             reconnection: true,
@@ -297,12 +293,10 @@ else {
             randomizationFactor: 0.5
         });
         socket.on('connect', function () {
-            redDot.style.visibility = 'hidden';
             console.log('Connected to the server.');
             chatbot_ready({ status: 'ready' });
         });
         socket.on('disconnect', function (reason) {
-            redDot.style.visibility = 'hidden';
             console.log('Disconnected from the server. Reason:', reason);
             setStatusMsg('Disconnected.');
         });
@@ -363,7 +357,6 @@ else {
             var radioControlButton = document.getElementById("radioControlButton");
             var kidRadioControlButton = document.getElementById("kidRadioControlButton");
             if(data.status === 'ready') {
-                redDot.style.visibility = 'hidden';
                 radioControlButton.disabled = kidRadioControlButton.disabled = true;
                 disable_prompting();
                 setStatusMsg('Generating response...');
@@ -375,7 +368,6 @@ else {
             var kidRadioControlButton = document.getElementById("kidRadioControlButton");
             if(data.status === 'ready') {
                 setStatusMsg('Wake word detected!');
-                redDot.style.visibility = 'hidden';
                 radioControlButton.disabled = kidRadioControlButton.disabled = true;
             }
         });
@@ -384,7 +376,6 @@ else {
             var radioControlButton = document.getElementById("radioControlButton");
             var kidRadioControlButton = document.getElementById("kidRadioControlButton");
             if(data.status === 'ready') {
-                redDot.style.visibility = 'hidden';
                 radioControlButton.disabled = kidRadioControlButton.disabled = true;
                 setStatusMsg('Listening for prompt...');
                 disable_prompting();
@@ -395,7 +386,6 @@ else {
             var radioControlButton = document.getElementById("radioControlButton");
             var kidRadioControlButton = document.getElementById("kidRadioControlButton");
             if(data.status === 'ready') {
-                redDot.style.visibility = 'hidden';
                 setStatusMsg('Music active...');
                 radioControlButton.textContent = kidRadioControlButton.textContent = "Stop Radio";
                 disable_prompting();
@@ -449,7 +439,6 @@ else {
                     console.error("Error stopping radio");
                     return;
                 }
-                redDot.style.visibility = 'hidden';
                 setStatusMsg('Music active...');
                 btn.textContent = text;
                 disable_prompting();
@@ -480,7 +469,6 @@ else {
 
         socket.on('chat_response_ready', function(data) {
             if(data.status === 'ready') {
-                redDot.style.visibility = 'hidden';
                 setStatusMsg('Responding...');
                 document.getElementById('imagePreview').style.display = 'none';
             }

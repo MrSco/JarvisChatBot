@@ -116,7 +116,7 @@
             </div>
             <div class="vad_container">
                 <label for="thresholdSlider">Voice Threshold: </label>
-                <input type="range" id="thresholdSlider" min="1" max="{{ config['max_threshold'] }}" value="{{ config['vad_threshold'] }}">
+                <input type="range" id="thresholdSlider" name="vad_threshold" min="1" max="{{ config['max_threshold'] }}" value="{{ config['vad_threshold'] }}">
                 <span id="thresholdValue">{{ config['vad_threshold'] }}</span>
             </div>
             <div>

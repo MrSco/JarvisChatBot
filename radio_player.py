@@ -67,3 +67,12 @@ class RadioPlayer:
         self.wakeword_detector = None
         # Ensure pygame mixer is cleaned up
         SoundEffectService.quit_mixer()
+
+    def update_stream_urls(self, radio_stream_url, kids_radio_stream_url):
+        """Update the stream URLs for both radio types"""
+        self.stream_url = radio_stream_url
+        # If currently playing, stop and restart with new URL
+        if self.running:
+            current_url = self.stream_url
+            self.stop()
+            self.start(current_url)
