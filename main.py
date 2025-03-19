@@ -1,11 +1,9 @@
 import base64
-import collections
 from datetime import date, datetime
 import gc
 import json
 import os
 import platform
-import queue
 import re
 import signal
 import sys
@@ -15,7 +13,6 @@ import numpy as np
 from chat_gpt_service import ChatGPTService
 from input_listener import InputListener
 import pvporcupine
-import pyaudio
 from sound_effect_service import SoundEffectService
 from tts_service import TextToSpeechService
 from alarm_timer_service import AlarmTimerService
@@ -25,7 +22,6 @@ from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
 import requests
 from radio_player import RadioPlayer
-import struct
 from pvrecorder import PvRecorder
 
 transcript_seperator = f"_"*40
@@ -186,10 +182,7 @@ class WakeWordDetector:
         self.recorder = None
         
         # Initialize Porcupine with the selected keyword
-        if assistant_wake_word != "jarvis":
-            self.porcupine = pvporcupine.create(access_key=picovoice_key, keyword_paths=[os.path.join(script_dir, "porcupine_models", f"{assistant_name}.ppn")])
-        else:
-            self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=[assistant_wake_word])
+        self._init_porcupine(assistant_wake_word)
         print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
 
         #stop loading sound so we can test ambient noise properly
@@ -203,9 +196,55 @@ class WakeWordDetector:
         self.use_elevenlabs = config["use_elevenlabs"]
         self.is_running = True
         self.restart_app = False
+        self.is_updating = False  # New flag to track assistant updates
 
         self.speech = TextToSpeechService(config)
         self.sound_effect = SoundEffectService(config)
+
+    def _init_porcupine(self, wake_word):
+        """Initialize or reinitialize Porcupine with the given wake word"""
+        if self.porcupine is not None:
+            try:
+                self.porcupine.delete()
+            except Exception as e:
+                print(f"Error deleting old Porcupine instance: {e}")
+        
+        if wake_word != "jarvis":
+            self.porcupine = pvporcupine.create(access_key=picovoice_key, keyword_paths=[os.path.join(script_dir, "porcupine_models", f"{assistant_name}.ppn")])
+        else:
+            self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=[wake_word])
+
+    def update_assistant(self, new_assistant):
+        """Update the assistant configuration and wake word detection"""
+        global assistant_name, assistant_acronym
+        self.is_updating = True  # Set updating flag
+        
+        try:
+            assistant_name = new_assistant["name"]
+            assistant_acronym = new_assistant["acronym"]
+            
+            # Clean up existing audio stream
+            self._cleanup_audio_stream()
+            
+            # Update wake word detection
+            self._init_porcupine(new_assistant["wake_word"].lower())
+            print(f"Updated Porcupine with new keyword: {new_assistant['wake_word']}")
+            
+            # Reinitialize audio stream with new porcupine instance
+            self._init_audio_stream()
+            
+            # Update other services with new assistant
+            self.speech = TextToSpeechService(config)
+            self.sound_effect = SoundEffectService(config)
+            self.chat_gpt_service = ChatGPTService(config)
+            self.chat_gpt_service.append2log = append2log
+            
+            # Reset state
+            self.is_awoken = False
+            self.is_request_processing = False
+            self.sound_effect.play("ready")
+        finally:
+            self.is_updating = False  # Always reset updating flag
 
     def _cleanup_audio_stream(self):
         """Clean up the audio stream"""
@@ -241,6 +280,11 @@ class WakeWordDetector:
                 self.handle_led_event("Running")
                 
                 try:
+                    # Skip audio processing if we're updating the assistant
+                    if self.is_updating:
+                        time.sleep(0.1)
+                        continue
+                        
                     # Read audio data
                     pcm = self.recorder.read()
                     
@@ -673,11 +717,18 @@ class WakeWordDetector:
             except Exception as e:
                 print(f"Error deleting Porcupine: {e}")
             
+        # Clean up other services
+        if self.sound_effect is not None:
+            self.sound_effect.cleanup()
+            
+        # Reset all references
         self.porcupine = None
         self.speech = None
         self.sound_effect = None
         self.chat_gpt_service = None
         self.listener = None
+        self.is_awoken = False
+        self.is_request_processing = False
 
 @app.template_filter('find_url')
 def find_url_filter(text):
@@ -892,9 +943,13 @@ def change_assistant(data):
         assistant = assistants[config["assistant"]]
         assistant_name = assistant["name"]
         assistant_acronym = assistant["acronym"]
-        chatlog_filename = chatlog_filename = getChatFilename(str(date.today()))
+        chatlog_filename = getChatFilename(str(date.today()))
+        
+        # Update the detector with new assistant configuration
+        if detector is not None:
+            detector.update_assistant(assistant)
+        
         socketio.emit('assistant_changed', {'assistant': new_assistant})
-        restart_app()
         return
     return socketio.emit('assistant_changed', {'assistant': None})
 
@@ -933,7 +988,9 @@ def runApp():
             radio_player = None
             alarm_timer_service = None
             loading_sound = None
+            print("objects cleaned up")
             gc.collect()
+            print("garbage collected")
         time.sleep(0.5)
     print("Detector exited.")
 
