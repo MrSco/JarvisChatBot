@@ -5,15 +5,6 @@ class InputListener:
         print("Initializing InputListener Recognizer...")
         self.rec = sr.Recognizer()
         print("Recognizer initialized")
-        self.mic = None
-        self.initialize_mic(config)
-
-    def initialize_mic(self, config):
-        if self.mic is not None:
-            try:
-                self.mic.__exit__(None, None, None)
-            except:
-                pass
         print("Initializing Microphone...")
         self.mic = sr.Microphone()
         print("Microphone initialized")
@@ -28,16 +19,6 @@ class InputListener:
             print("Adjusting for ambient noise...")
             self.rec.adjust_for_ambient_noise(source, duration=1)
             print("Adjusted for ambient noise")
-
-    def cleanup(self):
-        if self.mic is not None:
-            try:
-                self.mic.__exit__(None, None, None)
-            except:
-                pass
-            self.mic = None
-        self.rec = None
-        self.sound_effect = None
 
     def listen(self):
         if self.sound_effect is not None:
