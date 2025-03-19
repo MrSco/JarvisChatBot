@@ -18,6 +18,7 @@
         var freeimage_key = "{{ config['freeimage_key'] }}";
         var max_threshold = "{{ config['max_threshold'] }}";
         var led_brightness = "{{ config['led_brightness'] }}";
+        var vad_threshold = "{{ config['vad_threshold'] }}";
     </script>
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
 </head>
@@ -113,10 +114,14 @@
                 <label for="freeimage_key">FreeImage Key:</label>
                 <input id="freeimage_key" name="freeimage_key" type="password" value="{{ config['freeimage_key'] }}">
             </div>
+            <div class="vad_container">
+                <label for="thresholdSlider">Voice Threshold: </label>
+                <input type="range" id="thresholdSlider" min="1" max="{{ config['max_threshold'] }}" value="{{ config['vad_threshold'] }}">
+                <span id="thresholdValue">{{ config['vad_threshold'] }}</span>
+            </div>
             <div>
                 <label for="max_threshold">Max Threshold:</label>
                 <input type="number" id="max_threshold" name="max_threshold" value="{{ config['max_threshold'] }}">
-
             </div>
             <div>
                 <label for="led_brightness">LED Brightness:</label>

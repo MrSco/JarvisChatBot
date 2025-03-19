@@ -255,6 +255,12 @@ else if (location.toString().includes('/settings')) {
             document.getElementById('use_freeimage_host').disabled = true;
         }
 
+        // Update the threshold value when the slider is changed
+        thresholdSlider.addEventListener('input', function() {
+            vad_threshold = this.value;
+            thresholdValue.innerText = vad_threshold;
+        });
+
         document.getElementById('settingsForm').addEventListener('submit', function(event) {
             event.preventDefault();
             var formData = new FormData(this);
@@ -478,27 +484,8 @@ else {
                 setStatusMsg('Responding...');
                 document.getElementById('imagePreview').style.display = 'none';
             }
-        });
-
-        // Update the threshold value when the slider is changed
-        thresholdSlider.addEventListener('input', function() {
-            vad_threshold = this.value;
-            thresholdValue.innerText = vad_threshold;
-        });
-
-        thresholdSlider.addEventListener('change', function() {
-            socket.emit("change_vad_threshold", {vad_threshold: vad_threshold});
-        });
+        });        
         
-        socket.on('processing_audio', function(data) {
-            if (data.status === 'done') {
-                redDot.innerText = parseInt(data.audio_level);
-                redDot.style.visibility = 'visible';
-            } else {
-                redDot.style.visibility = 'hidden';
-            }
-        });
-
         socket.on('chatbot_ready', chatbot_ready);
 
         document.getElementById('form').addEventListener('submit', submit_form);

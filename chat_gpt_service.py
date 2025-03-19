@@ -194,6 +194,10 @@ class ChatGPTService:
             #print(self.history)
             print(f"Sending to {self.ai_service} {modelToUse}...")
             if self.ai_service == "google":
+                if self.history and self.history[0]["role"] == "system":
+                    system_prompt = self.history[0]["content"]
+                else:
+                    system_prompt = self.system_prompt
                 # Use the Gemini API according to documentation
                 if image is not None:
                     # For image inputs
@@ -210,19 +214,19 @@ class ChatGPTService:
                         response = self.llm.models.generate_content_stream(
                             model=modelToUse,
                             config=types.GenerateContentConfig(
-                                system_instruction=self.system_prompt),
+                                system_instruction=system_prompt),
                             contents=gemini_contents
                         )
                     else:
                         response = self.llm.models.generate_content_stream(
                             model=modelToUse,
                             config=types.GenerateContentConfig(
-                                system_instruction=self.system_prompt),
+                                system_instruction=system_prompt),
                             contents=[content]
                         )
-                else:
+                else:                    
                     # Create a chat for text-only conversations
-                    chat = self.llm.chats.create(model=modelToUse, config=types.GenerateContentConfig(system_instruction=self.system_prompt))
+                    chat = self.llm.chats.create(model=modelToUse, config=types.GenerateContentConfig(system_instruction=system_prompt))
                     
                     # Add previous messages to chat history, if any
                     if len(self.history) > 1:

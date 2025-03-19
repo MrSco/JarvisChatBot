@@ -44,12 +44,6 @@
                     <option value="{{ key }}" {% if key == assistant_dict['name'].lower() %}selected{% endif %}>{{ assistant.page_title }}</option>
                 {% endfor %}
             </select>
-            <div class="vad_container">
-                <label for="thresholdSlider">Voice Threshold: </label>
-                <input type="range" id="thresholdSlider" min="1" max="{{ max_threshold }}" value="{{ vad_threshold }}">
-                <span id="thresholdValue">{{ vad_threshold }}</span>
-                <span id="redDot"></span>
-            </div>
             <div id="statusMsg"></div>
             <button id="radioControlButton" onclick="toggleRadio()">Play Radio</button>
             <button id="kidRadioControlButton" onclick="toggleKidRadio()">Play Kid Radio</button>

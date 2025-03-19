@@ -872,11 +872,13 @@ def settings():
         config['ai_service'] = request.form['ai_service']
         config['radio_stream_url'] = request.form['radio_stream_url']
         config['kids_radio_stream_url'] = request.form['kids_radio_stream_url']
+        config['picovoice_key'] = request.form['picovoice_key']
         config['elevenlabs_key'] = request.form['elevenlabs_key']
         config['use_elevenlabs'] = 'use_elevenlabs' in request.form
         config['use_gtts'] = 'use_gtts' in request.form
         config['use_freeimage_host'] = 'use_freeimage_host' in request.form
-        config['picovoice_key'] = request.form['picovoice_key']
+        config['freeimage_key'] = request.form['freeimage_key']
+        config['vad_threshold'] = int(request.form['vad_threshold'])
         config['max_threshold'] = int(request.form['max_threshold'])
         config['led_brightness'] = int(request.form['led_brightness'])
         # Save the updated config to the file
@@ -884,7 +886,7 @@ def settings():
             json.dump(config, f, indent=4)
         restart_app()
         return jsonify({"status": "ok"}), 200
-    return render_template('settings.html', config=config)
+    return render_template('settings.html', config=config, vad_threshold=vad_threshold, max_threshold=max_threshold)
 
 @app.route('/play_radio', methods=['POST'])
 def play_radio():
@@ -909,22 +911,6 @@ def stop_radio():
         if not radio_player.running:
             return jsonify({"status": "done"}), 200
     return jsonify({"status": "error"}), 500
-
-@socketio.on('change_vad_threshold')
-def change_vad_threshold(data):
-    global vad_threshold, config
-    new_threshold = int(data.get('vad_threshold'))
-    if new_threshold:
-        vad_threshold = new_threshold
-        with open(config_file, 'r+') as f:
-            config = json.load(f)
-            config['vad_threshold'] = new_threshold
-            f.seek(0)
-            json.dump(config, f, indent=4)
-            f.truncate()
-        print(f"VAD threshold changed to {new_threshold}.")
-        socketio.emit('vad_threshold_changed', {'vad_threshold': new_threshold})
-    return socketio.emit('vad_threshold_changed', {'vad_threshold': None})
 
 @socketio.on('change_assistant')
 def change_assistant(data):
