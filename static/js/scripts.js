@@ -1,4 +1,3 @@
-/*
 window.addEventListener("visibilitychange", function () {
     console.log("Visibility changed");
     if (document.visibilityState === "visible") {
@@ -6,7 +5,6 @@ window.addEventListener("visibilitychange", function () {
       window.location.reload();
     }
   });
-*/
 
 function openNav() {
     document.getElementById("sideNav").style.width = "250px";
