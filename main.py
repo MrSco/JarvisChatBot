@@ -255,6 +255,7 @@ class WakeWordDetector:
 
     def _init_audio_stream(self):
         """Initialize the audio stream"""
+        self.is_request_processing = False
         print("Initializing PvRecorder...")
         self.recorder = PvRecorder(
             frame_length=self.porcupine.frame_length,
@@ -263,6 +264,8 @@ class WakeWordDetector:
         print("Starting recorder...")
         self.recorder.start()
         print("Audio stream initialized")
+        print(f"Listening for '{assistant['wake_word']}'...")
+        socketio.emit('chatbot_ready', {'status': 'ready'})
 
     def process_audio(self):
         self.handle_led_event("VoiceStarted")
@@ -309,14 +312,12 @@ class WakeWordDetector:
                         self.listener.sound_effect = self.sound_effect.play_loop("loading")
                         self.listener.transcribe()
                         
-                        if self.listener.transcript is not None:
-                            self.process_transcript(self.listener.transcript)
-                        
-                        # Reinitialize audio stream for wake word detection
-                        self._init_audio_stream()
-                        print(f"Listening for '{assistant['wake_word']}'...")
-                        socketio.emit('chatbot_ready', {'status': 'ready'})
-                        
+                        if self.listener.transcript is None:
+                            # Reinitialize audio stream for wake word detection
+                            self._init_audio_stream()
+                            continue
+
+                        self.process_transcript(self.listener.transcript)                    
                 except Exception as e:
                     print(f"Error processing audio: {e}")
                     self.something_went_wrong()
@@ -694,7 +695,7 @@ class WakeWordDetector:
 
             print(f"Total Time: {end_time - start_time} seconds")
         finally:
-            self.is_request_processing = False
+            self._init_audio_stream()            
 
     def run(self):
         try:            
@@ -879,7 +880,9 @@ def update_services_with_new_settings():
         # Update sound effect service
         detector.sound_effect = SoundEffectService(config)
         print("Sound effect service updated")
-        # Update input listener with new VAD threshold
+        # Clean up and update input listener with new VAD threshold
+        if detector.listener is not None:
+            detector.listener.cleanup()
         detector.listener = InputListener(config)
         print("Input listener updated")
         # Update Porcupine with new key if needed
