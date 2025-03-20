@@ -1,3 +1,4 @@
+import os
 import re
 import time
 from elevenlabs import VoiceSettings
@@ -24,6 +25,7 @@ class TextToSpeechService:
         self.sound_effect = None
         self.is_running = True
         self.current_sound = None
+        self.is_rpi = False
         # Speech rate for pyttsx3 (words per minute, default 200)
         self.speech_rate = config["assistant_dict"].get("speech_rate", 175)
         # Initialize pygame mixer if not already initialized
@@ -133,20 +135,24 @@ class TextToSpeechService:
             SoundEffectService.quit_mixer()
             print("Pygame mixer quit")
             
-            # Initialize pyttsx3 with a specific driver
-            engine = pyttsx3.init()
-            print("Engine initialized")
-            # Set the speech rate
-            engine.setProperty('rate', self.speech_rate)
-            voices = engine.getProperty('voices') 
-            engine.setProperty('voice', voices[self.assistant_gender].id)
             print(f"{self.assistant_name}: {text}")
-            engine.say(text)
-            engine.runAndWait()
-            engine.stop()
+            if self.is_rpi:
+                escaped_text = text.replace("'", "'\\''")
+                os.system(f"espeak-ng -ven-us -s{self.speech_rate} '{escaped_text}'")
+            else:
+                # Initialize pyttsx3 with a specific driver
+                engine = pyttsx3.init()
+                print("Engine initialized")
+                # Set the speech rate
+                engine.setProperty('rate', self.speech_rate)
+                voices = engine.getProperty('voices') 
+                engine.setProperty('voice', voices[self.assistant_gender].id)
+                engine.say(text)
+                engine.runAndWait()
+                engine.stop()
             
-            # Clean up pyttsx3
-            del engine
+                # Clean up pyttsx3
+                del engine
             
             # Wait a moment before reinitializing pygame
             time.sleep(0.1)

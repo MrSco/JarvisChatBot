@@ -199,6 +199,7 @@ class WakeWordDetector:
         self.is_updating = False  # New flag to track assistant updates
 
         self.speech = TextToSpeechService(config)
+        self.speech.is_rpi = is_rpi
         self.sound_effect = SoundEffectService(config)
 
     def _init_porcupine(self, wake_word):
