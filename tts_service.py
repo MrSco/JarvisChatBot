@@ -1,4 +1,3 @@
-import os
 import re
 import time
 from elevenlabs import VoiceSettings
@@ -6,7 +5,7 @@ from elevenlabs import stream, play
 from elevenlabs.client import ElevenLabs
 import pyttsx3
 from gtts import gTTS
-import pygame
+import subprocess
 import io
 from sound_effect_service import SoundEffectService
 
@@ -136,18 +135,12 @@ class TextToSpeechService:
             
             print(f"{self.assistant_name}: {text}")
             if self.is_rpi:
-                escaped_text = text.replace("'", "'\\''")
-                try:
-                    import subprocess
-                    cmd = f"espeak -s{self.speech_rate} --stdout '{escaped_text}'"
-                    espeak_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-                    aplay_process = subprocess.Popen(['aplay', '-D', 'playback'], stdin=espeak_process.stdout)
-                    espeak_process.stdout.close()  # Allow espeak to receive a SIGPIPE if aplay exits
-                    aplay_process.communicate()
-                except Exception as e:
-                    print(f"Error during speech: {e}")
-                    # Fallback to basic espeak without pipe
-                    os.system(f"espeak -s{self.speech_rate} '{escaped_text}'")
+                escaped_text = text.replace("'", "'\\''")                
+                cmd = f"espeak -s{self.speech_rate} --stdout '{escaped_text}'"
+                espeak_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                aplay_process = subprocess.Popen(['aplay', '-D', 'playback'], stdin=espeak_process.stdout)
+                espeak_process.stdout.close()  # Allow espeak to receive a SIGPIPE if aplay exits
+                aplay_process.communicate()
             else:
                 print(f"Speaking with pyttsx3: {text}")
                 # Initialize pyttsx3 with a specific driver
