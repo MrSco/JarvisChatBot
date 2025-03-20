@@ -877,6 +877,8 @@ def update_configuration(settings_data=None, new_assistant_name=None):
         # Update detector services if it exists
         if detector is not None:
             detector.is_updating = True
+            if assistant.get('elevenlabs_voice_id', "") == "":
+                detector.tts_engine = "pyttsx3"
             try:
                 detector._cleanup_audio_stream()
                 print("Audio stream cleaned up")
