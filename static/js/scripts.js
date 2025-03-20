@@ -317,15 +317,26 @@ else if (location.toString().includes('/settings')) {
             event.preventDefault();
             var formData = new FormData(this);
             console.log('Submitting settings form', formData);
+            
+            // Show loading overlay
+            document.querySelector('.loading-overlay').style.display = 'flex';
+            
             fetch('/settings', {
                 method: 'POST',
                 body: formData
             }).then(response => {
+                // Hide loading overlay
+                document.querySelector('.loading-overlay').style.display = 'none';
+                
                 if (response.ok) {
                     alert('Settings saved successfully!');
                 } else {
                     alert('Failed to save settings.');
                 }
+            }).catch(error => {
+                // Hide loading overlay on error
+                document.querySelector('.loading-overlay').style.display = 'none';
+                alert('Failed to save settings: ' + error);
             });
         });
     });
