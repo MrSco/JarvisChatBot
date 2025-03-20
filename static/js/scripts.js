@@ -208,48 +208,103 @@ else if (location.toString().includes('/settings')) {
         var groq_modelSelect = document.getElementById('groq_modelSelect');
         var google_modelSelect = document.getElementById('google_modelSelect');
         var ai_serviceSelect = document.getElementById('ai_service');
+        var tts_engineSelect = document.getElementById('tts_engine');
+        var image_storageSelect = document.getElementById('image_storage');
         
         // Set the initial values
         openai_modelSelect.value = openai_model;
         groq_modelSelect.value = groq_model;
         google_modelSelect.value = google_model;
         ai_serviceSelect.value = ai_service;
-        
+        tts_engineSelect.value = tts_engine;
+        image_storageSelect.value = image_storage;
         // Function to show/hide model dropdowns based on selected service
         function updateModelVisibility() {
             var selectedService = ai_serviceSelect.value;
+
+            var openai_modelLabel = document.querySelector('label[for="openai_modelSelect"]');
+            var openai_keyLabel = document.querySelector('label[for="openai_key"]');
+            var groq_modelLabel = document.querySelector('label[for="groq_modelSelect"]');
+            var groq_keyLabel = document.querySelector('label[for="groq_key"]');
+            var google_modelLabel = document.querySelector('label[for="google_modelSelect"]');
+            var google_keyLabel = document.querySelector('label[for="google_key"]');
             
             // Hide all model dropdowns first
-            document.querySelector('label[for="openai_modelSelect"]').parentNode.style.display = 'none';
-            document.querySelector('label[for="openai_key"]').parentNode.style.display = 'none';
-            document.querySelector('label[for="groq_modelSelect"]').parentNode.style.display = 'none';
-            document.querySelector('label[for="groq_key"]').parentNode.style.display = 'none';
-            document.querySelector('label[for="google_modelSelect"]').parentNode.style.display = 'none';
-            document.querySelector('label[for="google_key"]').parentNode.style.display = 'none';
+            openai_modelLabel.parentNode.style.display = 'none';
+            openai_keyLabel.parentNode.style.display = 'none';
+            groq_modelLabel.parentNode.style.display = 'none';
+            groq_keyLabel.parentNode.style.display = 'none';
+            google_modelLabel.parentNode.style.display = 'none';
+            google_keyLabel.parentNode.style.display = 'none';
             
             // Show only the relevant model dropdown
             if (selectedService === 'openai') {
-                document.querySelector('label[for="openai_modelSelect"]').parentNode.style.display = 'block';
-                document.querySelector('label[for="openai_key"]').parentNode.style.display = 'block';
+                openai_modelLabel.parentNode.style.display = 'block';
+                openai_keyLabel.parentNode.style.display = 'block';
             } else if (selectedService === 'groq') {
-                document.querySelector('label[for="groq_modelSelect"]').parentNode.style.display = 'block';
-                document.querySelector('label[for="groq_key"]').parentNode.style.display = 'block';
+                groq_modelLabel.parentNode.style.display = 'block';
+                groq_keyLabel.parentNode.style.display = 'block';
             } else if (selectedService === 'google') {
-                document.querySelector('label[for="google_modelSelect"]').parentNode.style.display = 'block';
-                document.querySelector('label[for="google_key"]').parentNode.style.display = 'block';
+                google_modelLabel.parentNode.style.display = 'block';
+                google_keyLabel.parentNode.style.display = 'block';
+            }
+            updateImageStorageDisabled(selectedService);
+        }
+
+        // Function to show/hide TTS related fields based on selected engine
+        function updateTTSVisibility() {
+            var selectedEngine = tts_engineSelect.value;
+            
+            // Hide ElevenLabs key by default
+            document.querySelector('label[for="elevenlabs_key"]').parentNode.style.display = 'none';
+            
+            // Show ElevenLabs key only when ElevenLabs is selected
+            if (selectedEngine === 'elevenlabs') {
+                document.querySelector('label[for="elevenlabs_key"]').parentNode.style.display = 'block';
             }
         }
-        
+
+        // Function to show/hide freeimage key based on selected storage
+        function updateImageStorageVisibility() {            
+            var selectedStorage = image_storageSelect.value;
+            // Hide freeimage key by default
+            document.querySelector('label[for="freeimage_key"]').parentNode.style.display = 'none';
+            // Show freeimage key only when freeimage is selected
+            if (selectedStorage === 'freeimage') {
+                document.querySelector('label[for="freeimage_key"]').parentNode.style.display = 'block';
+            }
+        }
+
+        // Function to disable image storage if ai_service is google
+        function updateImageStorageDisabled(selectedService) {
+            // Disable image storage if ai_service is google
+            if (selectedService === 'google') {
+                image_storageSelect.value = 'local';
+                image_storageSelect.disabled = true;
+                updateImageStorageVisibility();
+            }
+            else {
+                image_storageSelect.disabled = false;
+            }
+        }
+
         // Set initial visibility
         updateModelVisibility();
-        
+        updateTTSVisibility();
+        updateImageStorageVisibility();
+
         // Update visibility when service selection changes
         ai_serviceSelect.addEventListener('change', updateModelVisibility);
+        tts_engineSelect.addEventListener('change', updateTTSVisibility);
+        image_storageSelect.addEventListener('change', updateImageStorageVisibility);
 
-        // uncheck and disable the use_freeimage_host checkbox if the ai_service is google
-        if (ai_service === 'google') {
-            document.getElementById('use_freeimage_host').checked = false;
-            document.getElementById('use_freeimage_host').disabled = true;
+        // Set initial TTS engine value
+        if (tts_engine == 'elevenlabs') {
+            tts_engineSelect.value = 'elevenlabs';
+        } else if (tts_engine == 'gtts') {
+            tts_engineSelect.value = 'gtts';
+        } else {
+            tts_engineSelect.value = 'pyttsx3';
         }
 
         // Update the threshold value when the slider is changed

@@ -1,8 +1,7 @@
 {
     "picovoice_key": "cH4..."
     "elevenlabs_key": "d64...",
-    "use_elevenlabs": true,
-    "use_gtts": false,
+    "tts_engine": "elevenlabs",
     "openai_key":"sk-...",
     "openai_model":"gpt-4o-latest",
     "ai_service": "openai",
@@ -12,7 +11,7 @@
     "google_key": "asldfj...",
     "google_model": "gemini-2.0-flash-exp",
     "upload_folder": "uploads",
-    "use_freeimage_host": true,
+    "image_storage": "freeimage",
     "freeimage_key": "6d2...",
     "assistant": "jarvis",
     "language": "en",

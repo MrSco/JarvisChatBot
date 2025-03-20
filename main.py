@@ -192,7 +192,7 @@ class WakeWordDetector:
         self.language = config["language"]
         self.is_request_processing = False
         self.is_awoken = False
-        self.use_elevenlabs = config["use_elevenlabs"]
+        self.tts_engine = config["tts_engine"]
         self.is_running = True
         self.is_updating = False  # New flag to track assistant updates
 
@@ -285,7 +285,7 @@ class WakeWordDetector:
 
     def process_audio(self):
         self.handle_led_event("VoiceStarted")
-        if self.use_elevenlabs:
+        if self.tts_engine == "elevenlabs":
             print("Playing ready sound...")
             self.sound_effect.play("ready")
         else:
@@ -358,7 +358,7 @@ class WakeWordDetector:
         if self.chat_gpt_service.sound_effect is not None:
             self.chat_gpt_service.sound_effect.stop_sound()
         self.sound_effect.play("error")
-        if self.use_elevenlabs:
+        if self.tts_engine == "elevenlabs":
             self.sound_effect.play("something_went_wrong")
         else:
             self.speech.speak(f"Something went wrong!")
@@ -429,7 +429,7 @@ class WakeWordDetector:
                 self.handle_led_event("VoiceStarted")
                 short_response = "Hi, there, how can I help?"
                 self.sound_effect.play(self.sound_effect.get_random_filler_sound())
-                if self.use_elevenlabs:
+                if self.tts_engine == "elevenlabs":
                     self.sound_effect.play("hi_how_can_i_help")
                 else:
                     self.speech.speak(f"Hi, how can I help?")
@@ -815,7 +815,6 @@ def index():
 
 @socketio.on("file_chunk")
 def handle_file_chunk(data):
-    use_freeimage_host = config["use_freeimage_host"]
     socketio.emit('prompt_received', {'status': 'ready'})
     detector = app.config['detector']
     # Extracting the chunk data
@@ -841,7 +840,7 @@ def handle_file_chunk(data):
             # Combine binary chunks
             file_data = b"".join(file_chunks[file_id])
             
-            if use_freeimage_host and not config["ai_service"] == "google":
+            if config["image_storage"] == "freeimage" and not config["ai_service"] == "google":
                 detector.is_awoken = True
                 response = detector.process_transcript(text_prompt, file_data, file_name)
             else:
@@ -920,24 +919,9 @@ def settings():
     global config
     if request.method == 'POST':
         print(f"Updating settings... with new settings {request.form}")
-        config['openai_model'] = request.form['openai_model']
-        config['openai_key'] = request.form['openai_key']
-        config['groq_model'] = request.form['groq_model']
-        config['groq_key'] = request.form['groq_key']
-        config['google_model'] = request.form['google_model']
-        config['google_key'] = request.form['google_key']
-        config['ai_service'] = request.form['ai_service']
-        config['radio_stream_url'] = request.form['radio_stream_url']
-        config['kids_radio_stream_url'] = request.form['kids_radio_stream_url']
-        config['picovoice_key'] = request.form['picovoice_key']
-        config['elevenlabs_key'] = request.form['elevenlabs_key']
-        config['use_elevenlabs'] = 'use_elevenlabs' in request.form
-        config['use_gtts'] = 'use_gtts' in request.form
-        config['use_freeimage_host'] = 'use_freeimage_host' in request.form
-        config['freeimage_key'] = request.form['freeimage_key']
-        config['vad_threshold'] = int(request.form['vad_threshold'])
-        config['max_threshold'] = int(request.form['max_threshold'])
-        config['led_brightness'] = int(request.form['led_brightness'])
+        for key, value in request.form.items():
+            print(f"{key}: {value}")
+            config[key] = value if key not in ["vad_threshold", "max_threshold", "led_brightness"] else int(value)
         try:
             print(f"Saving settings to config.json")
             # Save the updated config to the file
@@ -1032,7 +1016,7 @@ def signal_handler(sig, frame):
         alarm_timer_service.cleanup()
     if is_rpi:
         led_service.turn_off()
-    if config["use_elevenlabs"]:
+    if config["tts_engine"] == "elevenlabs":
         SoundEffectService(config).play("goodbye")
     else:
         TextToSpeechService(config).speak("Goodbye!")
@@ -1050,8 +1034,7 @@ def check_internet_connection(url='http://www.google.com/', timeout=5):
 if __name__ == "__main__":
     if not check_internet_connection():
         print("No internet connection. Please check your connection and try again.")
-        config["use_elevenlabs"] = False
-        config["use_gtts"] = False
+        config["tts_engine"] = "pyttsx3"
         TextToSpeechService(config).speak("No internet connection")
         if is_rpi:
             led_service.handle_event("NoInternet")

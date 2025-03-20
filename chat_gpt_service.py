@@ -43,7 +43,7 @@ class ChatGPTService:
         self.system_prompt_msg = {"role": "system", "content": self.system_prompt}
         self.history = [self.system_prompt_msg]
         self.sound_effect = None
-        self.use_freeimage_host = config["use_freeimage_host"]
+        self.image_storage = config["image_storage"]
         self.freeimage_key = config["freeimage_key"]
 
     def getMimeType(self, fileExtension):
@@ -156,7 +156,7 @@ class ChatGPTService:
             self.history[0]["content"] = self.history[0]["content"].replace("{today}", str(date.today())).replace("{theCurrentTime}", current_time)
         
         if image is not None:
-            if self.use_freeimage_host and not self.ai_service == "google":
+            if self.image_storage == "freeimage" and not self.ai_service == "google":
                 image_url = self.upload_image_to_freeimage(image, image_link)
             else:
                 # determine image mime type file extension

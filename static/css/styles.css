@@ -72,6 +72,18 @@ h1, h1 select {
     background-color: #333;
     color: white;
     font-size: 26px;
+    position: relative;
+}
+
+.home-link {
+    color: white;
+    padding-right: 15px;
+    text-decoration: none;
+    font-size: 24px;
+}
+
+.home-link:hover {
+    opacity: 0.8;
 }
 
 .assistant_name-icon {
@@ -262,4 +274,8 @@ label[for="file-upload"]:hover {
 
 #settingsForm button:hover {
     background-color: #45a049;
+}
+
+#system_prompt {
+    height: 90px;
 }

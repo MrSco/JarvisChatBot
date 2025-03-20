@@ -13,8 +13,8 @@
         var radio_stream_url = "{{ config['radio_stream_url'] }}";
         var kids_radio_stream_url = "{{ config['kids_radio_stream_url'] }}";
         var elevenlabs_key = "{{ config['elevenlabs_key'] }}";
-        var use_elevenlabs = "{{ 'true' if config['use_elevenlabs'] else 'false' }}";
-        var use_gtts = "{{ 'true' if config['use_gtts'] else 'false' }}";
+        var tts_engine = "{{ config['tts_engine'] }}";
+        var image_storage = "{{ 'freeimage' if config['image_storage'] else 'local' }}";
         var freeimage_key = "{{ config['freeimage_key'] }}";
         var max_threshold = "{{ config['max_threshold'] }}";
         var led_brightness = "{{ config['led_brightness'] }}";
@@ -32,6 +32,7 @@
     <div id="settingsContainer">
         <h1 id="header">
             <span class="hamburger" onclick="openNav()">&#9776;</span>
+            <a href="/" class="home-link" title="Back to Home">&#127968;</a>
             <span>Settings</span>
         </h1>
         <form id="settingsForm">
@@ -95,20 +96,23 @@
                 <input id="picovoice_key" name="picovoice_key" type="password" value="{{ config['picovoice_key'] }}">
             </div>
             <div>
+                <label for="tts_engine">TTS Engine:</label>
+                <select id="tts_engine" name="tts_engine">
+                    <option value="pyttsx3">System TTS (pyttsx3)</option>
+                    <option value="gtts">Google TTS (gTTS)</option>
+                    <option value="elevenlabs">ElevenLabs</option>
+                </select>
+            </div>
+            <div>
                 <label for="elevenlabs_key">ElevenLabs Key:</label>
                 <input id="elevenlabs_key" name="elevenlabs_key" type="password" value="{{ config['elevenlabs_key'] }}">
             </div>
             <div>
-                <label for="use_elevenlabs">Use ElevenLabs:</label>
-                <input type="checkbox" id="use_elevenlabs" name="use_elevenlabs" {% if config['use_elevenlabs'] %}checked{% endif %}>
-            </div>
-            <div>
-                <label for="use_gtts">Use GTTS:</label>
-                <input type="checkbox" id="use_gtts" name="use_gtts" {% if config['use_gtts'] %}checked{% endif %}>
-            </div>
-            <div>
-                <label for="use_freeimage_host">Use FreeImage.host:</label>
-                <input type="checkbox" id="use_freeimage_host" name="use_freeimage_host" {% if config['use_freeimage_host'] %}checked{% endif %}>
+                <label for="image_storage">Image Storage:</label>
+                <select id="image_storage" name="image_storage">
+                    <option value="local">Local Storage</option>
+                    <option value="freeimage">Free Image Host</option>
+                </select>
             </div>
             <div>
                 <label for="freeimage_key">FreeImage Key:</label>
@@ -129,7 +133,7 @@
             </div>
             <div>
                 <label for="system_prompt">System Prompt:</label>
-                <textarea id="system_prompt" name="system_prompt">{{ config['system_prompt'] }}</textarea>
+                <textarea id="system_prompt" name="system_prompt" disabled>{{ config['system_prompt'] }}</textarea>
             </div>
             <button type="submit">Save Settings</button>
         </form>
