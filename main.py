@@ -170,6 +170,8 @@ class ShairportSyncHandler:
         
 class WakeWordDetector:
     def __init__(self):
+        if config.get('elevenlabs_voice_id', "") == "":
+            config['tts_engine'] = "pyttsx3"
         self.chat_gpt_service = ChatGPTService(config)
         self.chat_gpt_service.append2log = append2log
         
@@ -212,53 +214,6 @@ class WakeWordDetector:
         else:
             self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=[wake_word])
 
-    def update_assistant(self, new_assistant):
-        """Update the assistant configuration and wake word detection"""
-        global assistant_name, assistant_acronym
-        self.is_updating = True  # Set updating flag
-        
-        try:
-            assistant_name = new_assistant["name"]
-            assistant_acronym = new_assistant["acronym"]
-            
-            print("Cleaning up audio stream...")
-            # Clean up existing audio stream
-            self._cleanup_audio_stream()
-            print("Audio stream cleaned up")
-            print("Initializing Porcupine with new keyword...")
-            # Update wake word detection
-            self._init_porcupine(new_assistant["wake_word"].lower())
-            print(f"Updated Porcupine with new keyword: {new_assistant['wake_word']}")
-            
-            print("Reinitializing audio stream...")
-            # Reinitialize audio stream with new porcupine instance
-            self._init_audio_stream()
-            print("Audio stream reinitialized")
-            
-            # Update other services with new assistant
-            print("Updating other services with new assistant...")
-            self.speech = TextToSpeechService(config)
-            print("Speech service updated")
-            self.sound_effect = SoundEffectService(config)
-            print("Sound effect service updated")
-            self.chat_gpt_service = ChatGPTService(config)
-            print("ChatGPT service updated")
-            self.chat_gpt_service.append2log = append2log
-            print("ChatGPT service append2log updated")
-            
-            # Reset state
-            print("Resetting state...")
-            self.is_awoken = False
-            self.is_request_processing = False
-            print("State reset")
-            print("Playing ready sound...")
-            self.sound_effect.play("ready")
-            print("Ready sound played")
-            print("Cleaning up sound effect...")
-            self.sound_effect.cleanup()
-            print("Sound effect cleaned up")
-        finally:
-            self.is_updating = False  # Always reset updating flag
 
     def _cleanup_audio_stream(self):
         """Clean up the audio stream"""
@@ -282,6 +237,12 @@ class WakeWordDetector:
         time.sleep(0.1)
         print(f"Listening for '{assistant['wake_word']}'...")
         socketio.emit('chatbot_ready', {'status': 'ready'})
+    
+    def play_or_speak(self, text):
+        if self.tts_engine == "pyttsx3":            
+            self.speech.speak(text.split(".")[0].replace("_", " "))
+        else:
+            self.sound_effect.play(text)
 
     def process_audio(self):
         self.handle_led_event("VoiceStarted")
@@ -318,7 +279,7 @@ class WakeWordDetector:
                         
                         socketio.emit('awake', {'status': 'ready'})
                         self.handle_led_event("Transcript")
-                        self.sound_effect.play(self.sound_effect.get_random_wake_sound())
+                        self.play_or_speak(self.sound_effect.get_random_wake_sound())
                         socketio.emit('listening_for_prompt', {'status': 'ready'})
                         
                         # Listen for command
@@ -358,10 +319,7 @@ class WakeWordDetector:
         if self.chat_gpt_service.sound_effect is not None:
             self.chat_gpt_service.sound_effect.stop_sound()
         self.sound_effect.play("error")
-        if self.tts_engine == "elevenlabs":
-            self.sound_effect.play("something_went_wrong")
-        else:
-            self.speech.speak(f"Something went wrong!")
+        self.sound_effect.play_or_speak("something_went_wrong")
         self._cleanup_audio_stream()
         
     def extract_time_from_transcript(self, transcript):
@@ -428,11 +386,8 @@ class WakeWordDetector:
             if len(transcript) < 2 and not image:
                 self.handle_led_event("VoiceStarted")
                 short_response = "Hi, there, how can I help?"
-                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
-                if self.tts_engine == "elevenlabs":
-                    self.sound_effect.play("hi_how_can_i_help")
-                else:
-                    self.speech.speak(f"Hi, how can I help?")
+                self.play_or_speak(self.sound_effect.get_random_filler_sound())
+                self.sound_effect.play_or_speak("hi_how_can_i_help")
                 append2log(f"You: {transcript} \n")
                 append2log(f"{assistant_name}: {short_response} \n")
                 return
@@ -455,7 +410,7 @@ class WakeWordDetector:
             if any(phrase in transcript for phrase in time_phrases) and "in" not in transcript and not image:
                 append2log(f"You: {transcript} \n")
                 self.handle_led_event("VoiceStarted")
-                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 # get the current time in am/pm format without leading zeros
                 current_time = time.strftime('%I:%M %p').lstrip("0").replace("AM", "a.m.").replace("PM", "p.m.")
                 response = f"{current_time}"
@@ -480,7 +435,7 @@ class WakeWordDetector:
                 self.handle_led_event("VoiceStarted")
                 print("Starting radio...")
                 append2log(f"You: {transcript} \n")
-                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 radio_player.start(config["radio_stream_url"])
                 response = "Radio started."
                 append2log(f"{assistant_name}: {response} \n")
@@ -517,7 +472,7 @@ class WakeWordDetector:
                 self.handle_led_event("VoiceStarted")
                 print("Starting kids radio...")
                 append2log(f"You: {transcript} \n")
-                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 radio_player.start(config["kids_radio_stream_url"])
                 response = "Kids radio started."
                 append2log(f"{assistant_name}: {response} \n")
@@ -543,7 +498,7 @@ class WakeWordDetector:
                 self.handle_led_event("VoiceStarted")
                 print("Stopping radio...")
                 append2log(f"You: {transcript} \n")
-                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 radio_player.stop()
                 response = "Radio stopped."
                 append2log(f"{assistant_name}: {response} \n")
@@ -562,7 +517,7 @@ class WakeWordDetector:
                 self.handle_led_event("VoiceStarted")
                 print("Setting an alarm...")
                 append2log(f"You: {transcript} \n")
-                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 # Extract time from transcript and set alarm
                 alarm_time = self.extract_time_from_transcript(transcript)
                 alarm_timer_service.add_alarm(alarm_time)
@@ -581,7 +536,7 @@ class WakeWordDetector:
                 self.handle_led_event("VoiceStarted")
                 print("Setting a timer...")
                 append2log(f"You: {transcript} \n")
-                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 # Extract duration from transcript and set timer
                 duration = self.extract_duration_from_transcript(transcript)
                 alarm_timer_service.add_timer(duration)
@@ -611,7 +566,7 @@ class WakeWordDetector:
             ]
             if any(phrase in transcript.lower() for phrase in delete_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
-                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 alarm_timer_service.delete_all_jobs("alarm")
                 response = "All alarms and timers deleted"
                 append2log(f"{assistant_name}: {response} \n")
@@ -634,7 +589,7 @@ class WakeWordDetector:
             ]
             if any(phrase in transcript.lower() for phrase in delete_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
-                self.sound_effect.play(self.sound_effect.get_random_filler_sound())
+                self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 alarm_timer_service.delete_all_jobs("timer")
                 response = "All alarms and timers deleted"
                 append2log(f"{assistant_name}: {response} \n")
@@ -685,7 +640,7 @@ class WakeWordDetector:
                     self.speech.speak(response)
                 return
 
-            self.sound_effect.play(self.sound_effect.get_random_filler_sound())            
+            self.play_or_speak(self.sound_effect.get_random_filler_sound())            
             append2log(f"You: {transcript}", noNewLine=True)
             self.chat_gpt_service.sound_effect = self.sound_effect.play_loop("loading")
             self.speech.sound_effect = self.chat_gpt_service.sound_effect
@@ -873,11 +828,47 @@ def history():
     chatlog = get_chat_log_for_date(today)
     return render_template('history.html', assistant_dict=assistant, chatlog=json.dumps(chatlog))
 
-def update_services_with_new_settings():
-    """Update all services with new configuration settings"""
-    global detector, radio_player, alarm_timer_service, led_service
-    print("Updating services with new settings...")
+def update_configuration(settings_data=None, new_assistant_name=None):
+    """Update configuration and services with new settings and/or assistant
+    
+    Args:
+        settings_data (dict, optional): New settings to apply
+        new_assistant_name (str, optional): Name of new assistant to switch to
+    """
+    global config, assistant_name, assistant_acronym, assistant, chatlog_filename, detector, radio_player, alarm_timer_service, led_service
+    
     try:
+        config_updated = False
+        # Update config with new settings if provided
+        if settings_data:
+            print(f"Updating settings with: {settings_data}")
+            for key, value in settings_data.items():
+                config[key] = value if key not in ["vad_threshold", "max_threshold", "led_brightness"] else int(value)
+            config_updated = True
+
+        # Update assistant if new one specified
+        if new_assistant_name and new_assistant_name in assistants:
+            print(f"Changing assistant to {new_assistant_name}")
+            old_assistant = config['assistant']
+            config['assistant'] = new_assistant_name
+            config["old_assistant"] = old_assistant
+            config["assistant_dict"] = assistants[new_assistant_name]
+            assistant = assistants[new_assistant_name]
+            assistant_name = assistant["name"]
+            assistant_acronym = assistant["acronym"]
+            chatlog_filename = getChatFilename(str(date.today()))
+            config_updated = True
+            print(f"Assistant changed from {old_assistant} to {new_assistant_name}")
+        
+        if config_updated:
+            # Save updated config
+            with open(config_file, 'w') as f:
+                json.dump(config, f, indent=4)
+            print("Settings saved to config.json")
+
+        # Update services with new configuration
+        print("Updating services with new configuration...")
+        
         # Update LED service if brightness changed
         if is_rpi and led_service is not None:
             led_service.led_brightness = min(config["led_brightness"], 8)
@@ -886,54 +877,68 @@ def update_services_with_new_settings():
         # Update detector services if it exists
         if detector is not None:
             detector.is_updating = True
-            detector._cleanup_audio_stream()
-            print("Audio stream cleaned up")
-            # Update Porcupine with new key if needed
-            if picovoice_key != config["picovoice_key"]:
-                detector._init_porcupine(assistant["wake_word"].lower())
-                print("Porcupine updated")
-            detector.listener = InputListener(config)
-            print("Input listener updated")
-            detector._init_audio_stream()
-            print("Audio stream reinitialized")
-            detector.speech = TextToSpeechService(config)
-            print("TTS service updated")
-            detector.sound_effect = SoundEffectService(config)
-            print("Sound effect service updated")
-            detector.chat_gpt_service = ChatGPTService(config)
-            print("ChatGPT service updated")
-            detector.chat_gpt_service.append2log = append2log
-            print("append2log updated")
+            try:
+                detector._cleanup_audio_stream()
+                print("Audio stream cleaned up")
+                
+                # Update Porcupine if needed
+                if new_assistant_name or (settings_data and "picovoice_key" in settings_data):
+                    detector._init_porcupine(assistant["wake_word"].lower())
+                    print("Porcupine updated")
+                
+                # Update other detector services
+                detector.listener = InputListener(config)
+                print("Input listener updated")
+                detector._init_audio_stream()
+                print("Audio stream reinitialized")
+                detector.speech = TextToSpeechService(config)
+                print("TTS service updated")
+                detector.sound_effect = SoundEffectService(config)
+                print("Sound effect service updated")
+                detector.chat_gpt_service = ChatGPTService(config)
+                print("ChatGPT service updated")
+                detector.chat_gpt_service.append2log = append2log
+                print("append2log updated")        
+                
+                # Reset state
+                print("Resetting state...")
+                detector.is_awoken = False
+                detector.is_request_processing = False
+                print("State reset")
+                if new_assistant_name:
+                    print("Playing ready sound...")
+                    if detector.tts_engine == "elevenlabs":
+                        print("Playing ready sound...")
+                        detector.sound_effect.play("ready")
+                    else:
+                        print("Speaking ready sound...")
+                        detector.speech.speak(f"{assistant_name} ready!")
+                    print("Ready sound played")
+                print("Cleaning up sound effect...")
+                detector.sound_effect.cleanup()
+                print("Sound effect cleaned up")
+            finally:
+                detector.is_updating = False
         
         # Update radio player URLs if it exists
         if radio_player is not None:
-                radio_player.update_stream_urls(config["radio_stream_url"], config["kids_radio_stream_url"])
-                print("Radio player updated")
+            radio_player.update_stream_urls(config["radio_stream_url"], config["kids_radio_stream_url"])
+            print("Radio player updated")
+            
+        return True
+            
     except Exception as e:
-        print(f"Error updating services: {e}")
-    finally:
-        detector.is_updating = False
+        print(f"Error updating configuration: {e}")
+        return False
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     global config
     if request.method == 'POST':
         print(f"Updating settings... with new settings {request.form}")
-        for key, value in request.form.items():
-            print(f"{key}: {value}")
-            config[key] = value if key not in ["vad_threshold", "max_threshold", "led_brightness"] else int(value)
-        try:
-            print(f"Saving settings to config.json")
-            # Save the updated config to the file
-            with open('config.json', 'w') as f:
-                json.dump(config, f, indent=4)
-            print("Settings saved to config.json")
-            # Update services with new settings instead of restarting
-            update_services_with_new_settings()
+        if update_configuration(settings_data=request.form):
             return jsonify({"status": "ok"}), 200
-        except Exception as e:
-            print(f"Error updating settings: {e}")
-            return jsonify({"status": "error"}), 500
+        return jsonify({"status": "error"}), 500
     return render_template('settings.html', config=config)
 
 @app.route('/play_radio', methods=['POST'])
@@ -962,31 +967,12 @@ def stop_radio():
 
 @socketio.on('change_assistant')
 def change_assistant(data):
-    global config, assistant_name, assistant_acronym, assistant, chatlog_filename
     new_assistant = data.get('assistant')
     if new_assistant and new_assistant in assistants:
-        with open(config_file, 'r+') as f:
-            config = json.load(f)
-            old_assistant = config['assistant']
-            config['assistant'] = new_assistant
-            f.seek(0)
-            json.dump(config, f, indent=4)
-            f.truncate()
-        print(f"Assistant changed from {old_assistant} to {new_assistant}.")
-        config["old_assistant"] = old_assistant
-        config["assistant_dict"] = assistants[new_assistant]
-        assistant = assistants[config["assistant"]]
-        assistant_name = assistant["name"]
-        assistant_acronym = assistant["acronym"]
-        chatlog_filename = getChatFilename(str(date.today()))
-        
-        # Update the detector with new assistant configuration
-        if detector is not None:
-            detector.update_assistant(assistant)
-        
-        socketio.emit('assistant_changed', {'assistant': new_assistant})
-        return
-    return socketio.emit('assistant_changed', {'assistant': None})
+        if update_configuration(new_assistant_name=new_assistant):
+            socketio.emit('assistant_changed', {'assistant': new_assistant})
+            return
+    socketio.emit('assistant_changed', {'assistant': None})
 
 def run_flask_app():
     socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=True, host="0.0.0.0")

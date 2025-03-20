@@ -233,9 +233,9 @@ class ChatGPTService:
                         for msg in self.history[1:-1]:  # Skip system message and latest user message
                             if msg["role"] == "user":
                                 chat.send_message(msg["content"])
-                    
                     # Send the current message and stream the response
                     response = chat.send_message_stream(self.history[-1]["content"])
+                    print(f"Response: {response}")
             else:
                 response = self.llm.chat.completions.create(
                     model=modelToUse, 

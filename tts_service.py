@@ -1,4 +1,5 @@
 import re
+import time
 from elevenlabs import VoiceSettings
 from elevenlabs import stream, play
 from elevenlabs.client import ElevenLabs
@@ -16,11 +17,15 @@ class TextToSpeechService:
         self.assistant_gender = 0 if config["assistant_dict"]["gender"] == "male" else 1
         self.elevenlabs_voice_id = config["assistant_dict"]["elevenlabs_voice_id"]
         self.tts_engine = config.get("tts_engine", "pyttsx3")
+        if self.elevenlabs_voice_id == "":
+            self.tts_engine = "pyttsx3"
         self.language = config["language"]
         self.accent = config["assistant_dict"]["accent"]
         self.sound_effect = None
         self.is_running = True
         self.current_sound = None
+        # Speech rate for pyttsx3 (words per minute, default 200)
+        self.speech_rate = config["assistant_dict"].get("speech_rate", 175)
         # Initialize pygame mixer if not already initialized
         SoundEffectService.init_mixer()
 
@@ -119,18 +124,37 @@ class TextToSpeechService:
 
     def speak_with_pyttsx3(self, text):
         try:
-            # Ensure pygame mixer is quit before using pyttsx3
-            SoundEffectService.quit_mixer()
-            engine = pyttsx3.init()
-            voices = engine.getProperty('voices') 
-            engine.setProperty('voice', voices[self.assistant_gender].id)
+            print(f"Speaking with pyttsx3: {text}")
+            # First stop any sound effects
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
+            
+            # Quit pygame mixer
+            SoundEffectService.quit_mixer()
+            print("Pygame mixer quit")
+            
+            # Initialize pyttsx3 with a specific driver
+            engine = pyttsx3.init()
+            print("Engine initialized")
+            # Set the speech rate
+            engine.setProperty('rate', self.speech_rate)
+            voices = engine.getProperty('voices') 
+            engine.setProperty('voice', voices[self.assistant_gender].id)
             print(f"{self.assistant_name}: {text}")
             engine.say(text)
             engine.runAndWait()
-            # Reinitialize pygame mixer after pyttsx3
+            engine.stop()
+            
+            # Clean up pyttsx3
+            del engine
+            
+            # Wait a moment before reinitializing pygame
+            time.sleep(0.1)
+            
+            # Reinitialize pygame mixer
             SoundEffectService.init_mixer()
+            print("Pygame mixer reinitialized")
+            
         except Exception as e:
             print(f"Failed to use pyttsx3: {e}")
             # Try to reinitialize pygame mixer even if there was an error

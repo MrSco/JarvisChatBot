@@ -61,6 +61,17 @@ All the keys and important parameters are stored in the `config.json` file. This
 - Radio streams (`radio_stream_url`, `kids_radio_stream_url`): URLs for radio streaming.
 - SpeechRecognition (`language`, `dynamic_energy_threshold`, `timeout`, `phrase_time_limit`): The language code for the speech recognition engine.
 - Picovoice (`picovoice_key`): The Picovoice API key.
+- Assistant configuration (`assistant_dict`): Contains assistant-specific settings including:
+  - `name`: The assistant's name
+  - `gender`: The assistant's gender ("male" or "female")
+  - `accent`: The accent to use for speech
+  - `speech_rate`: Words per minute for pyttsx3 speech (default: 175)
+
+The `speech_rate` setting controls how fast the assistant speaks when using the pyttsx3 engine. Lower values make the speech slower, higher values make it faster. Some example values:
+- 150: Slower, more deliberate speech
+- 175: Moderate pace (default)
+- 200: Faster pace
+- 225: Very fast speech
 
 ## UI Features
 
