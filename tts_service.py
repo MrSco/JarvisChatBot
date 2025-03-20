@@ -136,9 +136,10 @@ class TextToSpeechService:
             
             print(f"{self.assistant_name}: {text}")
             if self.is_rpi:
-                print("Speaking with espeak")
                 escaped_text = text.replace("'", "'\\''")
-                os.system(f"espeak -ven-us -s{self.speech_rate} '{escaped_text}'")
+                command = f"espeak -ven-us -s{self.speech_rate} '{escaped_text}' | aplay -D playback"
+                print(f"Speaking with: {command}")
+                os.system(command)
             else:
                 print(f"Speaking with pyttsx3: {text}")
                 # Initialize pyttsx3 with a specific driver
