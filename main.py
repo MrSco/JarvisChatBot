@@ -221,27 +221,42 @@ class WakeWordDetector:
             assistant_name = new_assistant["name"]
             assistant_acronym = new_assistant["acronym"]
             
+            print("Cleaning up audio stream...")
             # Clean up existing audio stream
             self._cleanup_audio_stream()
-            
+            print("Audio stream cleaned up")
+            print("Initializing Porcupine with new keyword...")
             # Update wake word detection
             self._init_porcupine(new_assistant["wake_word"].lower())
             print(f"Updated Porcupine with new keyword: {new_assistant['wake_word']}")
             
+            print("Reinitializing audio stream...")
             # Reinitialize audio stream with new porcupine instance
             self._init_audio_stream()
+            print("Audio stream reinitialized")
             
             # Update other services with new assistant
+            print("Updating other services with new assistant...")
             self.speech = TextToSpeechService(config)
+            print("Speech service updated")
             self.sound_effect = SoundEffectService(config)
+            print("Sound effect service updated")
             self.chat_gpt_service = ChatGPTService(config)
+            print("ChatGPT service updated")
             self.chat_gpt_service.append2log = append2log
+            print("ChatGPT service append2log updated")
             
             # Reset state
+            print("Resetting state...")
             self.is_awoken = False
             self.is_request_processing = False
+            print("State reset")
+            print("Playing ready sound...")
             self.sound_effect.play("ready")
+            print("Ready sound played")
+            print("Cleaning up sound effect...")
             self.sound_effect.cleanup()
+            print("Sound effect cleaned up")
         finally:
             self.is_updating = False  # Always reset updating flag
 
@@ -250,6 +265,7 @@ class WakeWordDetector:
         if self.recorder is not None:
             self.recorder.stop()
             self.recorder.delete()
+            time.sleep(0.1)
         self.recorder = None
 
     def _init_audio_stream(self):
@@ -263,6 +279,7 @@ class WakeWordDetector:
         print("Starting recorder...")
         self.recorder.start()
         print("Audio stream initialized")
+        time.sleep(0.1)
         print(f"Listening for '{assistant['wake_word']}'...")
         socketio.emit('chatbot_ready', {'status': 'ready'})
 
@@ -861,35 +878,42 @@ def update_services_with_new_settings():
     """Update all services with new configuration settings"""
     global detector, radio_player, alarm_timer_service, led_service
     print("Updating services with new settings...")
-    # Update LED service if brightness changed
-    if is_rpi and led_service is not None:
-        led_service.led_brightness = min(config["led_brightness"], 31)
-        print(f"LED brightness updated to {led_service.led_brightness}")
-    
-    # Update detector services if it exists
-    if detector is not None:
-        # Update ChatGPT service
-        detector.chat_gpt_service = ChatGPTService(config)
-        print("ChatGPT service updated")
-        detector.chat_gpt_service.append2log = append2log
-        print("append2log updated")
-        # Update TTS service
-        detector.speech = TextToSpeechService(config)
-        print("TTS service updated")
-        # Update sound effect service
-        detector.sound_effect = SoundEffectService(config)
-        print("Sound effect service updated")
-        detector.listener = InputListener(config)
-        print("Input listener updated")
-        # Update Porcupine with new key if needed
-        if picovoice_key != config["picovoice_key"]:
-            detector._init_porcupine(assistant["wake_word"].lower())
-            print("Porcupine updated")
-    
-    # Update radio player URLs if it exists
-    if radio_player is not None:
-        radio_player.update_stream_urls(config["radio_stream_url"], config["kids_radio_stream_url"])
-        print("Radio player updated")
+    try:
+        # Update LED service if brightness changed
+        if is_rpi and led_service is not None:
+            led_service.led_brightness = min(config["led_brightness"], 8)
+            print(f"LED brightness updated to {led_service.led_brightness}")
+        
+        # Update detector services if it exists
+        if detector is not None:
+            detector.is_updating = True
+            detector._cleanup_audio_stream()
+            print("Audio stream cleaned up")
+            # Update Porcupine with new key if needed
+            if picovoice_key != config["picovoice_key"]:
+                detector._init_porcupine(assistant["wake_word"].lower())
+                print("Porcupine updated")
+            detector.listener = InputListener(config)
+            print("Input listener updated")
+            detector._init_audio_stream()
+            print("Audio stream reinitialized")
+            detector.speech = TextToSpeechService(config)
+            print("TTS service updated")
+            detector.sound_effect = SoundEffectService(config)
+            print("Sound effect service updated")
+            detector.chat_gpt_service = ChatGPTService(config)
+            print("ChatGPT service updated")
+            detector.chat_gpt_service.append2log = append2log
+            print("append2log updated")
+        
+        # Update radio player URLs if it exists
+        if radio_player is not None:
+                radio_player.update_stream_urls(config["radio_stream_url"], config["kids_radio_stream_url"])
+                print("Radio player updated")
+    except Exception as e:
+        print(f"Error updating services: {e}")
+    finally:
+        detector.is_updating = False
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
