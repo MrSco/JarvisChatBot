@@ -996,6 +996,7 @@ def signal_handler(sig, frame):
     print('Signal received: ', sig)
     print('Exiting gracefully...')
     if detector is not None:
+        tts_engine = detector.tts_engine
         detector.cleanup()
     if shairport_handler is not None:
         shairport_handler.cleanup()
@@ -1005,7 +1006,7 @@ def signal_handler(sig, frame):
         alarm_timer_service.cleanup()
     if is_rpi:
         led_service.turn_off()
-    if config["tts_engine"] == "elevenlabs":
+    if tts_engine == "elevenlabs":
         SoundEffectService(config).play("goodbye")
     else:
         TextToSpeechService(config).speak("Goodbye!")

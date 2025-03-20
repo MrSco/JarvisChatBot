@@ -126,7 +126,6 @@ class TextToSpeechService:
 
     def speak_with_pyttsx3(self, text):
         try:
-            print(f"Speaking with pyttsx3: {text}")
             # First stop any sound effects
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
@@ -137,9 +136,11 @@ class TextToSpeechService:
             
             print(f"{self.assistant_name}: {text}")
             if self.is_rpi:
+                print("Speaking with espeak")
                 escaped_text = text.replace("'", "'\\''")
-                os.system(f"espeak-ng -ven-us -s{self.speech_rate} '{escaped_text}'")
+                os.system(f"espeak -ven-us -s{self.speech_rate} '{escaped_text}'")
             else:
+                print(f"Speaking with pyttsx3: {text}")
                 # Initialize pyttsx3 with a specific driver
                 engine = pyttsx3.init()
                 print("Engine initialized")
