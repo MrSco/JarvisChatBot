@@ -131,21 +131,22 @@ class TextToSpeechService:
             
             # Quit pygame mixer
             SoundEffectService.quit_mixer()
-            print("Pygame mixer quit")
+            #print("Pygame mixer quit")
             
             print(f"{self.assistant_name}: {text}")
             if self.is_rpi:
                 escaped_text = text.replace("'", "'\\''")                
                 cmd = f"espeak -s{self.speech_rate} --stdout '{escaped_text}'"
+                #print(f"Speaking with: {cmd}")
                 espeak_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                 aplay_process = subprocess.Popen(['aplay', '-D', 'playback'], stdin=espeak_process.stdout)
                 espeak_process.stdout.close()  # Allow espeak to receive a SIGPIPE if aplay exits
                 aplay_process.communicate()
             else:
-                print(f"Speaking with pyttsx3: {text}")
+                #print(f"Speaking with pyttsx3: {text}")
                 # Initialize pyttsx3 with a specific driver
                 engine = pyttsx3.init()
-                print("Engine initialized")
+                #print("Engine initialized")
                 # Set the speech rate
                 engine.setProperty('rate', self.speech_rate)
                 voices = engine.getProperty('voices') 
@@ -162,7 +163,7 @@ class TextToSpeechService:
             
             # Reinitialize pygame mixer
             SoundEffectService.init_mixer()
-            print("Pygame mixer reinitialized")
+            #print("Pygame mixer reinitialized")
             
         except Exception as e:
             print(f"Failed to use pyttsx3: {e}")

@@ -184,7 +184,7 @@ class WakeWordDetector:
         
         # Initialize Porcupine with the selected keyword
         self._init_porcupine(assistant_wake_word)
-        print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
+        #print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
 
         #stop loading sound so we can test ambient noise properly
         loading_sound.stop_sound()
@@ -227,14 +227,14 @@ class WakeWordDetector:
     def _init_audio_stream(self):
         """Initialize the audio stream"""
         self.is_request_processing = False
-        print("Initializing PvRecorder...")
+        #print("Initializing PvRecorder...")
         self.recorder = PvRecorder(
             frame_length=self.porcupine.frame_length,
             device_index=-1  # Use default device
         )
-        print("Starting recorder...")
+        #print("Starting recorder...")
         self.recorder.start()
-        print("Audio stream initialized")
+        #print("Audio stream initialized")
         time.sleep(0.1)
         print(f"Listening for '{assistant['wake_word']}'...")
         socketio.emit('chatbot_ready', {'status': 'ready'})
@@ -248,10 +248,10 @@ class WakeWordDetector:
     def process_audio(self):
         self.handle_led_event("VoiceStarted")
         if self.tts_engine == "elevenlabs":
-            print("Playing ready sound...")
+            #print("Playing ready sound...")
             self.sound_effect.play("ready")
         else:
-            print("Speaking ready sound...")
+            #print("Speaking ready sound...")
             self.speech.speak(f"{assistant_name} ready!")
             
         print(f"Listening for '{assistant['wake_word']}'...")
@@ -678,7 +678,7 @@ class WakeWordDetector:
             self.cleanup()
 
     def cleanup(self):
-        print("Cleaning up detector...")
+        #print("Cleaning up detector...")
         self.is_running = False
         if self.speech is not None:
             self.speech.stop()
@@ -882,51 +882,51 @@ def update_configuration(settings_data=None, new_assistant_name=None):
                 detector.tts_engine = "pyttsx3"
             try:
                 detector._cleanup_audio_stream()
-                print("Audio stream cleaned up")
+                #print("Audio stream cleaned up")
                 
                 # Update Porcupine if needed
                 if new_assistant_name or (settings_data and "picovoice_key" in settings_data):
                     detector._init_porcupine(assistant["wake_word"].lower())
-                    print("Porcupine updated")
+                    #print("Porcupine updated")
                 
                 # Update other detector services
                 detector.listener = InputListener(config)
-                print("Input listener updated")
+                #print("Input listener updated")
                 detector._init_audio_stream()
-                print("Audio stream reinitialized")
+                #print("Audio stream reinitialized")
                 detector.speech = TextToSpeechService(config)
-                print("TTS service updated")
+                #print("TTS service updated")
                 detector.sound_effect = SoundEffectService(config)
-                print("Sound effect service updated")
+                #print("Sound effect service updated")
                 detector.chat_gpt_service = ChatGPTService(config)
-                print("ChatGPT service updated")
+                #print("ChatGPT service updated")
                 detector.chat_gpt_service.append2log = append2log
-                print("append2log updated")        
+                #print("append2log updated")        
                 
                 # Reset state
-                print("Resetting state...")
+                #print("Resetting state...")
                 detector.is_awoken = False
                 detector.is_request_processing = False
-                print("State reset")
+                #print("State reset")
                 if new_assistant_name:
-                    print("Playing ready sound...")
+                    #print("Playing ready sound...")
                     if detector.tts_engine == "elevenlabs":
-                        print("Playing ready sound...")
+                        #print("Playing ready sound...")
                         detector.sound_effect.play("ready")
                     else:
-                        print("Speaking ready sound...")
+                        #print("Speaking ready sound...")
                         detector.speech.speak(f"{assistant_name} ready!")
-                    print("Ready sound played")
-                print("Cleaning up sound effect...")
+                    #print("Ready sound played")
+                #print("Cleaning up sound effect...")
                 detector.sound_effect.cleanup()
-                print("Sound effect cleaned up")
+                #print("Sound effect cleaned up")
             finally:
                 detector.is_updating = False
         
         # Update radio player URLs if it exists
         if radio_player is not None:
             radio_player.update_stream_urls(config["radio_stream_url"], config["kids_radio_stream_url"])
-            print("Radio player updated")
+            #print("Radio player updated")
             
         return True
             

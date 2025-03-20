@@ -52,7 +52,7 @@ class SoundEffectService:
 
     def _cleanup_audio(self):
         """Helper function to clean up audio resources"""
-        print("Cleaning up audio...")
+        #print("Cleaning up audio...")
         self.is_looping = False
         if self.current_sound is not None:
             self.current_sound.stop()
@@ -91,7 +91,7 @@ class SoundEffectService:
         return self
 
     def stop_sound(self):
-        print("Stopping sound...")
+        #print("Stopping sound...")
         self._cleanup_audio()
 
     def cleanup(self):

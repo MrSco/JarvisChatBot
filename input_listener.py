@@ -4,10 +4,10 @@ class InputListener:
     def __init__(self, config):
         print("Initializing InputListener Recognizer...")
         self.rec = sr.Recognizer()
-        print("Recognizer initialized")
-        print("Initializing Microphone...")
+        #print("Recognizer initialized")
+        #print("Initializing Microphone...")
         self.mic = sr.Microphone()
-        print("Microphone initialized")
+        #print("Microphone initialized")
         self.rec.dynamic_energy_threshold = config["dynamic_energy_threshold"]
         self.rec.energy_threshold = config["vad_threshold"]
         self.timeout = config["timeout"]
@@ -18,7 +18,7 @@ class InputListener:
         with self.mic as source:
             print("Adjusting for ambient noise...")
             self.rec.adjust_for_ambient_noise(source, duration=1)
-            print("Adjusted for ambient noise")
+            #print("Adjusted for ambient noise")
 
     def listen(self):
         if self.sound_effect is not None:
