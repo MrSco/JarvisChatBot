@@ -170,7 +170,7 @@ class ShairportSyncHandler:
         
 class WakeWordDetector:
     def __init__(self):
-        if config.get('elevenlabs_voice_id', "") == "":
+        if assistant.get('elevenlabs_voice_id', "") == "":
             config['tts_engine'] = "pyttsx3"
         self.chat_gpt_service = ChatGPTService(config)
         self.chat_gpt_service.append2log = append2log
