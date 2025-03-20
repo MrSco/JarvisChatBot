@@ -137,9 +137,17 @@ class TextToSpeechService:
             print(f"{self.assistant_name}: {text}")
             if self.is_rpi:
                 escaped_text = text.replace("'", "'\\''")
-                command = f"espeak -ven-us -s{self.speech_rate} '{escaped_text}' | aplay -D playback"
-                print(f"Speaking with: {command}")
-                os.system(command)
+                try:
+                    import subprocess
+                    cmd = f"espeak -s{self.speech_rate} --stdout '{escaped_text}'"
+                    espeak_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                    aplay_process = subprocess.Popen(['aplay', '-D', 'playback'], stdin=espeak_process.stdout)
+                    espeak_process.stdout.close()  # Allow espeak to receive a SIGPIPE if aplay exits
+                    aplay_process.communicate()
+                except Exception as e:
+                    print(f"Error during speech: {e}")
+                    # Fallback to basic espeak without pipe
+                    os.system(f"espeak -s{self.speech_rate} '{escaped_text}'")
             else:
                 print(f"Speaking with pyttsx3: {text}")
                 # Initialize pyttsx3 with a specific driver
