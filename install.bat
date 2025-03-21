@@ -24,6 +24,6 @@ python -m venv venv
 call venv\Scripts\activate.bat
 
 :: Install requirements
-pip install -r requirements-win.txt
+pip install -r requirements.txt
 
 echo Setup completed successfully.

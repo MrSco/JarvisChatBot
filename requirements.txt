@@ -6,11 +6,7 @@ pygame
 geocoder
 flask
 flask_socketio
-gpiozero
-lgpio
-spidev
 pyttsx3
-RPi.GPIO
 numpy==1.26.4
 pvporcupine
 pvrecorder
@@ -21,3 +17,8 @@ tzlocal
 google-genai
 httpx==0.27.2
 sounddevice
+# Optional RPI-specific dependencies
+RPi.GPIO; platform_system == "Linux"  # GPIO control for Raspberry Pi
+gpiozero; platform_system == "Linux"  # GPIO utilities for Raspberry Pi
+spidev; platform_system == "Linux"  # SPI control for Raspberry Pi
+lgpio; platform_system == "Linux"  # GPIO utilities for Raspberry Pi

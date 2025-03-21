@@ -562,11 +562,15 @@ else {
 
         document.getElementById('assistantSelect').addEventListener('change', function() {
             var selectedAssistant = this.value;
+            // Show loading overlay
+            document.querySelector('.loading-overlay').style.display = 'flex';
             socket.emit("change_assistant", {assistant: selectedAssistant});
         });
 
         socket.on('assistant_changed', function(data) {
             if(data.assistant) {
+                // Hide loading overlay
+                document.querySelector('.loading-overlay').style.display = 'none';
                 setStatusMsg('Assistant changed.');
                 window.location.reload();
             }
