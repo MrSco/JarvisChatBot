@@ -873,7 +873,7 @@ def update_configuration(settings_data=None, new_assistant_name=None):
         # Update LED service if brightness changed
         if is_rpi and led_service is not None:
             led_service.led_brightness = min(config["led_brightness"], 8)
-            print(f"LED brightness updated to {led_service.led_brightness}")
+            #print(f"LED brightness updated to {led_service.led_brightness}")
         
         # Update detector services if it exists
         if detector is not None:
