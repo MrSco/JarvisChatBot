@@ -910,12 +910,12 @@ def update_configuration(settings_data=None, new_assistant_name=None):
                 #print("State reset")
                 if new_assistant_name:
                     #print("Playing ready sound...")
-                    if detector.tts_engine == "elevenlabs":
-                        #print("Playing ready sound...")
-                        detector.sound_effect.play("ready")
-                    else:
+                    if assistant.get('elevenlabs_voice_id', "") == "":
                         #print("Speaking ready sound...")
                         detector.speech.speak(f"{assistant_name} ready!")
+                    else:
+                        #print("Playing ready sound...")
+                        detector.sound_effect.play("ready")
                     #print("Ready sound played")
                 #print("Cleaning up sound effect...")
                 detector.sound_effect.cleanup()
@@ -1006,10 +1006,13 @@ def signal_handler(sig, frame):
         alarm_timer_service.cleanup()
     if is_rpi:
         led_service.turn_off()
-    if tts_engine == "elevenlabs":
-        SoundEffectService(config).play("goodbye")
+    if assistant.get('elevenlabs_voice_id', "") == "":
+        tts_service = TextToSpeechService(config)
+        tts_service.is_rpi = is_rpi
+        tts_service.speak("Goodbye!")
+        tts_service = None
     else:
-        TextToSpeechService(config).speak("Goodbye!")
+        SoundEffectService(config).play("goodbye")
     sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
@@ -1025,7 +1028,10 @@ if __name__ == "__main__":
     if not check_internet_connection():
         print("No internet connection. Please check your connection and try again.")
         config["tts_engine"] = "pyttsx3"
-        TextToSpeechService(config).speak("No internet connection")
+        tts_service = TextToSpeechService(config)
+        tts_service.is_rpi = is_rpi
+        tts_service.speak("No internet connection")
+        tts_service = None
         if is_rpi:
             led_service.handle_event("NoInternet")
     else:    
