@@ -397,6 +397,16 @@ class WakeWordDetector:
         self.is_request_processing = True
         try:
             start_time = time.time()
+            cancel_phrases = [
+                "stop",
+                "cancel",
+                "nevermind",
+            ]
+            # if transcript starts or ends with any of the cancel phrases, stop processing
+            if any(transcript.lower().startswith(phrase) or transcript.lower().endswith(phrase) for phrase in cancel_phrases):
+                print("Cancel Phrase detected. Cancelling processing...")
+                self.sound_effect.play("error")
+                return
             print(f"You: {transcript}")
             append2log("")
             # if the user's question is none or too short, skip 
