@@ -6,6 +6,7 @@ import os
 import platform
 import re
 import signal
+import socket
 import sys
 import time
 from typing import Iterable
@@ -174,6 +175,9 @@ class WakeWordDetector:
         if assistant.get('elevenlabs_voice_id', "") == "":
             self.tts_engine = "pyttsx3"
         self.chat_gpt_service = ChatGPTService(config)
+        # get machine name from os and append .local for local network resolution
+        self.chat_gpt_service.host = f"{socket.gethostname()}.local"
+        self.chat_gpt_service.port = config.get("port", 5000)
         self.chat_gpt_service.append2log = append2log
         
         # Get the wake word from the assistant configuration
@@ -182,6 +186,9 @@ class WakeWordDetector:
         # Initialize audio objects
         self.porcupine = None
         self.recorder = None
+        self.sound_effect = None
+        self.speech = None
+        self.listener = None
         
         # Initialize Porcupine with the selected keyword
         self._init_porcupine(assistant_wake_word)
@@ -226,18 +233,27 @@ class WakeWordDetector:
 
     def _init_audio_stream(self):
         """Initialize the audio stream"""
+        self.handle_led_event("Connected")
         self.is_request_processing = False
-        #print("Initializing PvRecorder...")
-        self.recorder = PvRecorder(
-            frame_length=self.porcupine.frame_length,
-            device_index=-1  # Use default device
-        )
-        #print("Starting recorder...")
+        if self.recorder is None:
+            #print("Initializing PvRecorder...")
+            self.recorder = PvRecorder(
+                frame_length=self.porcupine.frame_length,
+                device_index=-1  # Use default device
+            )        
+            #print("Starting recorder...")
         self.recorder.start()
-        #print("Audio stream initialized")
-        time.sleep(0.1)
-        print(f"Listening for '{assistant['wake_word']}'...")
-        socketio.emit('chatbot_ready', {'status': 'ready'})
+        if (shairport_handler is not None and shairport_handler.shairport_active) \
+            or (radio_player is not None and radio_player.running) and not self.is_awoken:
+            self.is_awoken = True
+            socketio.emit('music_active', {'status': 'ready'})
+            print("Music active. Pausing chatbot vad...")
+        else:
+            self.is_awoken = False
+            #print("Audio stream initialized")
+            time.sleep(0.1)
+            socketio.emit('chatbot_ready', {'status': 'ready'})
+            print("Listening for '" + assistant["wake_word"] + "'...")
     
     def play_or_speak(self, text):
         if self.tts_engine == "pyttsx3":            
@@ -667,7 +683,7 @@ class WakeWordDetector:
 
             print(f"Total Time: {end_time - start_time} seconds")
         finally:
-            self._init_audio_stream()            
+            self._init_audio_stream()
 
     def run(self):
         try:            
@@ -809,7 +825,7 @@ def handle_file_chunk(data):
                 with open(safe_file_name, "wb") as file:
                     file.write(file_data)
                 
-                file_url = f"http://{request.host}/{config['upload_folder']}/{filename}"
+                file_url = f"http://{detector.chat_gpt_service.host}:{detector.chat_gpt_service.port}/{config['upload_folder']}/{filename}"
                 detector.is_awoken = True
                 response = detector.process_transcript(text_prompt, file_data, file_url)
 
@@ -901,6 +917,9 @@ def update_configuration(settings_data=None, new_assistant_name=None):
                 detector.sound_effect = SoundEffectService(config)
                 #print("Sound effect service updated")
                 detector.chat_gpt_service = ChatGPTService(config)
+                # get machine name from os and append .local for local network resolution
+                detector.chat_gpt_service.host = f"{socket.gethostname()}.local"
+                detector.chat_gpt_service.port = config.get("port", 5000)
                 #print("ChatGPT service updated")
                 detector.chat_gpt_service.append2log = append2log
                 #print("append2log updated")        
@@ -980,7 +999,7 @@ def change_assistant(data):
     socketio.emit('assistant_changed', {'assistant': None})
 
 def run_flask_app():
-    socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=True, host="0.0.0.0")
+    socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=True, host="0.0.0.0", port=config.get("port", 5000))
 
 def runApp():
     global detector, shairport_handler, loading_sound, radio_player, alarm_timer_service
@@ -998,7 +1017,6 @@ def signal_handler(sig, frame):
     print('Signal received: ', sig)
     print('Exiting gracefully...')
     if detector is not None:
-        tts_engine = detector.tts_engine
         detector.cleanup()
     if shairport_handler is not None:
         shairport_handler.cleanup()
@@ -1029,8 +1047,8 @@ def check_internet_connection(url='http://www.google.com/', timeout=5):
 if __name__ == "__main__":
     if not check_internet_connection():
         print("No internet connection. Please check your connection and try again.")
-        config["tts_engine"] = "pyttsx3"
         tts_service = TextToSpeechService(config)
+        tts_service.tts_engine = "pyttsx3"
         tts_service.is_rpi = is_rpi
         tts_service.speak("No internet connection")
         tts_service = None

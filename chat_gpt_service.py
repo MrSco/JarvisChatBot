@@ -47,8 +47,8 @@ class ChatGPTService:
         self.image_storage = config["image_storage"]
         self.freeimage_key = config["freeimage_key"]
         self.upload_folder = config["upload_folder"]
-        self.host = config.get("host", "localhost")
-        self.port = config.get("port", 5000)
+        self.host = None
+        self.port = None
 
     def getMimeType(self, fileExtension):
         mime_types = {
