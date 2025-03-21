@@ -320,7 +320,7 @@ class WakeWordDetector:
         if self.chat_gpt_service.sound_effect is not None:
             self.chat_gpt_service.sound_effect.stop_sound()
         self.sound_effect.play("error")
-        self.sound_effect.play_or_speak("something_went_wrong")
+        self.play_or_speak("something_went_wrong")
         self._cleanup_audio_stream()
         
     def extract_time_from_transcript(self, transcript):
@@ -388,7 +388,7 @@ class WakeWordDetector:
                 self.handle_led_event("VoiceStarted")
                 short_response = "Hi, there, how can I help?"
                 self.play_or_speak(self.sound_effect.get_random_filler_sound())
-                self.sound_effect.play_or_speak("hi_how_can_i_help")
+                self.play_or_speak("hi_how_can_i_help")
                 append2log(f"You: {transcript} \n")
                 append2log(f"{assistant_name}: {short_response} \n")
                 return
