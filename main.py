@@ -170,8 +170,9 @@ class ShairportSyncHandler:
         
 class WakeWordDetector:
     def __init__(self):
+        self.tts_engine = config["tts_engine"]
         if assistant.get('elevenlabs_voice_id', "") == "":
-            config['tts_engine'] = "pyttsx3"
+            self.tts_engine = "pyttsx3"
         self.chat_gpt_service = ChatGPTService(config)
         self.chat_gpt_service.append2log = append2log
         
@@ -194,7 +195,6 @@ class WakeWordDetector:
         self.language = config["language"]
         self.is_request_processing = False
         self.is_awoken = False
-        self.tts_engine = config["tts_engine"]
         self.is_running = True
         self.is_updating = False  # New flag to track assistant updates
 
