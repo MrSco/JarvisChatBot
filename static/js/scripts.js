@@ -103,9 +103,11 @@ function update_chat(data) {
             var imageElement = document.createElement('img');
             imageElement.src = urlMatch[0];
             imageElement.className = 'inline-image';
+            // Add click handler for lightbox
+            imageElement.onclick = function() {
+                openLightbox(urlMatch[0]);
+            };
             ahref = document.createElement('a');
-            ahref.href = urlMatch[0];
-            ahref.target = '_blank';
             ahref.appendChild(imageElement);
         }
     }
@@ -575,5 +577,40 @@ else {
                 window.location.reload();
             }
         });
+
+        // Setup lightbox close functionality
+        var lightbox = document.getElementById('lightbox');
+        var lightboxClose = document.querySelector('.lightbox-close');
+
+        lightboxClose.onclick = function() {
+            lightbox.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        };
+
+        // Close lightbox when clicking outside the image
+        lightbox.onclick = function(e) {
+            if (e.target === lightbox) {
+                lightbox.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        };
+
+        // Close lightbox with escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && lightbox.style.display === 'flex') {
+                lightbox.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        });
     });
+}
+
+function openLightbox(imageSrc) {
+    var lightbox = document.getElementById('lightbox');
+    var lightboxImg = document.getElementById('lightbox-img');
+    lightboxImg.src = imageSrc;
+    lightbox.style.display = 'flex';
+    
+    // Prevent scrolling of the background
+    document.body.style.overflow = 'hidden';
 }

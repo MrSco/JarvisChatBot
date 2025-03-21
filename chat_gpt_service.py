@@ -1,4 +1,5 @@
 import base64
+import time
 import types
 import openai
 from groq import Groq
@@ -45,6 +46,9 @@ class ChatGPTService:
         self.sound_effect = None
         self.image_storage = config["image_storage"]
         self.freeimage_key = config["freeimage_key"]
+        self.upload_folder = config["upload_folder"]
+        self.host = config.get("host", "localhost")
+        self.port = config.get("port", 5000)
 
     def getMimeType(self, fileExtension):
         mime_types = {
@@ -143,6 +147,60 @@ class ChatGPTService:
             print(f"Failed to upload image to FreeImage.host: {e}")
             return ""
 
+    def is_image_generation_request(self, request):
+        """Check if the request is asking for image generation"""
+        image_keywords = [
+            "generate an image",
+            "create an image",
+            "make an image",
+            "draw a picture",
+            "create a picture",
+            "generate a picture",
+            "make a picture",
+            "show me a picture",
+            "show me an image",
+            "create a visual",
+            "generate a visual",
+            "make a visual"
+        ]
+        return any(keyword in request.lower() for keyword in image_keywords)
+
+    def generate_image(self, prompt):
+        """Generate an image using the appropriate service"""
+        try:
+            if self.ai_service == "google":
+                # Use Gemini's image generation
+                response = self.llm.models.generate_content(
+                    model="gemini-2.0-flash-exp-image-generation",
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_modalities=['Text', 'Image']
+                    )
+                )
+                
+                # Extract the image data from the response
+                for part in response.candidates[0].content.parts:
+                    if part.inline_data is not None:
+                        return part.inline_data.data
+            elif self.ai_service == "openai":
+                # Use OpenAI's DALL-E
+                response = self.llm.images.generate(
+                    model="dall-e-3",
+                    prompt=prompt,
+                    size="1024x1024",
+                    quality="standard",
+                    n=1,
+                )
+                # Get the image URL from the response
+                image_url = response.data[0].url
+                # Download the image data
+                response = requests.get(image_url)
+                return response.content
+            elif self.ai_service == "groq":
+                return None
+        except Exception as e:
+            print(f"Error generating image: {e}")
+            return None
 
     def send_to_chat_gpt(self, request, image=None, image_link=''):
         modelToUse = self.model
@@ -155,6 +213,36 @@ class ChatGPTService:
         if self.history and self.history[0]["role"] == "system":
             self.history[0]["content"] = self.history[0]["content"].replace("{today}", str(date.today())).replace("{theCurrentTime}", current_time)
         
+        # Check if this is an image generation request
+        if self.is_image_generation_request(request):
+            canned_response = "Here is the image you wanted - "
+            self.append2log(f"\n\n{self.assistant_name}: {canned_response}", True)
+            
+            # Generate the image
+            image_data = self.generate_image(request)
+            if image_data:
+                generated_image_filename = "generated_image.png"
+                # Store the image based on configuration
+                if self.image_storage == "freeimage":
+                    image_url = self.upload_image_to_freeimage(image_data, generated_image_filename)
+                else:
+                    upload_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), self.upload_folder)
+                    if not os.path.exists(upload_path):
+                        os.makedirs(upload_path)
+
+                    generated_image_filename = f"{time.time()}_{os.path.basename(generated_image_filename)}"
+                    safe_file_name = os.path.join(upload_path, generated_image_filename)
+                    #save image to local file
+                    with open(safe_file_name, "wb") as f:
+                        f.write(image_data)
+                    image_url = f"http://{self.host}:{self.port}/{self.upload_folder}/{generated_image_filename}"
+                
+                # Add the image URL to the chat log
+                self.append2log(f"{image_url}\n\n", True)
+                return [canned_response]
+            else:
+                return ["I apologize, but I couldn't generate the image you requested."]
+
         if image is not None:
             if self.image_storage == "freeimage" and not self.ai_service == "google":
                 image_url = self.upload_image_to_freeimage(image, image_link)

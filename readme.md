@@ -82,6 +82,7 @@ The web interface includes:
 3. **Settings page**: Configure AI services, models, and other options.
 4. **Multiple assistant support**: Switch between different assistant personalities.
 5. **Chat history**: View past conversations organized by date.
+6. **Image Generation**: Generate images using the AI service (Google and OpenAI only).
 
 ## Running the Project
 
@@ -198,7 +199,6 @@ mkdir -p ~/.config
 alsactl -f ~/.config/asound.state store
 sudo cp ~/.config/asound.state /var/lib/alsa/asound.state
 ```
-
 5. (Optional) Adjust alsa-restore.service and add the -U parameter to the exestart restore command:
 
 ```bash
@@ -368,6 +368,7 @@ This documentation was written by ChatGPT with some supervision by the author
 ## Disclaimer
 
 This project is a fan-made, non-commercial project and is not affiliated with, endorsed by, or associated with Marvel, Disney, or any of their subsidiaries. All characters, images, and other related materials are the property of their respective owners. No copyright infringement is intended. This project is for entertainment purposes only, and no monetary gain is being made from its distribution. If any copyright holder feels that their intellectual property has been used inappropriately, please contact me and the content will be removed immediately.
+
 
 
 
