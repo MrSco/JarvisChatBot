@@ -247,12 +247,12 @@ class WakeWordDetector:
 
     def process_audio(self):
         self.handle_led_event("VoiceStarted")
-        if self.tts_engine == "elevenlabs":
-            #print("Playing ready sound...")
-            self.sound_effect.play("ready")
-        else:
+        if assistant.get('elevenlabs_voice_id', "") == "":
             #print("Speaking ready sound...")
             self.speech.speak(f"{assistant_name} ready!")
+        else:
+            #print("Playing ready sound...")
+            self.sound_effect.play("ready")
             
         print(f"Listening for '{assistant['wake_word']}'...")
         
@@ -878,6 +878,7 @@ def update_configuration(settings_data=None, new_assistant_name=None):
         # Update detector services if it exists
         if detector is not None:
             detector.is_updating = True
+            detector.tts_engine = config["tts_engine"]
             if assistant.get('elevenlabs_voice_id', "") == "":
                 detector.tts_engine = "pyttsx3"
             try:
@@ -895,6 +896,7 @@ def update_configuration(settings_data=None, new_assistant_name=None):
                 detector._init_audio_stream()
                 #print("Audio stream reinitialized")
                 detector.speech = TextToSpeechService(config)
+                detector.speech.is_rpi = is_rpi
                 #print("TTS service updated")
                 detector.sound_effect = SoundEffectService(config)
                 #print("Sound effect service updated")
