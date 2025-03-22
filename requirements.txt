@@ -2,6 +2,7 @@ openai
 groq
 elevenlabs
 SpeechRecognition
+pyaudio
 geocoder
 flask
 flask_socketio
