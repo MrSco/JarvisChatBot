@@ -1048,6 +1048,11 @@ def check_internet_connection(url='http://www.google.com/', timeout=5):
         return False
     
 if __name__ == "__main__":
+    #wait for up to 10 seconds for internet connection
+    for i in range(10):
+        if check_internet_connection():
+            break
+        time.sleep(1)
     if not check_internet_connection():
         print("No internet connection. Please check your connection and try again.")
         tts_service = TextToSpeechService(config)
