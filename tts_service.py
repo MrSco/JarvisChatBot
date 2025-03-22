@@ -8,6 +8,9 @@ from gtts import gTTS
 import subprocess
 import io
 from sound_effect_service import SoundEffectService
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TextToSpeechService:
     def __init__(self, config):
@@ -45,13 +48,13 @@ class TextToSpeechService:
 
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
-            print(f"{self.assistant_name}: {text}")
+            logger.info(f"{self.assistant_name}: {text}")
             
             # Use ElevenLabs streaming
             stream(self.speech_stream(textToSpeak))
 
         except Exception as e:
-            print(f"Failed to use {self.tts_engine} for speech ({text}): {e}")
+            logger.error(f"Failed to use {self.tts_engine} for speech ({text}): {e}")
             # Fallback to pyttsx3 if other methods fail
             self.speak_with_pyttsx3(textToSpeak)
             return None
@@ -75,7 +78,7 @@ class TextToSpeechService:
                 yield chunk
 
         except Exception as e:
-            print(f"Failed to use elevenlabs for speech ({text}): {e}")
+            logger.error(f"Failed to use elevenlabs for speech ({text}): {e}")
             if self.tts_engine == "gtts":
                 self.speak_with_gtts(text)
             else:
@@ -93,14 +96,14 @@ class TextToSpeechService:
             
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
-            print(f"{self.assistant_name}: {text}")
+            logger.info(f"{self.assistant_name}: {text}")
             
             # Create a temporary SoundEffectService instance to play the audio
             temp_sound_service = SoundEffectService()
             temp_sound_service.play_from_bytes(audio_bytes)
                 
         except Exception as e:
-            print(f"Failed to use gTTS for speech: {e}")
+            logger.error(f"Failed to use gTTS for speech: {e}")
             self._cleanup_audio()
 
     def speak_with_pyttsx3(self, text):
@@ -109,11 +112,11 @@ class TextToSpeechService:
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
             
-            print(f"{self.assistant_name}: {text}")
+            logger.info(f"{self.assistant_name}: {text}")
             if self.is_rpi:
                 escaped_text = text.replace("'", "'\\''")                
                 cmd = f"espeak -s{self.speech_rate} --stdout '{escaped_text}'"
-                #print(f"Speaking with: {cmd}")
+                #logger.debug(f"Speaking with: {cmd}")
                 espeak_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                 args = ['aplay', '-D', self.rpi_playback_device]
                 if self.rpi_playback_device == "":
@@ -122,9 +125,9 @@ class TextToSpeechService:
                 espeak_process.stdout.close()  # Allow espeak to receive a SIGPIPE if aplay exits
                 aplay_process.communicate()
             else:
-                #print(f"Speaking with pyttsx3: {text}")
+                #logger.debug(f"Speaking with pyttsx3: {text}")
                 engine = pyttsx3.init()
-                #print("Engine initialized")
+                #logger.debug("Engine initialized")
                 # Set the speech rate
                 engine.setProperty('rate', self.speech_rate)
                 voices = engine.getProperty('voices') 
@@ -137,4 +140,4 @@ class TextToSpeechService:
                 del engine
             
         except Exception as e:
-            print(f"Failed to use pyttsx3: {e}")
+            logger.error(f"Failed to use pyttsx3: {e}")

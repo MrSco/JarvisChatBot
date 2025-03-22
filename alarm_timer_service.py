@@ -5,6 +5,16 @@ import subprocess
 from datetime import datetime, timedelta
 import tempfile
 import threading
+import logging
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+    ]
+)
+logger = logging.getLogger(__name__)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 trigger_script_path = os.path.join(script_dir, "trigger_alarm_timer.py")
@@ -23,14 +33,14 @@ class AlarmTimerService:
         self.cancel_event = threading.Event()
         
     def add_alarm(self, alarm_time):
-        print(f"Setting alarm for {alarm_time}.")
+        logger.info(f"Setting alarm for {alarm_time}.")
         if is_windows:
             self._add_scheduled_task(alarm_time, self.alarm_task_name, "alarm")
         else:
             self._add_cron_job(alarm_time, "alarm")
 
     def add_timer(self, duration):
-        print(f"Setting timer for {duration} seconds.")
+        logger.info(f"Setting timer for {duration} seconds.")
         timer_time = datetime.now() + timedelta(seconds=duration)
         if is_windows:
             self._add_scheduled_task(timer_time, self.timer_task_name, "timer")
@@ -74,7 +84,7 @@ class AlarmTimerService:
         # Apply the updated cron file
         subprocess.run(['crontab', cron_file])
 
-        print(f"{job_type.capitalize()} set for {time_value}")
+        logger.info(f"{job_type.capitalize()} set for {time_value}")
 
     def _run_command_after_delay(self, delay, job_type):
         if not self.cancel_event.wait(delay):
@@ -98,11 +108,11 @@ class AlarmTimerService:
             f.write(scheduled_task_xml)
             tempFile = f.name      
             full_command = ["schtasks", "/create", "/xml", tempFile, "/tn", task_name, "/f"]
-            print(f"Running {type} command: " + " ".join(full_command))
+            logger.info(f"Running {type} command: " + " ".join(full_command))
             subprocess.run(full_command)
 
     def cleanup(self):
-        print("Cleaning up alarm_timer_service...")
+        logger.info("Cleaning up alarm_timer_service...")
         self.cancel_event.set()  # Signal any running thread to stop
         if self.timer_thread and self.timer_thread.is_alive():
             self.timer_thread.join()
@@ -118,13 +128,13 @@ class AlarmTimerService:
 
     def _delete_all_scheduled_tasks(self, task_name):
         command = ["schtasks", "/delete", "/tn", task_name, "/f"]
-        print(f"Deleting all {task_name} scheduled tasks...{' '.join(command)}")
+        logger.info(f"Deleting all {task_name} scheduled tasks...{' '.join(command)}")
         subprocess.run(command)
-        print("Tasks deleted.")
+        logger.info("Tasks deleted.")
 
     def _delete_all_cron_jobs(self, job_type):
         cron_file = self.alarm_cron_file if job_type == "alarm" else self.timer
         if os.path.exists(cron_file):
             os.remove(cron_file)
             subprocess.run(['crontab', cron_file])
-            print(f"All {job_type} cron jobs deleted.")
+            logger.info(f"All {job_type} cron jobs deleted.")

@@ -1,6 +1,16 @@
 import vlc
 import threading
 import time
+import logging
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+    ]
+)
+logger = logging.getLogger(__name__)
 
 class RadioPlayer:
     def __init__(self, wakeword_detector):
@@ -18,7 +28,7 @@ class RadioPlayer:
             else:
                 self.stream_url = stream_url
             if stream_url is None:
-                print("No stream URL provided")
+                logger.error("No stream URL provided")
                 return            
             self.running = True
             self.wakeword_detector.is_awoken = True
@@ -41,7 +51,7 @@ class RadioPlayer:
             while self.running:
                 time.sleep(1)
         except Exception as e:
-            print(f"Error playing stream: {e}")
+            logger.error(f"Error playing stream: {e}")
             self.stop()
 
     def stop(self):

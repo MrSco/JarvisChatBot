@@ -1,3 +1,4 @@
+import logging
 import base64
 from datetime import date, datetime
 import json
@@ -23,6 +24,16 @@ import requests
 from radio_player import RadioPlayer
 from pvrecorder import PvRecorder
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+    ]
+)
+
+logger = logging.getLogger(__name__)
 transcript_seperator = f"_"*40
 script_dir = os.path.dirname(os.path.abspath(__file__))
 shairport_handler = None
@@ -55,9 +66,9 @@ def is_running_on_raspberry_pi():
 
 config_file = os.path.join(script_dir, "config.json")
 assistants_file = os.path.join(script_dir, "assistants.json")
-print(f"Loading config from {config_file}...")
+logger.info(f"Loading config from {config_file}...")
 config = json.load(open(config_file))
-print(f"Loading assistants from {assistants_file}...")
+logger.info(f"Loading assistants from {assistants_file}...")
 assistants = json.load(open(assistants_file))
 assistant = assistants[config["assistant"]]
 config["old_assistant"] = config["assistant"]
@@ -83,9 +94,9 @@ if is_rpi:
         led_service = LEDService(led_brightness=led_brightness)
         led_service.handle_event("Starting")
     except ImportError:
-        print("Make sure you're running this on a Raspberry Pi.")
+        logger.error("Make sure you're running this on a Raspberry Pi.")
 else:
-    print("LED event: Starting")
+    logger.info("LED event: Starting")
 
 if config["use_frontend"]:
     app = Flask(__name__)
@@ -129,7 +140,7 @@ class ShairportSyncHandler:
                         self.wakeword_detector.is_awoken = self.shairport_active
                         self.blink_led_thread = threading.Thread(target=self.blink_led)
                         self.blink_led_thread.start()
-                        print("Pausing chatbot vad...")
+                        logger.info("Pausing chatbot vad...")
                         socketio.emit('music_active', {'status': 'ready'})
                 else:
                     if self.shairport_active:
@@ -138,10 +149,10 @@ class ShairportSyncHandler:
                         if self.blink_led_thread is not None and self.blink_led_thread.is_alive():
                             self.blink_led_thread.join()
                         self.wakeword_detector.handle_led_event("Running")
-                        print("Resuming chatbot vad...")
+                        logger.info("Resuming chatbot vad...")
                         socketio.emit('music_active', {'status': 'done'})
             except dbus.DBusException as e:
-                print(f"Error communicating with Shairport Sync: {e}")
+                logger.error(f"Error communicating with Shairport Sync: {e}")
             time.sleep(1)
 
     def blink_led(self):
@@ -152,7 +163,7 @@ class ShairportSyncHandler:
             time.sleep(0.5)
 
     def cleanup(self):
-        print("Cleaning up Shairport Sync handler...")
+        logger.info("Cleaning up Shairport Sync handler...")
         self.shairport_active = False
         if self.blink_led_thread is not None and self.blink_led_thread.is_alive():
             self.blink_led_thread.join()
@@ -193,7 +204,7 @@ class WakeWordDetector:
         #print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
 
         #stop loading sound so we can test ambient noise properly
-        print("Stopping loading sound...")
+        logger.info("Stopping loading sound...")
         loading_sound.stop_sound()
         self.listener = InputListener(config)
         self._init_audio_stream()
@@ -214,7 +225,7 @@ class WakeWordDetector:
             try:
                 self.porcupine.delete()
             except Exception as e:
-                print(f"Error deleting old Porcupine instance: {e}")
+                logger.error(f"Error deleting old Porcupine instance: {e}")
         
         if wake_word != "jarvis":
             self.porcupine = pvporcupine.create(access_key=picovoice_key, keyword_paths=[os.path.join(script_dir, "porcupine_models", "rpi" if is_rpi else "", f"{assistant_name.lower()}.ppn")])
@@ -235,24 +246,24 @@ class WakeWordDetector:
         self.handle_led_event("Connected")
         self.is_request_processing = False
         if self.recorder is None:
-            #print("Initializing PvRecorder...")
+            #logger.debug("Initializing PvRecorder...")
             self.recorder = PvRecorder(
                 frame_length=self.porcupine.frame_length,
                 device_index=-1  # Use default device
             )        
-            #print("Starting recorder...")
+            #logger.debug("Starting recorder...")
         self.recorder.start()
         if (shairport_handler is not None and shairport_handler.shairport_active) \
             or (radio_player is not None and radio_player.running) and not self.is_awoken:
             self.is_awoken = True
             socketio.emit('music_active', {'status': 'ready'})
-            print("Music active. Pausing chatbot vad...")
+            logger.info("Music active. Pausing chatbot vad...")
         else:
             self.is_awoken = False
-            #print("Audio stream initialized")
+            #logger.debug("Audio stream initialized")
             time.sleep(0.1)
             socketio.emit('chatbot_ready', {'status': 'ready'})
-            print("Listening for '" + assistant["wake_word"] + "'...")
+            logger.info(f"Listening for '{assistant['wake_word']}'...")
     
     def play_or_speak(self, text):
         if self.tts_engine == "pyttsx3":            
@@ -269,7 +280,7 @@ class WakeWordDetector:
             #print("Playing ready sound...")
             self.sound_effect.play("ready")
             
-        print(f"Listening for '{assistant['wake_word']}'...")
+        logger.info(f"Listening for '{assistant['wake_word']}'...")
         
         while self.is_running:
             try:
@@ -291,7 +302,7 @@ class WakeWordDetector:
                     keyword_index = self.porcupine.process(pcm)
                     
                     if keyword_index >= 0 and not self.is_request_processing:
-                        print(f"Wake word detected! Keyword index: {keyword_index}")
+                        logger.info(f"Wake word detected! Keyword index: {keyword_index}")
                         
                         # Clean up audio stream before using microphone
                         self._cleanup_audio_stream()
@@ -307,7 +318,7 @@ class WakeWordDetector:
                         socketio.emit('prompt_received', {'status': 'ready'})
                         self.listener.sound_effect = self.sound_effect.play_loop("loading")
                         self.listener.transcribe()
-                        print(f"Transcript: {self.listener.transcript}")
+                        logger.info(f"Transcript: {self.listener.transcript}")
                         if self.listener.transcript is None:
                             # Reinitialize audio stream for wake word detection
                             self._init_audio_stream()
@@ -315,12 +326,12 @@ class WakeWordDetector:
 
                         self.process_transcript(self.listener.transcript)                    
                 except Exception as e:
-                    print(f"Error processing audio: {e}")
+                    logger.error(f"Error processing audio: {e}")
                     self.something_went_wrong()
                     time.sleep(1)
                     
             except Exception as e:
-                print(f"Error in main loop: {e}")
+                logger.error(f"Error in main loop: {e}")
                 self.something_went_wrong()
                 time.sleep(1)
 
@@ -330,7 +341,7 @@ class WakeWordDetector:
         else:
             if event == "Running":
                 return
-            print(f"LED event: {event}")
+            logger.info(f"LED event: {event}")
 
     def something_went_wrong(self):
         if self.listener and self.listener.sound_effect is not None:
@@ -393,7 +404,7 @@ class WakeWordDetector:
     
     def process_transcript(self, transcript, image=None, image_name=''):
         if self.is_request_processing:
-            print("A request is already being processed. Please wait.")
+            logger.info("A request is already being processed. Please wait.")
             return 
         self.handle_led_event("Processing")
         self.is_request_processing = True
@@ -406,10 +417,10 @@ class WakeWordDetector:
             ]
             # if transcript starts or ends with any of the cancel phrases, stop processing
             if any(transcript.lower().startswith(phrase) or transcript.lower().endswith(phrase) for phrase in cancel_phrases):
-                print("Cancel Phrase detected. Cancelling processing...")
+                logger.info("Cancel Phrase detected. Cancelling processing...")
                 self.sound_effect.play("error")
                 return
-            print(f"You: {transcript}")
+            logger.info(f"You: {transcript}")
             append2log("")
             # if the user's question is none or too short, skip 
             if len(transcript) < 2 and not image:
@@ -462,7 +473,7 @@ class WakeWordDetector:
 
             if any(phrase in transcript.lower() for phrase in radio_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
-                print("Starting radio...")
+                logger.info("Starting radio...")
                 append2log(f"You: {transcript} \n")
                 self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 radio_player.start(config["radio_stream_url"])
@@ -499,7 +510,7 @@ class WakeWordDetector:
 
             if any(phrase in transcript.lower() for phrase in radio_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
-                print("Starting kids radio...")
+                logger.info("Starting kids radio...")
                 append2log(f"You: {transcript} \n")
                 self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 radio_player.start(config["kids_radio_stream_url"])
@@ -525,7 +536,7 @@ class WakeWordDetector:
 
             if any(phrase in transcript.lower() for phrase in radio_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
-                print("Stopping radio...")
+                logger.info("Stopping radio...")
                 append2log(f"You: {transcript} \n")
                 self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 radio_player.stop()
@@ -544,7 +555,7 @@ class WakeWordDetector:
 
             if any(phrase in transcript.lower() for phrase in alarm_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
-                print("Setting an alarm...")
+                logger.info("Setting an alarm...")
                 append2log(f"You: {transcript} \n")
                 self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 # Extract time from transcript and set alarm
@@ -563,7 +574,7 @@ class WakeWordDetector:
 
             if any(phrase in transcript.lower() for phrase in timer_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
-                print("Setting a timer...")
+                logger.info("Setting a timer...")
                 append2log(f"You: {transcript} \n")
                 self.play_or_speak(self.sound_effect.get_random_filler_sound())
                 # Extract duration from transcript and set timer
@@ -646,25 +657,25 @@ class WakeWordDetector:
 
             if any(phrase in transcript.lower() for phrase in change_assistant_phrases) and not image:
                 self.handle_led_event("VoiceStarted")
-                print("Changing assistant...")
+                logger.info("Changing assistant...")
                 if "taurus" in transcript.lower():
-                    print("Handling mispronunciation of Taurus for TARS...")
+                    logger.info("Handling mispronunciation of Taurus for TARS...")
                     transcript = transcript.replace("Taurus", "taurus").replace("taurus", "Taurus (TARS)")
                 append2log(f"You: {transcript} \n")
                 # grab the assisant name from the transcript
                 new_assistant = next((assistant for assistant in assistants if assistants.get(assistant, {}).get('name', '').lower() in transcript.lower()), None)
                 new_assistant_name = assistants.get(new_assistant, {}).get('name', '')
                 if new_assistant and new_assistant_name != assistant_name:
-                    print(f"Switching to {new_assistant_name}...")
+                    logger.info(f"Switching to {new_assistant_name}...")
                     change_assistant({'assistant': new_assistant_name.lower()})
                 elif new_assistant_name == assistant_name:
                     response = f"I'm already {assistant_name}."
-                    print(response)
+                    logger.info(response)
                     append2log(f"{assistant_name}: {response} \n")
                     self.speech.speak(response)
                 else:
                     response = "Assistant not found."
-                    print(response)
+                    logger.info(response)
                     append2log(f"{assistant_name}: {response} \n")
                     self.speech.speak(response)
                 return
@@ -693,7 +704,7 @@ class WakeWordDetector:
                     self.speech.speak(text)
             end_time = time.time()
 
-            print(f"Total Time: {end_time - start_time} seconds")
+            logger.info(f"Total Time: {end_time - start_time} seconds")
         finally:
             self._init_audio_stream()
 
@@ -715,7 +726,7 @@ class WakeWordDetector:
             try:
                 self.porcupine.delete()
             except Exception as e:
-                print(f"Error deleting Porcupine: {e}")
+                logger.error(f"Error deleting Porcupine: {e}")
             
         # Reset all references
         self.porcupine = None
@@ -737,7 +748,7 @@ def find_url_filter(text):
 def get_chat_log_for_date(dateStr):
     chatlog_filename = getChatFilename(dateStr)
     filename = chatlog_filename.split("-")[0] + f"-{dateStr}.txt"
-    print(f"Getting chat log for {filename}...")
+    logger.info(f"Getting chat log for {filename}...")
     try:
         with open(filename, 'r', encoding='utf-8') as f:
             # read a line until you reach the end or You: or assistant_name:
@@ -804,7 +815,7 @@ def handle_file_chunk(data):
     file_name = secure_filename(data.get("fileName")) if data.get("fileName") else None
     text_prompt = data.get("prompt") if data.get("prompt") else ""
     if file_id:
-        print(f"Received chunk {chunk_index + 1} of {total_chunks} for file {file_id}")
+        logger.info(f"Received chunk {chunk_index + 1} of {total_chunks} for file {file_id}")
         # Initialize the file's chunk list if not already
         if file_id not in file_chunks:
             file_chunks[file_id] = [None] * total_chunks
@@ -814,7 +825,7 @@ def handle_file_chunk(data):
 
         # Check if all chunks have been received
         if all(chunk is not None for chunk in file_chunks[file_id]):
-            print(f"Received all chunks for file {file_id}.")
+            logger.info(f"Received all chunks for file {file_id}.")
             # Combine binary chunks
             file_data = b"".join(file_chunks[file_id])
             
@@ -864,14 +875,14 @@ def update_configuration(settings_data=None, new_assistant_name=None):
         config_updated = False
         # Update config with new settings if provided
         if settings_data:
-            print(f"Updating settings with: {settings_data}")
+            logger.info(f"Updating settings with: {settings_data}")
             for key, value in settings_data.items():
                 config[key] = value if key not in ["vad_threshold", "max_threshold", "led_brightness"] else int(value)
             config_updated = True
 
         # Update assistant if new one specified
         if new_assistant_name and new_assistant_name in assistants:
-            print(f"Changing assistant to {new_assistant_name}")
+            logger.info(f"Changing assistant to {new_assistant_name}")
             old_assistant = config['assistant']
             config['assistant'] = new_assistant_name
             config["old_assistant"] = old_assistant
@@ -881,16 +892,16 @@ def update_configuration(settings_data=None, new_assistant_name=None):
             assistant_acronym = assistant["acronym"]
             chatlog_filename = getChatFilename(str(date.today()))
             config_updated = True
-            print(f"Assistant changed from {old_assistant} to {new_assistant_name}")
+            logger.info(f"Assistant changed from {old_assistant} to {new_assistant_name}")
         
         if config_updated:
             # Save updated config
             with open(config_file, 'w') as f:
                 json.dump(config, f, indent=4)
-            print("Settings saved to config.json")
+            logger.info("Settings saved to config.json")
 
         # Update services with new configuration
-        print("Updating services with new configuration...")
+        logger.info("Updating services with new configuration...")
         
         # Update LED service if brightness changed
         if is_rpi and led_service is not None:
@@ -955,14 +966,14 @@ def update_configuration(settings_data=None, new_assistant_name=None):
         return True
             
     except Exception as e:
-        print(f"Error updating configuration: {e}")
+        logger.error(f"Error updating configuration: {e}")
         return False
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     global config
     if request.method == 'POST':
-        print(f"Updating settings... with new settings {request.form}")
+        logger.info(f"Updating settings... with new settings {request.form}")
         if update_configuration(settings_data=request.form):
             return jsonify({"status": "ok"}), 200
         return jsonify({"status": "error"}), 500
@@ -973,7 +984,7 @@ def play_radio():
     global radio_player
     if radio_player:
         data = request.get_json()
-        print(data)
+        logger.info(f"Received data: {data}")
         if data and data.get('radio') == 'kid':
             stream_url = config["kids_radio_stream_url"]
         else:
@@ -1013,12 +1024,14 @@ def runApp():
     if is_rpi and config["use_shairport-sync"]:
         shairport_handler = ShairportSyncHandler(detector, radio_player)
     app.config['detector'] = detector  # Attach detector to the Flask app config    
+    logger.info("Stopping loading sound...")  
+    loading_sound.stop_sound()
     detector.run()
-    print("Detector exited.")
+    logger.info("Detector exited.")
 
 def signal_handler(sig, frame):
-    print('Signal received: ', sig)
-    print('Exiting gracefully...')
+    logger.info(f'Signal received: {sig}')
+    logger.info('Exiting gracefully...')
     if detector is not None:
         detector.cleanup()
     if shairport_handler is not None:
@@ -1054,7 +1067,7 @@ if __name__ == "__main__":
             break
         time.sleep(1)
     if not check_internet_connection():
-        print("No internet connection. Please check your connection and try again.")
+        logger.error("No internet connection. Please check your connection and try again.")
         tts_service = TextToSpeechService(config)
         tts_service.tts_engine = "pyttsx3"
         tts_service.is_rpi = is_rpi
@@ -1067,6 +1080,6 @@ if __name__ == "__main__":
             led_service.handle_event("Connected")
     
         if config["use_frontend"]:
-            print("Starting Flask frontend...")
+            logger.info("Starting Flask frontend...")
             socketio.start_background_task(run_flask_app)
         runApp()

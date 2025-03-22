@@ -5,7 +5,16 @@ import time
 import sounddevice
 import vlc
 import platform
-
+import logging
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+    ]
+)
+logger = logging.getLogger(__name__)
 sounds_dir = os.path.dirname(os.path.abspath(__file__)) + "/sounds"
 
 class SoundEffectService:
@@ -64,7 +73,7 @@ class SoundEffectService:
         while self.is_looping:
             time.sleep(0.1)
         end_time = time.time()
-        print(f"Sound played in loop for {end_time - self.start_time} seconds")
+        logger.info(f"Sound played in loop for {end_time - self.start_time} seconds")
 
     def _cleanup_audio(self):
         """Helper function to clean up audio resources"""
@@ -83,7 +92,7 @@ class SoundEffectService:
 
     def play(self, sound_name, loop=False):
         sound_path = self.get_sound_path(sound_name, self.assistant_name)
-        print(f"Playing {'looping' if loop else ''} sound: {sound_path}")
+        logger.info(f"Playing {'looping' if loop else ''} sound: {sound_path}")
         if not os.path.exists(sound_path):
             raise ValueError(f"Sound '{sound_name}' not found.")
         
@@ -111,9 +120,9 @@ class SoundEffectService:
                     if state == vlc.State.Ended:
                         break
                     time.sleep(0.1)
-                print("Sound played once")
+                logger.info("Sound played once")
         except Exception as e:
-            print(f"Error playing sound: {e}")
+            logger.error(f"Error playing sound: {e}")
             self._cleanup_audio()
     
     def play_loop(self, sound_name):
@@ -121,7 +130,7 @@ class SoundEffectService:
         return self
 
     def stop_sound(self):
-        #print("Stopping sound...")
+        #logger.debug("Stopping sound...")
         self._cleanup_audio()
 
     def play_from_bytes(self, audio_bytes, loop=False):
@@ -152,7 +161,7 @@ class SoundEffectService:
                     if state == vlc.State.Ended:
                         break
                     time.sleep(0.1)
-                print("Sound played once")
+                logger.info("Sound played once")
         except Exception as e:
-            print(f"Error playing sound from bytes: {e}")
+            logger.error(f"Error playing sound from bytes: {e}")
             self._cleanup_audio()

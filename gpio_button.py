@@ -6,11 +6,22 @@ import os
 import signal
 import sys
 from sound_effect_service import SoundEffectService
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+    ]
+)
+logger = logging.getLogger(__name__)
 
 def signal_handler(sig, frame):
-    print('Signal received: ', sig)
+    logger.info(f'Signal received: {sig}')
     # Perform any cleanup here
-    print('Exiting gracefully...')
+    logger.info('Exiting gracefully...')
     GPIO.cleanup()
     sys.exit(0)
 

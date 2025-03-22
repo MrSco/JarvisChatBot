@@ -11,6 +11,16 @@ from datetime import date, datetime
 import requests
 from tzlocal import get_localzone
 import os
+import logging
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+    ]
+)
+logger = logging.getLogger(__name__)
 
 class ChatGPTService:
     def __init__(self, config):
@@ -65,10 +75,10 @@ class ChatGPTService:
     def get_current_location(self):
         try:
             g = geocoder.ip('me')
-            print(f"Current location: {g.city}, {g.state}, {g.country}")
+            logger.info(f"Current location: {g.city}, {g.state}, {g.country}")
             return g.city
         except Exception as e:
-            print(f"Failed to get current location: {e}")
+            logger.error(f"Failed to get current location: {e}")
             return None
 
     def get_weather_location_and_url(self, location=None):
@@ -89,15 +99,15 @@ class ChatGPTService:
         location_unparsed = weather_location_and_url["location_name"]
         url = weather_location_and_url["weather_url"]
         try:
-            print(f"Getting weather information from: {url}")
+            logger.info(f"Getting weather information from: {url}")
             with urllib.request.urlopen(url) as response:
                 if response.status == 200:
                     return f"Current and forecast weather json data for ({location_unparsed}) (source: {url}): {response.read()}"
                 else:
-                    print("Weather information is not available at the moment.")
+                    logger.warning("Weather information is not available at the moment.")
                     return ""
         except urllib.error.URLError as e:
-            print(f"Failed to get weather information: {e.reason}")
+            logger.error(f"Failed to get weather information: {e.reason}")
             return ""
 
     def upload_image_to_freeimage(self, image_data, filename=''):
@@ -140,11 +150,11 @@ class ChatGPTService:
                 raise Exception(f"Failed to upload: {response.text}")
             
             file_url = response.json()["image"]["url"]
-            print("Image uploaded successfully to FreeImage.host!")
+            logger.info("Image uploaded successfully to FreeImage.host!")
             return file_url
 
         except Exception as e:
-            print(f"Failed to upload image to FreeImage.host: {e}")
+            logger.error(f"Failed to upload image to FreeImage.host: {e}")
             return ""
 
     def is_image_generation_request(self, request):
@@ -199,7 +209,7 @@ class ChatGPTService:
             elif self.ai_service == "groq":
                 return None
         except Exception as e:
-            print(f"Error generating image: {e}")
+            logger.error(f"Error generating image: {e}")
             return None
 
     def send_to_chat_gpt(self, request, image=None, image_link=''):
@@ -279,8 +289,8 @@ class ChatGPTService:
             self.history = [self.history[0]] + self.history[-4:]
         result = None
         try:
-            #print(self.history)
-            print(f"Sending to {self.ai_service} {modelToUse}...")
+            #logger.debug(self.history)
+            logger.info(f"Sending to {self.ai_service} {modelToUse}...")
             if self.ai_service == "google":
                 if self.history and self.history[0]["role"] == "system":
                     system_prompt = self.history[0]["content"]
@@ -335,7 +345,7 @@ class ChatGPTService:
         
         except Exception as e:
             result = "Unknown Error "
-            print(result + str(e))
+            logger.error(result + str(e))
             return result
         
         def text_iterator():
