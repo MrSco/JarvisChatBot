@@ -1,6 +1,5 @@
 import base64
 from datetime import date, datetime
-import gc
 import json
 import os
 import platform
@@ -10,7 +9,6 @@ import socket
 import sys
 import time
 from typing import Iterable
-import numpy as np
 from chat_gpt_service import ChatGPTService
 from input_listener import InputListener
 import pvporcupine
@@ -195,6 +193,7 @@ class WakeWordDetector:
         #print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
 
         #stop loading sound so we can test ambient noise properly
+        print("Stopping loading sound...")
         loading_sound.stop_sound()
         self.listener = InputListener(config)
         self._init_audio_stream()
@@ -274,6 +273,9 @@ class WakeWordDetector:
         
         while self.is_running:
             try:
+                while self.is_running and self.is_awoken:
+                    time.sleep(1)
+
                 self.handle_led_event("Running")
                 
                 try:
@@ -305,7 +307,7 @@ class WakeWordDetector:
                         socketio.emit('prompt_received', {'status': 'ready'})
                         self.listener.sound_effect = self.sound_effect.play_loop("loading")
                         self.listener.transcribe()
-                        
+                        print(f"Transcript: {self.listener.transcript}")
                         if self.listener.transcript is None:
                             # Reinitialize audio stream for wake word detection
                             self._init_audio_stream()
@@ -331,9 +333,9 @@ class WakeWordDetector:
             print(f"LED event: {event}")
 
     def something_went_wrong(self):
-        if self.listener.sound_effect is not None:
+        if self.listener and self.listener.sound_effect is not None:
             self.listener.sound_effect.stop_sound()
-        if self.chat_gpt_service.sound_effect is not None:
+        if self.chat_gpt_service and self.chat_gpt_service.sound_effect is not None:
             self.chat_gpt_service.sound_effect.stop_sound()
         self.sound_effect.play("error")
         self.play_or_speak("something_went_wrong")
@@ -706,8 +708,6 @@ class WakeWordDetector:
     def cleanup(self):
         #print("Cleaning up detector...")
         self.is_running = False
-        if self.speech is not None:
-            self.speech.stop()
             
         self._cleanup_audio_stream()
                 
@@ -716,10 +716,6 @@ class WakeWordDetector:
                 self.porcupine.delete()
             except Exception as e:
                 print(f"Error deleting Porcupine: {e}")
-            
-        # Clean up other services
-        if self.sound_effect is not None:
-            self.sound_effect.cleanup()
             
         # Reset all references
         self.porcupine = None
@@ -948,9 +944,6 @@ def update_configuration(settings_data=None, new_assistant_name=None):
                         #print("Playing ready sound...")
                         detector.sound_effect.play("ready")
                     #print("Ready sound played")
-                #print("Cleaning up sound effect...")
-                detector.sound_effect.cleanup()
-                #print("Sound effect cleaned up")
             finally:
                 detector.is_updating = False
         

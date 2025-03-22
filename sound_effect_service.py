@@ -1,8 +1,10 @@
 import os
 import random
-import pygame
 import threading
 import time
+import sounddevice
+import vlc
+import platform
 
 sounds_dir = os.path.dirname(os.path.abspath(__file__)) + "/sounds"
 
@@ -12,27 +14,40 @@ class SoundEffectService:
             config = {"assistant": "jarvis"}
         elif "assistant" not in config:
             config["assistant"] = "jarvis"
+        self.is_rpi = False
+        try:
+            if "linux" in platform.system().lower():
+                # Check if we're on RPi
+                with open('/proc/cpuinfo', 'r') as f:
+                    if 'Raspberry Pi' in f.read():
+                        self.is_rpi = True
+        except:
+            # If error in RPi detection, it's likely not an RPi
+            pass
+        self.rpi_playback_device = config.get("rpi_playback_device", "")
         self.assistant_name = config["assistant"]
-        self.current_sound = None
         self.is_looping = False
         self.loop_thread = None
         self.generic_sound_names = ["error", "awake", "done", "initializing", "loading", "halflifebutton", "alarm", "timer"]
         self.awake_sound_names = ["listening", "you_called", "yes", "hello"]
         self.filler_sound_names = ["ummm", "ehhh", "uhhhh", "hmmm"]
-        # Initialize pygame mixer
-        self.init_mixer()
+        self.vlc_instance = None
+        self.vlc_looping_instance = None
+        self.player = None
+        self.vlc_looping_player = None
+        self.start_time = None        
 
-    @staticmethod
-    def init_mixer():
-        """Initialize pygame mixer if not already initialized"""
-        if not pygame.mixer.get_init():
-            pygame.mixer.init()
+    def _init_vlc_instance(self):
+        self.vlc_instance = vlc.Instance()
+        self.player = self.vlc_instance.media_player_new()
+        if self.is_rpi and self.vlc_instance is not None:
+            self.player.audio_output_device_set("alsa", self.rpi_playback_device)
 
-    @staticmethod
-    def quit_mixer():
-        """Quit pygame mixer if initialized"""
-        if pygame.mixer.get_init():
-            pygame.mixer.quit()
+    def _init_vlc_Looping_instance(self):
+        self.vlc_looping_instance = vlc.Instance("--input-repeat=-1")
+        self.vlc_looping_player = self.vlc_looping_instance.media_player_new()
+        if self.is_rpi and self.vlc_looping_instance is not None:
+            self.vlc_looping_player.audio_output_device_set("alsa", self.rpi_playback_device)
 
     def get_random_wake_sound(self):
         return self.awake_sound_names[random.randint(0, len(self.awake_sound_names) - 1)]
@@ -45,45 +60,60 @@ class SoundEffectService:
 
     def _play_sound_loop(self):
         """Helper function to play a sound in a loop"""
-        while self.is_looping and self.current_sound is not None:
-            self.current_sound.play()
-            while pygame.mixer.get_busy() and self.is_looping:
-                pygame.time.wait(100)
+        self.vlc_looping_player.play()
+        while self.is_looping:
+            time.sleep(0.1)
+        end_time = time.time()
+        print(f"Sound played in loop for {end_time - self.start_time} seconds")
 
     def _cleanup_audio(self):
         """Helper function to clean up audio resources"""
-        #print("Cleaning up audio...")
         self.is_looping = False
-        if self.current_sound is not None:
-            self.current_sound.stop()
+        if self.player is not None:
+            self.player.stop()
+            self.player = None
+            self.vlc_instance = None
         if self.loop_thread is not None and self.loop_thread.is_alive():
             self.loop_thread.join()
-        self.current_sound = None
         self.loop_thread = None
+        if self.vlc_looping_player is not None:
+            self.vlc_looping_player.stop()
+            self.vlc_looping_player = None
+            self.vlc_looping_instance = None
 
     def play(self, sound_name, loop=False):
         sound_path = self.get_sound_path(sound_name, self.assistant_name)
+        print(f"Playing {'looping' if loop else ''} sound: {sound_path}")
         if not os.path.exists(sound_path):
             raise ValueError(f"Sound '{sound_name}' not found.")
         
         # Clean up any existing audio
         self._cleanup_audio()
         
-        # Ensure mixer is initialized
-        self.init_mixer()
-        
         # Load the sound
-        self.current_sound = pygame.mixer.Sound(sound_path)
-        
-        if loop:
-            self.is_looping = True
-            self.loop_thread = threading.Thread(target=self._play_sound_loop)
-            self.loop_thread.start()
-        else:
-            # Play the sound once
-            self.current_sound.play()
-            while pygame.mixer.get_busy():
-                pygame.time.wait(100)
+        try:
+            if loop:
+                # start a timer so we can see how long the sound is playing for
+                self.start_time = time.time()
+                self._init_vlc_Looping_instance()
+                self.vlc_looping_player.set_media(vlc.Media(sound_path))
+                self.is_looping = True
+                self.loop_thread = threading.Thread(target=self._play_sound_loop)
+                self.loop_thread.start()
+            else:
+                # Play the sound once
+                self._init_vlc_instance()
+                self.player.set_media(vlc.Media(sound_path))
+                self.player.play()
+                # Poll until the media player's state is Ended
+                while True:
+                    state = self.player.get_state()
+                    if state == vlc.State.Ended:
+                        break
+                    time.sleep(0.1)
+                print("Sound played once")
+        except Exception as e:
+            print(f"Error playing sound: {e}")
             self._cleanup_audio()
     
     def play_loop(self, sound_name):
@@ -94,29 +124,35 @@ class SoundEffectService:
         #print("Stopping sound...")
         self._cleanup_audio()
 
-    def cleanup(self):
-        """Clean up the pygame mixer when the service is done"""
-        self._cleanup_audio()
-        self.quit_mixer()
-
     def play_from_bytes(self, audio_bytes, loop=False):
         """Play audio from a BytesIO object"""
         # Clean up any existing audio
         self._cleanup_audio()
         
-        # Ensure mixer is initialized
-        self.init_mixer()
-        
-        # Load the sound
-        self.current_sound = pygame.mixer.Sound(audio_bytes)
-        
-        if loop:
-            self.is_looping = True
-            self.loop_thread = threading.Thread(target=self._play_sound_loop)
-            self.loop_thread.start()
-        else:
-            # Play the sound once
-            self.current_sound.play()
-            while pygame.mixer.get_busy():
-                pygame.time.wait(100)
+        try:
+            # Reset the buffer position
+            audio_bytes.seek(0)
+            
+            # load the audio from bytes into a vlc media player
+            
+            if loop:
+                self.is_looping = True
+                self._init_vlc_Looping_instance()
+                self.vlc_looping_player.set_media(vlc.Media(audio_bytes))
+                self.loop_thread = threading.Thread(target=self._play_sound_loop)
+                self.loop_thread.start()
+            else:
+                # Play the sound once
+                self._init_vlc_instance()
+                self.player.set_media(vlc.Media(audio_bytes))
+                self.player.play()
+                # Poll until the media player's state is Ended
+                while True:
+                    state = self.player.get_state()
+                    if state == vlc.State.Ended:
+                        break
+                    time.sleep(0.1)
+                print("Sound played once")
+        except Exception as e:
+            print(f"Error playing sound from bytes: {e}")
             self._cleanup_audio()

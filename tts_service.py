@@ -23,32 +23,14 @@ class TextToSpeechService:
         self.accent = config["assistant_dict"]["accent"]
         self.sound_effect = None
         self.is_running = True
-        self.current_sound = None
         self.is_rpi = False
+        self.rpi_playback_device = config.get("rpi_playback_device", "")
         # Speech rate for pyttsx3 (words per minute, default 200)
         self.speech_rate = config["assistant_dict"].get("speech_rate", 175)
-        # Initialize pygame mixer if not already initialized
-        SoundEffectService.init_mixer()
 
     def remove_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', '', text)
 
-    def _cleanup_audio(self):
-        """Helper function to clean up audio resources"""
-        if self.current_sound is not None:
-            self.current_sound.stop()
-        self.current_sound = None
-        # Ensure pygame mixer is ready
-        SoundEffectService.init_mixer()
-
-    def stop(self):
-        self.is_running = False
-        if self.sound_effect is not None:
-            self.sound_effect.stop_sound()
-        self._cleanup_audio()
-        # Quit pygame mixer when stopping
-        SoundEffectService.quit_mixer()
-    
     def speak(self, text):
         textToSpeak = text
         try:
@@ -64,11 +46,9 @@ class TextToSpeechService:
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
             print(f"{self.assistant_name}: {text}")
-            # Ensure pygame mixer is quit before using ElevenLabs
-            SoundEffectService.quit_mixer()
+            
+            # Use ElevenLabs streaming
             stream(self.speech_stream(textToSpeak))
-            # Reinitialize pygame mixer after ElevenLabs
-            SoundEffectService.init_mixer()
 
         except Exception as e:
             print(f"Failed to use {self.tts_engine} for speech ({text}): {e}")
@@ -129,22 +109,17 @@ class TextToSpeechService:
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
             
-            # Quit pygame mixer
-            SoundEffectService.quit_mixer()
-            #print("Pygame mixer quit")
-            
             print(f"{self.assistant_name}: {text}")
             if self.is_rpi:
                 escaped_text = text.replace("'", "'\\''")                
                 cmd = f"espeak -s{self.speech_rate} --stdout '{escaped_text}'"
                 #print(f"Speaking with: {cmd}")
                 espeak_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-                aplay_process = subprocess.Popen(['aplay', '-D', 'playback'], stdin=espeak_process.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                aplay_process = subprocess.Popen(['aplay', '-D', self.rpi_playback_device], stdin=espeak_process.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 espeak_process.stdout.close()  # Allow espeak to receive a SIGPIPE if aplay exits
                 aplay_process.communicate()
             else:
                 #print(f"Speaking with pyttsx3: {text}")
-                # Initialize pyttsx3 with a specific driver
                 engine = pyttsx3.init()
                 #print("Engine initialized")
                 # Set the speech rate
@@ -158,14 +133,5 @@ class TextToSpeechService:
                 # Clean up pyttsx3
                 del engine
             
-            # Wait a moment before reinitializing pygame
-            time.sleep(0.1)
-            
-            # Reinitialize pygame mixer
-            SoundEffectService.init_mixer()
-            #print("Pygame mixer reinitialized")
-            
         except Exception as e:
             print(f"Failed to use pyttsx3: {e}")
-            # Try to reinitialize pygame mixer even if there was an error
-            SoundEffectService.init_mixer()

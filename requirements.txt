@@ -2,12 +2,10 @@ openai
 groq
 elevenlabs
 SpeechRecognition
-pygame
 geocoder
 flask
 flask_socketio
 pyttsx3
-numpy==1.26.4
 pvporcupine
 pvrecorder
 gtts

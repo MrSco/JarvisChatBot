@@ -54,6 +54,7 @@ while True:
                 if 'inactive' in output or 'failed' in output:
                     sound_effect.play("halflifebutton")
                     led_service.handle_event("Starting")
+                    led_service.turn_off()
                     os.system("sudo systemctl start jarvischatbot.service")        
                 else:
                     sound_effect.play("halflifebutton")
