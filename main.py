@@ -73,7 +73,7 @@ if not os.path.exists("chatlogs"):
     os.makedirs("chatlogs")
 
 led_service = None
-led_brightness = min(config["led_brightness"], 31)
+led_brightness = min(config["led_brightness"], 5)
 # Check if the script is running on rpi
 is_rpi= platform.system() == 'Linux' and is_running_on_raspberry_pi()
 if is_rpi:

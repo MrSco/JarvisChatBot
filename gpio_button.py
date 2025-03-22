@@ -6,7 +6,6 @@ import os
 import signal
 import sys
 from sound_effect_service import SoundEffectService
-from led_service import LEDService 
 
 def signal_handler(sig, frame):
     print('Signal received: ', sig)
@@ -26,9 +25,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 config_file = os.path.join(script_dir, "config.json")
 config = json.load(open(config_file))
 sound_effect = SoundEffectService()
-led_brightness = min(config["led_brightness"], 31)
-led_service = LEDService(led_brightness=led_brightness)
-led_service.handle_event("Starting")
+
 while True:
     #grab the current button state
     buttonState1 = GPIO.input(pin)
@@ -49,12 +46,9 @@ while True:
             # If the button was not held down for 5 seconds, toggle jarvischatbot.service
             if time.time() - buttonPressTime < 5:
                 output = os.popen('sudo systemctl is-active jarvischatbot.service').read()
-                led_service.turn_on()
                 # check if jarvischatbot.service is running and toggle it
                 if 'inactive' in output or 'failed' in output:
                     sound_effect.play("halflifebutton")
-                    led_service.handle_event("Starting")
-                    led_service.turn_off()
                     os.system("sudo systemctl start jarvischatbot.service")        
                 else:
                     sound_effect.play("halflifebutton")
