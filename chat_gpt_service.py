@@ -323,7 +323,6 @@ class ChatGPTService:
                                 chat.send_message(msg["content"])
                     # Send the current message and stream the response
                     response = chat.send_message_stream(self.history[-1]["content"])
-                    print(f"Response: {response}")
             else:
                 response = self.llm.chat.completions.create(
                     model=modelToUse, 

@@ -115,7 +115,10 @@ class TextToSpeechService:
                 cmd = f"espeak -s{self.speech_rate} --stdout '{escaped_text}'"
                 #print(f"Speaking with: {cmd}")
                 espeak_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-                aplay_process = subprocess.Popen(['aplay', '-D', self.rpi_playback_device], stdin=espeak_process.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                args = ['aplay', '-D', self.rpi_playback_device]
+                if self.rpi_playback_device == "":
+                    args = ['aplay']
+                aplay_process = subprocess.Popen(args, stdin=espeak_process.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 espeak_process.stdout.close()  # Allow espeak to receive a SIGPIPE if aplay exits
                 aplay_process.communicate()
             else:

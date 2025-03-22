@@ -40,13 +40,13 @@ class SoundEffectService:
     def _init_vlc_instance(self):
         self.vlc_instance = vlc.Instance()
         self.player = self.vlc_instance.media_player_new()
-        if self.is_rpi and self.vlc_instance is not None:
+        if self.is_rpi and self.vlc_instance is not None and self.rpi_playback_device != "":
             self.player.audio_output_device_set("alsa", self.rpi_playback_device)
 
     def _init_vlc_Looping_instance(self):
         self.vlc_looping_instance = vlc.Instance("--input-repeat=-1")
         self.vlc_looping_player = self.vlc_looping_instance.media_player_new()
-        if self.is_rpi and self.vlc_looping_instance is not None:
+        if self.is_rpi and self.vlc_looping_instance is not None and self.rpi_playback_device != "":
             self.vlc_looping_player.audio_output_device_set("alsa", self.rpi_playback_device)
 
     def get_random_wake_sound(self):
