@@ -44,7 +44,7 @@ class SoundEffectService:
         self.vlc_instance = vlc.Instance()
         self.player = self.vlc_instance.media_list_player_new()
         if self.is_rpi and self.vlc_instance is not None and self.rpi_playback_device != "":
-            self.player.audio_output_device_set("alsa", self.rpi_playback_device)
+            self.player.get_media_player().audio_output_device_set("alsa", self.rpi_playback_device)
             
     def get_random_wake_sound(self):
         return self.awake_sound_names[random.randint(0, len(self.awake_sound_names) - 1)]
