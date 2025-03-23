@@ -66,6 +66,12 @@ def start_led_server():
     led_server = LEDServiceServer()
     return led_server.start()
 
+def stop_jarvischatbot():
+    os.system("sudo systemctl stop --now jarvischatbot.service")
+
+def start_jarvischatbot():
+    os.system("sudo systemctl start jarvischatbot.service")
+
 # Initialize LED service client and server
 led_server_thread = start_led_server()
 led_service = LEDServiceClient()
@@ -87,7 +93,7 @@ def monitor_button():
                 # Record the time when the button is pressed
                 buttonPressTime = time.time()
             elif time.time() - buttonPressTime >= 5:
-                os.system("sudo systemctl stop --now jarvischatbot.service")
+                stop_jarvischatbot()
                 # If the button is held down for 5 seconds, poweroff
                 os.system("sudo poweroff")
                 # Reset the button press time
@@ -103,10 +109,10 @@ def monitor_button():
                         led_service.handle_event("Starting")
                         sound_effect.play("halflifebutton")
                         sound_effect.play_loop("loading")
-                        os.system("sudo systemctl start jarvischatbot.service")
+                        start_jarvischatbot()
                     else:
                         sound_effect.play("halflifebutton")
-                        os.system("sudo systemctl stop --now jarvischatbot.service")
+                        stop_jarvischatbot()
                         led_service.handle_event("Off")
                 # Reset the button press time
                 buttonPressTime = None
@@ -119,6 +125,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received")
     finally:
+        stop_jarvischatbot()
         # Clean up resources
         if led_server:
             led_server.stop()
