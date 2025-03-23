@@ -8,7 +8,7 @@ import subprocess
 import io
 from sound_effect_service import SoundEffectService
 import logging
-
+import time
 logger = logging.getLogger(__name__)
 
 class TextToSpeechService:
@@ -123,6 +123,9 @@ class TextToSpeechService:
                 aplay_process = subprocess.Popen(args, stdin=espeak_process.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 espeak_process.stdout.close()  # Allow espeak to receive a SIGPIPE if aplay exits
                 aplay_process.communicate()
+                #wait until the sound is finished
+                while aplay_process.poll() is None:
+                    time.sleep(0.1)
             else:
                 #logger.debug(f"Speaking with pyttsx3: {text}")
                 engine = pyttsx3.init()
