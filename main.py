@@ -73,9 +73,6 @@ assistants = json.load(open(assistants_file))
 assistant = assistants[config["assistant"]]
 config["old_assistant"] = config["assistant"]
 config["assistant_dict"] = assistant
-logger.info("Signaling to stop all sounds from other processes...")
-SoundEffectService.signal_stop_sounds()
-loading_sound = SoundEffectService(config).play_loop("loading")
 assistant_name = assistant["name"]
 assistant_acronym = assistant["acronym"]
 vad_threshold = config["vad_threshold"]
@@ -1033,14 +1030,16 @@ def run_flask_app():
     socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=True, host="0.0.0.0", port=config.get("port", 5000))
 
 def runApp():
-    global detector, shairport_handler, radio_player, alarm_timer_service
+    global detector, shairport_handler, radio_player, alarm_timer_service, loading_sound
+    logger.info("Signaling to stop all sounds from other processes...")
+    SoundEffectService.stop_all_sounds()
+    loading_sound = SoundEffectService(config).play_loop("loading")
     detector = WakeWordDetector()
     radio_player = RadioPlayer(detector)
     alarm_timer_service = AlarmTimerService()
     if is_rpi and config["use_shairport-sync"]:
         shairport_handler = ShairportSyncHandler(detector, radio_player)
     app.config['detector'] = detector  # Attach detector to the Flask app config    
-    logger.info("Stopping loading sound...")  
     loading_sound.stop_sound()
     detector.run()
     logger.info("Detector exited.")
