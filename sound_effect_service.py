@@ -40,24 +40,12 @@ class SoundEffectService:
         self.generic_sound_names = ["error", "awake", "done", "initializing", "loading", "halflifebutton", "alarm", "timer"]
         self.awake_sound_names = ["listening", "you_called", "yes", "hello"]
         self.filler_sound_names = ["ummm", "ehhh", "uhhhh", "hmmm"]
-        self.vlc_instance = None
-        self.vlc_looping_instance = None
-        self.player = None
-        self.vlc_looping_player = None
         self.start_time = None        
-
-    def _init_vlc_instance(self):
         self.vlc_instance = vlc.Instance()
-        self.player = self.vlc_instance.media_player_new()
+        self.player = self.vlc_instance.media_list_player_new()
         if self.is_rpi and self.vlc_instance is not None and self.rpi_playback_device != "":
             self.player.audio_output_device_set("alsa", self.rpi_playback_device)
-
-    def _init_vlc_Looping_instance(self):
-        self.vlc_looping_instance = vlc.Instance("--input-repeat=-1")
-        self.vlc_looping_player = self.vlc_looping_instance.media_player_new()
-        if self.is_rpi and self.vlc_looping_instance is not None and self.rpi_playback_device != "":
-            self.vlc_looping_player.audio_output_device_set("alsa", self.rpi_playback_device)
-
+            
     def get_random_wake_sound(self):
         return self.awake_sound_names[random.randint(0, len(self.awake_sound_names) - 1)]
     
@@ -67,9 +55,17 @@ class SoundEffectService:
     def get_sound_path(self, sound_name, assistant_name):
         return os.path.join(sounds_dir, assistant_name if not sound_name in self.generic_sound_names else "", f"{sound_name}.wav")
 
+    def wait_for_sound_to_finish(self):
+        # Poll until the media player's state is Ended
+        while True:
+            state = self.player.get_state()
+            if state == vlc.State.Ended:
+                break
+            time.sleep(0.1)
+
     def _play_sound_loop(self):
         """Helper function to play a sound in a loop"""
-        self.vlc_looping_player.play()
+        self.player.play()
         while self.is_looping:
             time.sleep(0.1)
         end_time = time.time()
@@ -80,15 +76,9 @@ class SoundEffectService:
         self.is_looping = False
         if self.player is not None:
             self.player.stop()
-            self.player = None
-            self.vlc_instance = None
         if self.loop_thread is not None and self.loop_thread.is_alive():
             self.loop_thread.join()
         self.loop_thread = None
-        if self.vlc_looping_player is not None:
-            self.vlc_looping_player.stop()
-            self.vlc_looping_player = None
-            self.vlc_looping_instance = None
 
     def play(self, sound_name, loop=False):
         sound_path = self.get_sound_path(sound_name, self.assistant_name)
@@ -101,25 +91,21 @@ class SoundEffectService:
         
         # Load the sound
         try:
+            media_list = self.vlc_instance.media_list_new([vlc.Media(sound_path)])            
+            self.player.set_media_list(media_list)
             if loop:
+                self.player.set_playback_mode(vlc.PlaybackMode.loop)
                 # start a timer so we can see how long the sound is playing for
                 self.start_time = time.time()
-                self._init_vlc_Looping_instance()
-                self.vlc_looping_player.set_media(vlc.Media(sound_path))
                 self.is_looping = True
                 self.loop_thread = threading.Thread(target=self._play_sound_loop)
                 self.loop_thread.start()
             else:
+                self.player.set_playback_mode(vlc.PlaybackMode.default)
                 # Play the sound once
-                self._init_vlc_instance()
-                self.player.set_media(vlc.Media(sound_path))
                 self.player.play()
-                # Poll until the media player's state is Ended
-                while True:
-                    state = self.player.get_state()
-                    if state == vlc.State.Ended:
-                        break
-                    time.sleep(0.1)
+                self.wait_for_sound_to_finish()
+                self.player.stop()
                 logger.info("Sound played once")
         except Exception as e:
             logger.error(f"Error playing sound: {e}")
@@ -143,24 +129,19 @@ class SoundEffectService:
             audio_bytes.seek(0)
             
             # load the audio from bytes into a vlc media player
-            
+            media_list = self.vlc_instance.media_list_new([vlc.Media(audio_bytes)])
+            self.player.set_media_list(media_list)
             if loop:
                 self.is_looping = True
-                self._init_vlc_Looping_instance()
-                self.vlc_looping_player.set_media(vlc.Media(audio_bytes))
+                self.player.set_playback_mode(vlc.PlaybackMode.loop)
                 self.loop_thread = threading.Thread(target=self._play_sound_loop)
                 self.loop_thread.start()
             else:
                 # Play the sound once
-                self._init_vlc_instance()
-                self.player.set_media(vlc.Media(audio_bytes))
+                self.player.set_playback_mode(vlc.PlaybackMode.default)
                 self.player.play()
-                # Poll until the media player's state is Ended
-                while True:
-                    state = self.player.get_state()
-                    if state == vlc.State.Ended:
-                        break
-                    time.sleep(0.1)
+                self.wait_for_sound_to_finish()
+                self.player.stop()
                 logger.info("Sound played once")
         except Exception as e:
             logger.error(f"Error playing sound from bytes: {e}")
