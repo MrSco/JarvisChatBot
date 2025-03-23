@@ -47,10 +47,6 @@ buttonPressTime = None
 script_dir = os.path.dirname(os.path.abspath(__file__))
 config_file = os.path.join(script_dir, "config.json")
 config = json.load(open(config_file))
-
-# Initialize sound effects with config
-sound_effect = SoundEffectService(config)
-
 # Delete the lock file at startup to ensure fresh state
 lock_file = os.path.join(script_dir, ".sound_lock")
 if os.path.exists(lock_file):
@@ -59,6 +55,9 @@ if os.path.exists(lock_file):
         logger.info("Removed old sound lock file")
     except Exception as e:
         logger.error(f"Error removing sound lock file: {e}")
+        
+# Initialize sound effects with config
+sound_effect = SoundEffectService(config)
 
 # Start the LED server
 def start_led_server():
