@@ -1,3 +1,4 @@
+pydantic-core==2.27.2
 openai
 groq
 elevenlabs
@@ -13,7 +14,7 @@ gtts
 python-vlc
 tzlocal
 google-genai
-httpx==0.27.2
+httpx
 sounddevice
 # Optional RPI-specific dependencies
 dbus-python; platform_system == "Linux"  # dbus control for Shairport-Sync
