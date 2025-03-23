@@ -34,6 +34,10 @@ class RadioPlayer:
             self.wakeword_detector.is_awoken = True
             self.blink_led_thread = threading.Thread(target=self.blink_led)
             self.blink_led_thread.start()
+            self.vlc_instance = vlc.Instance()
+            self.player = self.vlc_instance.media_player_new()
+            if self.wakeword_detector.is_rpi and self.vlc_instance is not None and self.wakeword_detector.rpi_audio_device != "":
+                self.player.audio_output_device_set("alsa", self.wakeword_detector.rpi_audio_device)
             self.player.set_media(vlc.Media(stream_url))
             self.thread = threading.Thread(target=self._play)
             self.thread.start()

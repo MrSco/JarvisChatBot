@@ -180,6 +180,8 @@ class ShairportSyncHandler:
         
 class WakeWordDetector:
     def __init__(self):
+        self.is_rpi = is_rpi
+        self.rpi_audio_device = config.get("rpi_audio_device", "")
         self.tts_engine = config["tts_engine"]
         if assistant.get('elevenlabs_voice_id', "") == "":
             self.tts_engine = "pyttsx3"
