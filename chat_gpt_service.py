@@ -361,11 +361,17 @@ class ChatGPTService:
                         text_content = chunk.text
                         sentence += text_content.replace('\n', ' ')
                         response_full_text += text_content.replace('\n', ' ')
-                        # Check if the current text ends with sentence ending
-                        if text_content and text_content[-1] in sentence_endings:
-                            self.append2log(sentence, True)
-                            yield sentence
-                            sentence = ""
+                        
+                        # Check if we have a complete sentence
+                        if any(ending in sentence for ending in sentence_endings):
+                            # Find the last sentence ending
+                            last_end = max([sentence.rfind(ending) for ending in sentence_endings if ending in sentence])
+                            if last_end >= 0:
+                                complete_sentence = sentence[:last_end+1]
+                                remainder = sentence[last_end+1:]
+                                self.append2log(complete_sentence, True)
+                                yield complete_sentence
+                                sentence = remainder
             else:
                 # Process OpenAI/Groq response stream
                 for chunk in response:
@@ -373,12 +379,18 @@ class ChatGPTService:
                     if delta.content:
                         sentence += delta.content.replace('\n', ' ')
                         response_full_text += delta.content.replace('\n', ' ')
-                        # Check if the current character ends the sentence
-                        if delta.content[-1] in sentence_endings:
-                            self.append2log(sentence, True)
-                            yield sentence
-                            sentence = ""
-                            
+                        
+                        # Check if we have a complete sentence
+                        if any(ending in sentence for ending in sentence_endings):
+                            # Find the last sentence ending
+                            last_end = max([sentence.rfind(ending) for ending in sentence_endings if ending in sentence])
+                            if last_end >= 0:
+                                complete_sentence = sentence[:last_end+1]
+                                remainder = sentence[last_end+1:]
+                                self.append2log(complete_sentence, True)
+                                yield complete_sentence
+                                sentence = remainder
+                                
             # Yield any remaining text after the loop ends
             if sentence:
                 self.append2log(sentence)
