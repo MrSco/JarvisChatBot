@@ -76,10 +76,10 @@ class SoundEffectService:
         return os.path.join(sounds_dir, assistant_name if not sound_name in self.generic_sound_names else "", f"{sound_name}.wav")
 
     def wait_for_sound_to_finish(self):
-        # Poll until the media player's state is Ended
+        # Poll until the media player's state is Ended, Stopped, or Error
         while True:
             state = self.player.get_state()
-            if state == vlc.State.Ended:
+            if state in [vlc.State.Ended, vlc.State.Stopped, vlc.State.Error]:
                 break
             time.sleep(0.1)
 
