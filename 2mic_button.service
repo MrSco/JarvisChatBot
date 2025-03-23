@@ -1,5 +1,7 @@
 [Unit]
-Description=2Mic Button
+Description=2Mic Button and LED Server
+After=network.target
+Before=jarvischatbot.service
 
 [Service]
 Type=simple
@@ -10,3 +12,4 @@ RestartSec=1
 
 [Install]
 WantedBy=multi-user.target
+RequiredBy=jarvischatbot.service

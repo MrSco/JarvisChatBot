@@ -73,6 +73,9 @@ assistants = json.load(open(assistants_file))
 assistant = assistants[config["assistant"]]
 config["old_assistant"] = config["assistant"]
 config["assistant_dict"] = assistant
+logger.info("Signaling to stop all sounds from other processes...")
+SoundEffectService.signal_stop_sounds()
+loading_sound = SoundEffectService(config).play_loop("loading")
 assistant_name = assistant["name"]
 assistant_acronym = assistant["acronym"]
 vad_threshold = config["vad_threshold"]
@@ -90,10 +93,12 @@ is_rpi= platform.system() == 'Linux' and is_running_on_raspberry_pi()
 if is_rpi:
     try:
         import dbus
-        from led_service import LEDService        
-        led_service = LEDService(led_brightness=led_brightness)
+        from led_service import LEDServiceClient
+        led_service = LEDServiceClient()
+        logger.info("LED service client initialized")
         led_service.handle_event("Starting")
-    except ImportError:
+    except ImportError as e:
+        logger.error(f"Error initializing LED service: {e}")
         logger.error("Make sure you're running this on a Raspberry Pi.")
 else:
     logger.info("LED event: Starting")
@@ -230,9 +235,20 @@ class WakeWordDetector:
                 logger.error(f"Error deleting old Porcupine instance: {e}")
         
         if wake_word != "jarvis":
-            self.porcupine = pvporcupine.create(access_key=picovoice_key, keyword_paths=[os.path.join(script_dir, "porcupine_models", "rpi" if is_rpi else "", f"{assistant_name.lower()}.ppn")])
+            self.porcupine = pvporcupine.create(
+                access_key=picovoice_key,
+                keyword_paths=[os.path.join(
+                    script_dir, 
+                    "porcupine_models", 
+                    "rpi" if is_rpi else "", 
+                    f"{assistant_name.lower()}.ppn"
+                )]
+            )
         else:
-            self.porcupine = pvporcupine.create(access_key=picovoice_key, keywords=[wake_word])
+            self.porcupine = pvporcupine.create(
+                access_key=picovoice_key,
+                keywords=[wake_word]
+            )
 
 
     def _cleanup_audio_stream(self):
@@ -320,7 +336,6 @@ class WakeWordDetector:
                         socketio.emit('prompt_received', {'status': 'ready'})
                         self.listener.sound_effect = self.sound_effect.play_loop("loading")
                         self.listener.transcribe()
-                        logger.info(f"Transcript: {self.listener.transcript}")
                         if self.listener.transcript is None:
                             # Reinitialize audio stream for wake word detection
                             self._init_audio_stream()
@@ -1018,8 +1033,7 @@ def run_flask_app():
     socketio.run(app, debug=False, use_reloader=False, allow_unsafe_werkzeug=True, host="0.0.0.0", port=config.get("port", 5000))
 
 def runApp():
-    global detector, shairport_handler, loading_sound, radio_player, alarm_timer_service
-    loading_sound = SoundEffectService(config).play_loop("loading")
+    global detector, shairport_handler, radio_player, alarm_timer_service
     detector = WakeWordDetector()
     radio_player = RadioPlayer(detector)
     alarm_timer_service = AlarmTimerService()
@@ -1042,8 +1056,7 @@ def signal_handler(sig, frame):
         radio_player.stop()
     if alarm_timer_service is not None:
         alarm_timer_service.cleanup()
-    if is_rpi:
-        led_service.turn_off()
+    # No need to stop the LED server as we're not running it in this process
     if assistant.get('elevenlabs_voice_id', "") == "":
         tts_service = TextToSpeechService(config)
         tts_service.is_rpi = is_rpi
