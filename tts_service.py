@@ -1,3 +1,4 @@
+import os
 import re
 import tempfile
 from elevenlabs import VoiceSettings
@@ -100,7 +101,8 @@ class TextToSpeechService:
             # Create a temporary SoundEffectService instance to play the audio
             temp_sound_service = SoundEffectService()
             temp_sound_service.play(temp_file.name)
-                
+            # Delete the temporary file
+            os.remove(temp_file.name)
         except Exception as e:
             logger.error(f"Failed to use gTTS for speech: {e}")
             self._cleanup_audio()
