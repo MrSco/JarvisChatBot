@@ -48,6 +48,16 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 config_file = os.path.join(script_dir, "config.json")
 config = json.load(open(config_file))
 
+# reset lock file to 0
+lock_file = os.path.join(script_dir, ".sound_lock")
+if os.path.exists(lock_file):
+    try:
+        with open(lock_file, 'w') as f:
+            f.write('0')
+        logger.info("Reset sound lock file to 0")
+    except Exception as e:
+        logger.error(f"Error resetting sound lock file: {e}")
+
 # Initialize sound effects with config
 sound_effect = SoundEffectService(config)
 
@@ -97,7 +107,7 @@ def monitor_button():
                     output = os.popen('sudo systemctl is-active jarvischatbot.service').read()
                     # check if jarvischatbot.service is running and toggle it
                     logger.info(f"Jarvischatbot service status: {output}")
-                    if 'inactive' in output or 'failed' in output:
+                    if 'inactive' in output or 'failed' in output:                
                         led_service.handle_event("Starting")
                         sound_effect.play("halflifebutton")
                         sound_effect.play_loop("loading")
