@@ -98,15 +98,6 @@ def monitor_button():
                     # check if jarvischatbot.service is running and toggle it
                     logger.info(f"Jarvischatbot service status: {output}")
                     if 'inactive' in output or 'failed' in output:
-                        # Delete the lock file at service startup to ensure fresh state
-                        lock_file = os.path.join(script_dir, ".sound_lock")
-                        if os.path.exists(lock_file):
-                            try:
-                                os.remove(lock_file)
-                                logger.info("Removed old sound lock file")
-                            except Exception as e:
-                                logger.error(f"Error removing sound lock file: {e}")
-
                         led_service.handle_event("Starting")
                         sound_effect.play("halflifebutton")
                         sound_effect.play_loop("loading")
