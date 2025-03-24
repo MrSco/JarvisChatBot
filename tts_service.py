@@ -1,4 +1,5 @@
 import re
+import tempfile
 from elevenlabs import VoiceSettings
 from elevenlabs import stream, play
 from elevenlabs.client import ElevenLabs
@@ -88,10 +89,9 @@ class TextToSpeechService:
             # Create a gTTS object for the current text chunk
             tts = gTTS(text=text, lang=self.language, tld=self.accent, slow=False)
             
-            # Save the audio to a BytesIO object
-            audio_bytes = io.BytesIO()
-            tts.write_to_fp(audio_bytes)
-            audio_bytes.seek(0)
+            # Save the audio to a temporary file
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+            tts.save(temp_file.name)
             
             if self.sound_effect is not None:
                 self.sound_effect.stop_sound()
@@ -99,7 +99,7 @@ class TextToSpeechService:
             
             # Create a temporary SoundEffectService instance to play the audio
             temp_sound_service = SoundEffectService()
-            temp_sound_service.play_from_bytes(audio_bytes)
+            temp_sound_service.play(temp_file.name)
                 
         except Exception as e:
             logger.error(f"Failed to use gTTS for speech: {e}")
