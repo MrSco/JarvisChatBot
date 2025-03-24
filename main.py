@@ -166,7 +166,7 @@ class ShairportSyncHandler:
                         socketio.emit('music_active', {'status': 'done'})
             except dbus.DBusException as e:
                 logger.error(f"Error communicating with Shairport Sync: {e}")
-            time.sleep(1)
+            time.sleep(0.1)
 
     def blink_led(self):
         while self.is_running and self.shairport_active:
@@ -272,7 +272,6 @@ class WakeWordDetector:
         if self.recorder is not None:
             self.recorder.stop()
             self.recorder.delete()
-            time.sleep(0.1)
         self.recorder = None
 
     def _init_audio_stream(self):
@@ -307,19 +306,24 @@ class WakeWordDetector:
 
     def process_audio(self):
         self.handle_led_event("VoiceStarted")
+        if self.recorder is not None:
+            self.recorder.stop()
         if assistant.get('elevenlabs_voice_id', "") == "":
             #print("Speaking ready sound...")
             self.speech.speak(f"{assistant_name} ready!")
         else:
             #print("Playing ready sound...")
             self.sound_effect.play("ready")
+
+        if self.recorder is not None:
+            self.recorder.start()
             
         logger.info(f"Listening for '{assistant['wake_word']}'...")
         
         while self.is_running:
             try:
                 while self.is_running and self.is_awoken:
-                    time.sleep(1)
+                    time.sleep(0.1)
 
                 self.handle_led_event("Running")
                 
@@ -361,12 +365,12 @@ class WakeWordDetector:
                 except Exception as e:
                     logger.error(f"Error processing audio: {e}")
                     self.something_went_wrong()
-                    time.sleep(1)
+                    time.sleep(0.1)
                     
             except Exception as e:
                 logger.error(f"Error in main loop: {e}")
                 self.something_went_wrong()
-                time.sleep(1)
+                time.sleep(0.1)
 
     def handle_led_event(self, event):
         if led_service is not None:
