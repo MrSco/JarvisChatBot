@@ -1,7 +1,7 @@
 [Unit]
 Description=JarvisChatBot
-Requires=network.target sys-devices-platform-soc-soc:sound-sound-card2-controlC2.device
-After=network.target sys-devices-platform-soc-soc:sound-sound-card2-controlC2.device 2mic_button.service
+Requires=network.target sound.target 2mic_button.service
+After=network.target sound.target 2mic_button.service
 
 [Service]
 Type=simple
