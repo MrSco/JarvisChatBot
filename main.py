@@ -203,9 +203,15 @@ class WakeWordDetector:
         self.speech = None
         self.listener = None
         
+        # init porcupine but if key is bad or missing exit and notify user
         # Initialize Porcupine with the selected keyword
-        self._init_porcupine(assistant_wake_word)
-        #print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
+        try:
+            self._init_porcupine(assistant_wake_word)
+            #print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
+        except Exception as e:
+            logger.error(f"Error initializing Porcupine: {e}")
+            logger.error("Please check your Picovoice key and try again.")
+            sys.exit(1)
 
         #stop loading sound so we can test ambient noise properly
         logger.info("Stopping loading sound...")
