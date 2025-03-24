@@ -59,6 +59,13 @@ class ChatGPTService:
         self.upload_folder = config["upload_folder"]
         self.host = None
         self.port = None
+        # Initialize DuneWeaver support
+        self.duneweaver = None
+        self.duneweaver_url = config.get("duneweaver_url", "")
+        if self.duneweaver_url:
+            # Import and initialize DuneWeaver only when needed
+            from duneweaver import DuneWeaver
+            self.duneweaver = DuneWeaver(config)
 
     def getMimeType(self, fileExtension):
         mime_types = {
@@ -163,6 +170,7 @@ class ChatGPTService:
             "generate an image",
             "create an image",
             "make an image",
+            "draw an image",
             "draw a picture",
             "create a picture",
             "generate a picture",
@@ -171,7 +179,14 @@ class ChatGPTService:
             "show me an image",
             "create a visual",
             "generate a visual",
-            "make a visual"
+            "make a visual",
+            "make a photo",
+            "make a photograph",
+            "make a drawing",
+            "make a painting",
+            "make a sketch",
+            "draw a painting",
+            "draw a sketch"
         ]
         return any(keyword in request.lower() for keyword in image_keywords)
 
@@ -212,6 +227,37 @@ class ChatGPTService:
             logger.error(f"Error generating image: {e}")
             return None
 
+    def save_file(self, file_data, filename, file_mode = 'wb', use_timestamp = True):
+        try:
+            upload_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), self.upload_folder)
+            if not os.path.exists(upload_path):
+                os.makedirs(upload_path)
+            if use_timestamp:
+                filename = f"{time.time()}_{os.path.basename(filename)}"
+            else:
+                filename = os.path.basename(filename)
+            safe_file_name = os.path.join(upload_path, filename)
+            with open(safe_file_name, file_mode) as f:
+                f.write(file_data)
+            #return the full path to the file
+            return safe_file_name
+        except Exception as e:
+            logger.error(f"Error saving file: {e}")
+            return ""
+
+    def save_generated_image(self, image_data, filename):
+        try:
+            # Store the image based on configuration
+            if self.image_storage == "freeimage":
+                image_url = self.upload_image_to_freeimage(image_data, filename)
+            else:
+                safe_file_name = os.path.basename(self.save_file(image_data, filename))
+                image_url = f"http://{self.host}:{self.port}/{self.upload_folder}/{safe_file_name}"
+                return image_url
+        except Exception as e:
+            logger.error(f"Error saving generated image: {e}")
+            return ""
+        
     def send_to_chat_gpt(self, request, image=None, image_link=''):
         modelToUse = self.model
         image_url = ''
@@ -223,6 +269,89 @@ class ChatGPTService:
         if self.history and self.history[0]["role"] == "system":
             self.history[0]["content"] = self.history[0]["content"].replace("{today}", str(date.today())).replace("{theCurrentTime}", current_time)
         
+        # Check if this is a DuneWeaver request when URL is configured
+        if self.duneweaver and self.duneweaver.dw_prompt and self.duneweaver.is_duneweaver_request(request):
+            # Extract the prompt from the request
+            image_desc = self.duneweaver.extract_draw_prompt(request)
+            if "stop" in image_desc.lower():
+                rtnMsg = "Stopping DuneWeaver execution."
+                self.duneweaver.stop_execution()
+                self.append2log(f"{rtnMsg}")
+                return [rtnMsg]
+            canned_response = "I'm creating a sand pattern for you... "
+            self.append2log(f"\n\n{self.assistant_name}: {canned_response}", True)
+            
+
+            dw_prompt = self.duneweaver.dw_prompt.replace("{{}}", image_desc)
+            
+            pattern_filename = image_desc.replace(' ', '_') + '.thr'
+            
+            # check if we already have that pattern on duneweaver
+            theta_rho_file = os.path.join("custom_patterns", os.path.basename(pattern_filename)).replace('\\', '/')
+            theta_rho_files = self.duneweaver.list_theta_rho_files()
+            # check our list of theta_rho files. If its none or we already have a match to the theta_rho_file, skip the image generation
+            if theta_rho_files is None:
+                rtnMsg = "I couldn't reach the sand table. Please try again later."
+                self.append2log(f"{rtnMsg}")
+                return [rtnMsg]
+            elif any(theta_rho_file in file for file in theta_rho_files):
+                logger.info(f"Skipping image generation for: {theta_rho_file} because it already exists on duneweaver")
+                # Run the pattern on DuneWeaver
+                runResponse = self.duneweaver.run_theta_rho(theta_rho_file)
+                if not runResponse.get("success", False):
+                    detailMsg = runResponse['detail'].split(':')[1].strip()
+                    rtnMsg = f"I couldn't run the pattern on the sand table. {detailMsg}"
+                    self.append2log(f"{rtnMsg}")
+                    return [rtnMsg]
+            else:
+                logger.info(f"No existing theta_rho files named {theta_rho_file} found")
+                # Generate the image
+                image_data = self.generate_image(dw_prompt)
+                if not image_data:
+                    rtnMsg = "I couldn't generate the image for your sand pattern."
+                    self.append2log(f"{rtnMsg}")
+                    return [rtnMsg]
+                
+                # Store the generated image to display later
+                image_url = self.save_generated_image(image_data, pattern_filename.replace('.thr', '.png'))
+            
+                # Convert the image to a sand pattern
+                sand_pattern = self.duneweaver.convert_image_to_sand_pattern(image_data)
+                if not sand_pattern:
+                    rtnMsg = "I couldn't convert the image to a sand pattern."
+                    self.append2log(f"{rtnMsg}")
+                    return [rtnMsg]
+                
+                # Save the sand pattern to a file
+                sand_pattern_filename = self.save_file(sand_pattern, pattern_filename, 'w', False)
+
+                if not sand_pattern_filename:
+                    rtnMsg = "I couldn't save the sand pattern to a file."
+                    self.append2log(f"{rtnMsg}")
+                    return [rtnMsg]
+            
+                # Send the pattern to DuneWeaver
+                uploadResponse = self.duneweaver.upload_theta_rho(sand_pattern_filename)
+                if not uploadResponse.get("success", False):
+                    os.unlink(sand_pattern_filename)
+                    detailMsg = uploadResponse['detail'].split(':')[1].strip()
+                    rtnMsg = f"I couldn't send the pattern to the sand table. {detailMsg}"
+                    self.append2log(f"{rtnMsg}")
+                    return [rtnMsg]
+                os.unlink(sand_pattern_filename)
+                
+                # Run the pattern on DuneWeaver
+                runResponse = self.duneweaver.run_theta_rho(theta_rho_file)
+                if not runResponse.get("success", False):
+                    detailMsg = runResponse['detail'].split(':')[1].strip()
+                    rtnMsg = f"I couldn't run the pattern on the sand table. {detailMsg}"
+                    self.append2log(f"{rtnMsg}")
+                    return [rtnMsg]
+            
+            success_message = "Pattern sent to the sand table! Here's the image I generated:"
+            self.append2log(f"{success_message}\n\n{image_url}\n\n", True)
+            return [success_message]
+        
         # Check if this is an image generation request
         if self.is_image_generation_request(request):
             canned_response = "Here is the image you wanted - "
@@ -232,26 +361,13 @@ class ChatGPTService:
             image_data = self.generate_image(request)
             if image_data:
                 generated_image_filename = "generated_image.png"
-                # Store the image based on configuration
-                if self.image_storage == "freeimage":
-                    image_url = self.upload_image_to_freeimage(image_data, generated_image_filename)
-                else:
-                    upload_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), self.upload_folder)
-                    if not os.path.exists(upload_path):
-                        os.makedirs(upload_path)
-
-                    generated_image_filename = f"{time.time()}_{os.path.basename(generated_image_filename)}"
-                    safe_file_name = os.path.join(upload_path, generated_image_filename)
-                    #save image to local file
-                    with open(safe_file_name, "wb") as f:
-                        f.write(image_data)
-                    image_url = f"http://{self.host}:{self.port}/{self.upload_folder}/{generated_image_filename}"
+                image_url = self.save_generated_image(image_data, generated_image_filename)
                 
                 # Add the image URL to the chat log
                 self.append2log(f"{image_url}\n\n", True)
                 return [canned_response]
             else:
-                return ["I apologize, but I couldn't generate the image you requested."]
+                return ["I couldn't generate the image you requested."]
 
         if image is not None:
             if self.image_storage == "freeimage" and not self.ai_service == "google":

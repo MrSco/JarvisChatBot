@@ -346,6 +346,27 @@ The radio URLs can be configured in the settings page or directly in the config.
 - `radio_stream_url`: URL for the main radio stream
 - `kids_radio_stream_url`: URL for the kids' radio stream
 
+## DuneWeaver Integration
+
+The JarvisChatBot now includes integration with DuneWeaver, allowing you to generate and display sand patterns on a DuneWeaver sand table. This feature enables you to:
+
+1. **Voice Commands**: Use voice commands to generate sand patterns:
+   - "weave an image of [description]"
+   - "draw on the sand [description]"
+   - "stop execution" to stop the current pattern
+
+2. **Pattern Generation**:
+   - Automatically generates images based on your description using AI
+   - Converts the generated images into optimized sand patterns
+   - Caches patterns for reuse to avoid regenerating the same patterns
+   - Supports multiple output formats including theta-rho format for DuneWeaver Mini
+
+3. **Pattern Optimization**:
+   - Minimizes jumps between disconnected contours
+   - Optimizes path finding for smooth pattern execution
+   - Supports both continuous and non-continuous patterns
+   - Configurable point density and pattern complexity
+
 ## Multi-AI Provider Support
 
 The project now supports multiple AI service providers:

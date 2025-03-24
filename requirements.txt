@@ -16,6 +16,8 @@ tzlocal
 google-genai
 httpx
 sounddevice
+opencv-python
+pillow
 # Optional RPI-specific dependencies
 dbus-python; platform_system == "Linux"  # dbus control for Shairport-Sync
 RPi.GPIO; platform_system == "Linux"  # GPIO control for Raspberry Pi

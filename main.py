@@ -436,8 +436,8 @@ class WakeWordDetector:
                 "cancel",
                 "nevermind",
             ]
-            # if transcript starts or ends with any of the cancel phrases, stop processing
-            if any(transcript.lower().startswith(phrase) or transcript.lower().endswith(phrase) for phrase in cancel_phrases):
+            # if transcript starts or ends with any of the cancel phrases, and doesn't have "execution or duneweaver" in the transcript, stop processing
+            if any(transcript.lower().startswith(phrase) or transcript.lower().endswith(phrase) for phrase in cancel_phrases) and "execution" not in transcript.lower() and "duneweaver" not in transcript.lower():
                 logger.info("Cancel Phrase detected. Cancelling processing...")
                 self.sound_effect.play("error")
                 return
