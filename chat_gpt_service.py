@@ -45,7 +45,7 @@ class ChatGPTService:
         self.assistant_acronym = config["assistant_dict"]["acronym"]
         self.assistant_descr = config["assistant_dict"]["descr"]
         self.system_prompt = config["system_prompt"]
-        self.weather_info = "" #self.get_weather_url()
+        self.weather_info = self.get_weather_url()
         self.system_prompt = config["system_prompt"] \
             .replace("{assistant_name}", self.assistant_name) \
             .replace("{assistant_acronym}", self.assistant_acronym) \
@@ -359,8 +359,8 @@ class ChatGPTService:
                 for chunk in response:
                     if hasattr(chunk, 'text') and chunk.text:
                         text_content = chunk.text
-                        sentence += text_content.replace('\n', ' ')
-                        response_full_text += text_content.replace('\n', ' ')
+                        sentence += text_content
+                        response_full_text += text_content
                         
                         # Check if we have a complete sentence
                         if any(ending in sentence for ending in sentence_endings):
@@ -377,8 +377,8 @@ class ChatGPTService:
                 for chunk in response:
                     delta = chunk.choices[0].delta
                     if delta.content:
-                        sentence += delta.content.replace('\n', ' ')
-                        response_full_text += delta.content.replace('\n', ' ')
+                        sentence += delta.content
+                        response_full_text += delta.content
                         
                         # Check if we have a complete sentence
                         if any(ending in sentence for ending in sentence_endings):

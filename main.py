@@ -34,7 +34,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-transcript_seperator = f"_"*40
 script_dir = os.path.dirname(os.path.abspath(__file__))
 shairport_handler = None
 radio_player = None
@@ -115,7 +114,7 @@ def append2log(text, noNewLine=False):
         f.write(text + ("\n" if not noNewLine else ""))
         f.close
     
-    if text and text != transcript_seperator:
+    if text:
         socketio.emit('update_chat', {'message': text.strip()})
 
 class ShairportSyncHandler:
