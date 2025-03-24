@@ -211,6 +211,8 @@ class WakeWordDetector:
         except Exception as e:
             logger.error(f"Error initializing Porcupine: {e}")
             logger.error("Please check your Picovoice key and try again.")
+            loading_sound.stop_sound()
+            self.cleanup()
             sys.exit(1)
 
         #stop loading sound so we can test ambient noise properly
