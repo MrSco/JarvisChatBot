@@ -161,6 +161,7 @@ class SoundEffectService:
             raise ValueError(f"Sound '{sound_name}' not found.")
         
         # Clean up any existing audio
+        self._check_for_stop_signal()
         self._cleanup_audio()
         
         # Load the sound
