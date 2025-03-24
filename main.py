@@ -51,6 +51,18 @@ is_rpi = False
 loading_sound = None
 file_chunks = {}
 
+def get_local_ip():
+    # Use a dummy connection to a remote host.
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # The IP address here is not actually contacted; it is only used to determine the local IP.
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+    except Exception:
+        local_ip = "127.0.0.1"
+    finally:
+        s.close()
+    return local_ip
 
 def is_running_on_raspberry_pi():
     try:
@@ -187,8 +199,8 @@ class WakeWordDetector:
         if assistant.get('elevenlabs_voice_id', "") == "":
             self.tts_engine = "pyttsx3"
         self.chat_gpt_service = ChatGPTService(config)
-        # get machine name from os and append .local for local network resolution
-        self.chat_gpt_service.host = f"{socket.gethostname()}.local"
+        # local ip address
+        self.chat_gpt_service.host = get_local_ip()
         self.chat_gpt_service.port = config.get("port", 5000)
         self.chat_gpt_service.append2log = append2log
         
