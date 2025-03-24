@@ -276,7 +276,7 @@ class ChatGPTService:
             if "stop" in image_desc.lower():
                 rtnMsg = "Stopping DuneWeaver execution."
                 self.duneweaver.stop_execution()
-                self.append2log(f"{rtnMsg}")
+                self.append2log(f"\n\n{self.assistant_name}: {rtnMsg}")
                 return [rtnMsg]
             canned_response = "I'm creating a sand pattern for you... "
             self.append2log(f"\n\n{self.assistant_name}: {canned_response}", True)
