@@ -41,6 +41,7 @@ class DuneWeaver:
             "weave an photo",
             "weave an photograph",
             "draw on the sand",
+            "draw in the sand",
             "stop execution",
             "stop the execution",
             "stop the weaving",
@@ -65,7 +66,7 @@ class DuneWeaver:
         prompt = None
         # using a regex, check for weave, draw, create, make, generate, etc.
         # capture the keyword and everything after it except for the image, picture, drawing, painting, sketch, photo, photograph and 'of'
-        match = re.search(r"\b(?:draw on the sand|weave|create|make|generate|draw)\b\s+(?:(?:an|a)\s+(?:image|picture|drawing|painting|sketch|photo|photograph)\s+(?:of|the)\s+)?(.+)$", text)
+        match = re.search(r"\b(?:draw on the sand|draw in the sand|weave|create|make|generate|draw)\b\s+(?:(?:an|a)\s+(?:image|picture|drawing|painting|sketch|photo|photograph)\s+(?:of|the)\s+)?(.+)$", text)
         if match:
             prompt = match.group(1).strip()  # Get the content after the command and strip whitespace
         else:
