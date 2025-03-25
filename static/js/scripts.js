@@ -167,6 +167,46 @@ function chatbot_ready(data) {
     }
 }
 
+function openLightbox(imageSrc) {
+    var lightbox = document.getElementById('lightbox');
+    var lightboxImg = document.getElementById('lightbox-img');
+    lightboxImg.src = imageSrc;
+    lightbox.style.display = 'flex';
+    
+    // Prevent scrolling of the background
+    document.body.style.overflow = 'hidden';
+}
+
+// any page contentloaded event
+document.addEventListener('DOMContentLoaded', function () {
+    // Setup lightbox close functionality
+    var lightbox = document.getElementById('lightbox');
+    var lightboxClose = document.querySelector('.lightbox-close');
+    if (lightbox && lightboxClose) {
+        lightboxClose.onclick = function() {
+            lightbox.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        };
+
+        // Close lightbox when clicking outside the image
+        lightbox.onclick = function(e) {
+            if (e.target === lightbox) {
+                lightbox.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        };
+
+        // Close lightbox with escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && lightbox.style.display === 'flex') {
+                lightbox.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        });
+    }
+});
+
+// page specific contentloaded events
 if (location.toString().includes('/history')) {
     document.addEventListener('DOMContentLoaded', function () {
         setActiveLink();
@@ -578,39 +618,5 @@ else {
             }
         });
 
-        // Setup lightbox close functionality
-        var lightbox = document.getElementById('lightbox');
-        var lightboxClose = document.querySelector('.lightbox-close');
-
-        lightboxClose.onclick = function() {
-            lightbox.style.display = 'none';
-            document.body.style.overflow = 'auto';
-        };
-
-        // Close lightbox when clicking outside the image
-        lightbox.onclick = function(e) {
-            if (e.target === lightbox) {
-                lightbox.style.display = 'none';
-                document.body.style.overflow = 'auto';
-            }
-        };
-
-        // Close lightbox with escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && lightbox.style.display === 'flex') {
-                lightbox.style.display = 'none';
-                document.body.style.overflow = 'auto';
-            }
-        });
     });
-}
-
-function openLightbox(imageSrc) {
-    var lightbox = document.getElementById('lightbox');
-    var lightboxImg = document.getElementById('lightbox-img');
-    lightboxImg.src = imageSrc;
-    lightbox.style.display = 'flex';
-    
-    // Prevent scrolling of the background
-    document.body.style.overflow = 'hidden';
 }
