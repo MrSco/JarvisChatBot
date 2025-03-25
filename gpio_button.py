@@ -5,7 +5,6 @@ import time
 import os
 import signal
 import sys
-import threading
 from sound_effect_service import SoundEffectService
 import logging
 from led_service import LEDServiceServer, LEDServiceClient
@@ -71,6 +70,12 @@ def start_led_server():
     led_server = LEDServiceServer()
     return led_server.start()
 
+def is_jarvischatbot_running():
+    output = os.popen('sudo systemctl is-active jarvischatbot.service').read()
+    logger.info(f"Jarvischatbot service status: {output}")
+    inactive = 'inactive' in output or 'failed' in output
+    return not inactive
+
 def stop_jarvischatbot():
     os.system("sudo systemctl stop --now jarvischatbot.service")
 
@@ -82,12 +87,27 @@ led_server_thread = start_led_server()
 led_service = LEDServiceClient()
 logger.info("LED server started successfully")
 
+# start jarvischatbot if it is not running
+loading_sound_playing = False
+if not is_jarvischatbot_running():
+    logger.info("Starting jarvischatbot...")
+    led_service.handle_event("Starting")
+    sound_effect.play_loop("loading")
+    loading_start_time = time.time()
+    loading_sound_playing = True
+    start_jarvischatbot()
+
 # Main GPIO button monitoring loop
 def monitor_button():
-    global buttonPressTime
+    global buttonPressTime, loading_sound_playing
     logger.info("Starting button monitoring...")
     
     while True:
+        # check if the loading sound has been playing for more than 30 seconds and stop it if so
+        if loading_sound_playing and time.time() - loading_start_time > 30:
+            led_service.handle_event("Off")
+            sound_effect.stop_sound()
+            loading_sound_playing = False
         #grab the current button state
         buttonState1 = GPIO.input(pin)
 
@@ -107,19 +127,16 @@ def monitor_button():
             if buttonPressTime is not None:
                 # If the button was not held down for 5 seconds, toggle jarvischatbot.service
                 if time.time() - buttonPressTime < 5:
-                    output = os.popen('sudo systemctl is-active jarvischatbot.service').read()
-                    # check if jarvischatbot.service is running and toggle it
-                    logger.info(f"Jarvischatbot service status: {output}")
-                    if 'inactive' in output or 'failed' in output:
+                    if is_jarvischatbot_running():
+                        sound_effect.play("halflifebutton")
+                        stop_jarvischatbot()
+                        led_service.handle_event("Off")
+                    else:
                         led_service.handle_event("Starting")
                         reset_sound_lock_file()
                         sound_effect.play("halflifebutton")
                         sound_effect.play_loop("loading")
                         start_jarvischatbot()
-                    else:
-                        sound_effect.play("halflifebutton")
-                        stop_jarvischatbot()
-                        led_service.handle_event("Off")
                 # Reset the button press time
                 buttonPressTime = None
         time.sleep(.1)
