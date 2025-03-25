@@ -230,6 +230,7 @@ class WakeWordDetector:
         logger.info("Stopping loading sound...")
         loading_sound.stop_sound()
         self.listener = InputListener(config)
+        self.listener.handle_led_event = self.handle_led_event
         self._init_audio_stream()
 
         self.language = config["language"]
@@ -348,10 +349,9 @@ class WakeWordDetector:
                         self._cleanup_audio_stream()
                         
                         socketio.emit('awake', {'status': 'ready'})
-                        self.handle_led_event("Transcript")
+                        self.handle_led_event("VoiceStarted")
                         self.play_or_speak(self.sound_effect.get_random_wake_sound())
-                        socketio.emit('listening_for_prompt', {'status': 'ready'})
-                        
+                        socketio.emit('listening_for_prompt', {'status': 'ready'})                        
                         # Listen for command
                         self.listener.listen()
                         self.handle_led_event("StreamingStarted")

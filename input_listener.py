@@ -25,6 +25,7 @@ class InputListener:
         self.phrase_time_limit = config["phrase_time_limit"]
         self.language = config["language"] + "-US"
         self.sound_effect = None
+        self.handle_led_event = None
 
         with self.mic as source:
             logger.info("Adjusting for ambient noise...")
@@ -37,7 +38,8 @@ class InputListener:
         self.audio_data = None
         with self.mic as source:
             try:
-                logger.info("Listening for request...")                    
+                logger.info("Listening for request...")
+                self.handle_led_event("Transcript")
                 self.audio_data = self.rec.listen(source, timeout = self.timeout, phrase_time_limit = self.phrase_time_limit)
             except Exception:
                 pass
