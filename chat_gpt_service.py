@@ -26,22 +26,6 @@ logger = logging.getLogger(__name__)
 class ChatGPTService:
     def __init__(self, config):
         self.append2log = None
-        self.ai_service = config.get("ai_service", "openai")
-        
-        if self.ai_service == "google":
-            os.environ["GOOGLE_API_KEY"] = config["google_key"]
-            self.model = config["google_model"]
-            # Initialize Google Gemini client
-            self.llm = genai.Client()
-        elif self.ai_service == "groq":
-            os.environ["GROQ_API_KEY"] = config["groq_key"]
-            self.model = config["groq_model"]
-            self.groq_vision_model = config["groq_vision_model"]
-            self.llm = Groq(api_key=config["groq_key"])
-        else:
-            os.environ["OPENAI_API_KEY"] = config["openai_key"]
-            self.model = config["openai_model"]
-            self.llm = openai
         self.assistant_name = config["assistant_dict"]["name"]
         self.assistant_acronym = config["assistant_dict"]["acronym"]
         self.assistant_descr = config["assistant_dict"]["descr"]
@@ -54,6 +38,28 @@ class ChatGPTService:
             .replace("{weather_info}", self.weather_info)
         self.system_prompt_msg = {"role": "system", "content": self.system_prompt}
         self.history = [self.system_prompt_msg]
+        self.ai_service = config.get("ai_service", "openai")
+        
+        if self.ai_service == "google":
+            os.environ["GOOGLE_API_KEY"] = config["google_key"]
+            self.model = config["google_model"]
+            # Initialize Google Gemini client
+            self.llm = genai.Client()
+            current_time = datetime.now(get_localzone()).strftime('%I:%M %p %Z').lstrip("0")
+            # Create the chat instance with system prompt
+            self.chat = self.llm.chats.create(
+                model=self.model, 
+                config=types.GenerateContentConfig(system_instruction=self.system_prompt.replace("{today}", str(date.today())).replace("{theCurrentTime}", current_time))
+            )
+        elif self.ai_service == "groq":
+            os.environ["GROQ_API_KEY"] = config["groq_key"]
+            self.model = config["groq_model"]
+            self.groq_vision_model = config["groq_vision_model"]
+            self.llm = Groq(api_key=config["groq_key"])
+        else:
+            os.environ["OPENAI_API_KEY"] = config["openai_key"]
+            self.model = config["openai_model"]
+            self.llm = openai
         self.sound_effect = None
         self.image_storage = config["image_storage"]
         self.freeimage_key = config["freeimage_key"]
@@ -468,16 +474,8 @@ class ChatGPTService:
                             contents=[content]
                         )
                 else:                    
-                    # Create a chat for text-only conversations
-                    chat = self.llm.chats.create(model=modelToUse, config=types.GenerateContentConfig(system_instruction=system_prompt))
-                    
-                    # Add previous messages to chat history, if any
-                    if len(self.history) > 1:
-                        for msg in self.history[1:-1]:  # Skip system message and latest user message
-                            if msg["role"] == "user":
-                                chat.send_message(msg["content"])
-                    # Send the current message and stream the response
-                    response = chat.send_message_stream(self.history[-1]["content"])
+                    # Send the current message and stream the response using the existing chat instance
+                    response = self.chat.send_message_stream(self.history[-1]["content"])
             else:
                 response = self.llm.chat.completions.create(
                     model=modelToUse, 
