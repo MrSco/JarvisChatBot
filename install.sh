@@ -14,4 +14,17 @@ pip3 install --upgrade pip
 # Install requirements
 pip3 install -r requirements.txt
 
-echo "Setup completed successfully."
+# check if config.json exists and if not, copy config.json.example to config.json
+if [ ! -f config.json ]; then
+    echo "config.json does not exist, copying config.json.example to config.json"
+    cp config.json.example config.json
+    echo "Please edit config.json and add your API keys and other configuration."
+fi
+
+# check if assistants.json exists and if not, copy assistants.json.example to assistants.json
+if [ ! -f assistants.json ]; then
+    echo "assistants.json does not exist, copying assistants.json.example to assistants.json"
+    cp assistants.json.example assistants.json
+fi
+
+echo "Setup completed successfully. You can now run the script with ./run.sh"
