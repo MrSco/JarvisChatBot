@@ -241,6 +241,8 @@ class WakeWordDetector:
         self.speech = TextToSpeechService(config)
         self.speech.is_rpi = is_rpi
         self.sound_effect = SoundEffectService(config)
+        self.chat_gpt_service.speech = self.speech
+        self.chat_gpt_service.handle_led_event = self.handle_led_event
 
     def _init_porcupine(self, wake_word):
         """Initialize or reinitialize Porcupine with the given wake word"""
@@ -976,6 +978,8 @@ def update_configuration(settings_data=None, new_assistant_name=None):
                 detector.chat_gpt_service.port = config.get("port", 5000)
                 #print("ChatGPT service updated")
                 detector.chat_gpt_service.append2log = append2log
+                detector.chat_gpt_service.speech = detector.speech
+                detector.chat_gpt_service.handle_led_event = detector.handle_led_event
                 #print("append2log updated")        
                 
                 # Reset state

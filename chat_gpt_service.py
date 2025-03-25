@@ -1,4 +1,5 @@
 import base64
+import threading
 import time
 import types
 import openai
@@ -59,6 +60,8 @@ class ChatGPTService:
         self.upload_folder = config["upload_folder"]
         self.host = None
         self.port = None
+        self.speech = None
+        self.handle_led_event = None
         # Initialize DuneWeaver support
         self.duneweaver = None
         self.duneweaver_url = config.get("duneweaver_url", "")
@@ -315,12 +318,36 @@ class ChatGPTService:
                 # Store the generated image to display later
                 image_url = self.save_generated_image(image_data, pattern_filename.replace('.thr', '.png'))
             
+                # while the pattern is generating,
+                # stop the loading sound and change the led to flash "VoiceStarted" on a separate thread 
+                # speak a message to the user that the pattern is being generated
+                # then we can set the led back to solid "VoiceStarted" and start the loading sound again after the pattern is generated
+                # we can use a thread to handle the led flashing and sound playing so it doesn't block the main thread
+                self.sound_effect.stop_sound()
+                self.speech.speak("I'm creating a sand pattern for you... ")
+                blink_leds = True
+                def blink_leds():
+                    while blink_leds:
+                        self.handle_led_event("VoiceStarted")
+                        time.sleep(0.5)
+                        self.handle_led_event("Off")
+                        time.sleep(0.5)
+
+                blink_leds_thread = threading.Thread(target=blink_leds)
+                blink_leds_thread.start()
                 # Convert the image to a sand pattern
                 sand_pattern = self.duneweaver.convert_image_to_sand_pattern(image_data)
                 if not sand_pattern:
+                    blink_leds_thread.join()
                     rtnMsg = "I couldn't convert the image to a sand pattern."
                     self.append2log(f"{rtnMsg}")
                     return [rtnMsg]
+                blink_leds = False
+                if blink_leds_thread is not None and blink_leds_thread.is_alive():
+                    blink_leds_thread.join()
+                logger.info("Sand pattern generated...")
+                self.sound_effect.play_loop("loading")
+                self.handle_led_event("VoiceStarted")
                 
                 # Save the sand pattern to a file
                 sand_pattern_filename = self.save_file(sand_pattern, pattern_filename, 'w', False)
