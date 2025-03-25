@@ -338,7 +338,9 @@ class ChatGPTService:
                 # Convert the image to a sand pattern
                 sand_pattern = self.duneweaver.convert_image_to_sand_pattern(image_data)
                 if not sand_pattern:
-                    blink_leds_thread.join()
+                    blink_leds = False
+                    if blink_leds_thread is not None and blink_leds_thread.is_alive():
+                        blink_leds_thread.join()
                     rtnMsg = "I couldn't convert the image to a sand pattern."
                     self.append2log(f"{rtnMsg}")
                     return [rtnMsg]
