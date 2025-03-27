@@ -963,15 +963,20 @@ def update_configuration(settings_data=None, new_assistant_name=None):
                     #print("Porcupine updated")
                 
                 # Update other detector services
+                detector.listener = None
                 detector.listener = InputListener(config)
+                detector.listener.handle_led_event = detector.handle_led_event
                 #print("Input listener updated")
                 detector._init_audio_stream()
                 #print("Audio stream reinitialized")
+                detector.speech = None
                 detector.speech = TextToSpeechService(config)
                 detector.speech.is_rpi = is_rpi
                 #print("TTS service updated")
+                detector.sound_effect = None
                 detector.sound_effect = SoundEffectService(config)
                 #print("Sound effect service updated")
+                detector.chat_gpt_service = None
                 detector.chat_gpt_service = ChatGPTService(config)
                 # get machine name from os and append .local for local network resolution
                 detector.chat_gpt_service.host = f"{socket.gethostname()}.local"
