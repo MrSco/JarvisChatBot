@@ -1,11 +1,12 @@
+/*
 window.addEventListener("visibilitychange", function () {
     console.log("Visibility changed");
     if (document.visibilityState === "visible") {
       console.log("APP resumed");
       window.location.reload();
     }
-  });
-
+});
+*/
 function openNav() {
     document.getElementById("sideNav").style.width = "250px";
 }
