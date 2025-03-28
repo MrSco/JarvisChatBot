@@ -129,6 +129,62 @@ def append2log(text, noNewLine=False):
     if text:
         socketio.emit('update_chat', {'message': text.strip()})
 
+def call_home_assistant(token, url, method, data=None):
+    """Call Home Assistant API to control devices
+    
+    Args:
+        token (str): Home Assistant API token
+        url (str): Home Assistant API URL
+        method (str): HTTP method (GET, POST, etc)
+        data (dict, optional): Data to send with request
+        
+    Returns:
+        dict: Response from Home Assistant
+    """
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        if method.upper() == 'GET':
+            response = requests.get(url, headers=headers)
+        elif method.upper() == 'POST':
+            response = requests.post(url, headers=headers, json=data)
+        else:
+            raise ValueError(f"Unsupported HTTP method: {method}")
+            
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error calling Home Assistant: {e}")
+        return None
+
+def control_light(state):
+    """Control the Duneweaver light switch in Home Assistant
+    
+    Args:
+        state (bool): True to turn on, False to turn off
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    token = config.get("home_assistant_token")
+    base_url = config.get("home_assistant_url")
+    
+    if not token or not base_url:
+        logger.error("Home Assistant configuration missing")
+        return False
+        
+    service = "turn_on" if state else "turn_off"
+    url = f"{base_url}/api/services/switch/{service}"
+    data = {
+        "entity_id": "switch.duneweaver_light"
+    }
+    
+    result = call_home_assistant(token, url, "POST", data)
+    return result is not None
+
 class ShairportSyncHandler:
     def __init__(self, wakeword_detector, radio_player):
         self.wakeword_detector = wakeword_detector
@@ -469,6 +525,38 @@ class WakeWordDetector:
                 self.play_or_speak("hi_how_can_i_help")
                 append2log(f"You: {transcript} \n")
                 append2log(f"{assistant_name}: {short_response} \n")
+                return
+            
+            # if the user asks to turn on or off the light, we will control the smart switch the led lights on the duneweaver are connected to
+            turn_on_light_phrases = [
+                "turn on the light",
+                "turn on the lights",
+                "turn on the led",
+                "turn on the leds",
+            ]
+            turn_off_light_phrases = [
+                "turn off the light",
+                "turn off the lights",
+                "turn off the led",
+                "turn off the leds",
+            ]
+            
+            
+            if any(phrase in transcript.lower() for phrase in turn_on_light_phrases):
+                self.handle_led_event("VoiceStarted")
+                if control_light(True):
+                    self.play_or_speak(self.sound_effect.get_random_filler_sound())
+                    self.play_or_speak("light_on")
+                else:
+                    self.play_or_speak("error")
+                return
+            if any(phrase in transcript.lower() for phrase in turn_off_light_phrases):
+                self.handle_led_event("VoiceStarted")
+                if control_light(False):
+                    self.play_or_speak(self.sound_effect.get_random_filler_sound())
+                    self.play_or_speak("light_off")
+                else:
+                    self.play_or_speak("error")
                 return
             
             time_phrases = [

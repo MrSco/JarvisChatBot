@@ -10,6 +10,8 @@
     "groq_vision_model": "llama-3.2-90b-vision-preview",
     "google_key": "asldfj...",
     "google_model": "gemini-2.0-flash-exp",
+    "home_assistant_url": "http://10.0.1.147:8123",
+    "home_assistant_token": "eyJ...",
     "upload_folder": "uploads",
     "image_storage": "freeimage",
     "freeimage_key": "6d2...",
