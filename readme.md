@@ -244,20 +244,6 @@ sudo cp jarvischatbot.service /etc/systemd/system/jarvischatbot.service
 sudo nano /etc/systemd/system/jarvischatbot.service
 ```
 
-2. **Enable the Service**
-
-```bash
-sudo systemctl enable jarvischatbot.service
-```
-
-3. **Start the Service**
-
-```bash
-sudo systemctl start jarvischatbot.service
-```
-
-Now, the JarvisChatBot script will run as a service on startup.
-
 ## Running Button Service
 
 1. **Create a button Service File**
