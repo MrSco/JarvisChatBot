@@ -14,6 +14,8 @@
         var kids_radio_stream_url = "{{ config['kids_radio_stream_url'] }}";
         var elevenlabs_key = "{{ config['elevenlabs_key'] }}";
         var tts_engine = "{{ config['tts_engine'] }}";
+        var piper_voice = "{{ config.get('piper_voice', 'en_US-lessac-medium') }}";
+        var piper_models_dir = "{{ config.get('piper_models_dir', './piper_models') }}";
         var image_storage = "{{ 'freeimage' if config['image_storage'] else 'local' }}";
         var freeimage_key = "{{ config['freeimage_key'] }}";
         var max_threshold = "{{ config['max_threshold'] }}";
@@ -101,6 +103,7 @@
                     <option value="pyttsx3">System TTS (pyttsx3)</option>
                     <option value="gtts">Google TTS (gTTS)</option>
                     <option value="elevenlabs">ElevenLabs</option>
+                    <option value="piper">Piper TTS</option>
                 </select>
             </div>
             <div>

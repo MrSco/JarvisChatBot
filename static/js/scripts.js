@@ -298,10 +298,10 @@ else if (location.toString().includes('/settings')) {
         function updateTTSVisibility() {
             var selectedEngine = tts_engineSelect.value;
             
-            // Hide ElevenLabs key by default
+            // Hide all TTS-specific settings by default
             document.querySelector('label[for="elevenlabs_key"]').parentNode.style.display = 'none';
-            
-            // Show ElevenLabs key only when ElevenLabs is selected
+                        
+            // Show engine-specific fields based on selection
             if (selectedEngine === 'elevenlabs') {
                 document.querySelector('label[for="elevenlabs_key"]').parentNode.style.display = 'block';
             }
@@ -342,13 +342,7 @@ else if (location.toString().includes('/settings')) {
         image_storageSelect.addEventListener('change', updateImageStorageVisibility);
 
         // Set initial TTS engine value
-        if (tts_engine == 'elevenlabs') {
-            tts_engineSelect.value = 'elevenlabs';
-        } else if (tts_engine == 'gtts') {
-            tts_engineSelect.value = 'gtts';
-        } else {
-            tts_engineSelect.value = 'pyttsx3';
-        }
+        tts_engineSelect.value = tts_engine || 'pyttsx3';
 
         // Update the threshold value when the slider is changed
         thresholdSlider.addEventListener('input', function() {
