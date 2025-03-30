@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 class ChatGPTService:
     def __init__(self, config):
         self.append2log = None
+        self.chatlog = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chatlogs", f"{config['assistant']}_chatlog-{str(date.today())}.txt")
         self.assistant_name = config["assistant_dict"]["name"]
         self.assistant_acronym = config["assistant_dict"]["acronym"]
         self.assistant_descr = config["assistant_dict"]["descr"]
@@ -37,7 +38,69 @@ class ChatGPTService:
             .replace("{assistant_descr}", self.assistant_descr) \
             .replace("{weather_info}", self.weather_info)
         self.system_prompt_msg = {"role": "system", "content": self.system_prompt}
+        
+        # Initialize history with system prompt
         self.history = [self.system_prompt_msg]
+        
+        # If there's an existing chatlog file, load it into history
+        if os.path.exists(self.chatlog) and os.path.isfile(self.chatlog):
+            try:
+                with open(self.chatlog, 'r', encoding='utf-8') as f:
+                    chatlog_content = f.read()
+                
+                # Parse the chatlog content to extract messages
+                messages = []
+                lines = chatlog_content.split('\n')
+                current_role = None
+                current_content = ""
+                
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Check for user or assistant message indicators
+                    if line.startswith("You:"):
+                        # Save previous message if exists
+                        if current_role and current_content.strip():
+                            messages.append({"role": current_role, "content": current_content.strip()})
+                        
+                        # Start a new user message
+                        current_role = "user"
+                        current_content = line[len("You:"):].strip()
+                    elif line.startswith(f"{self.assistant_name}:"):
+                        # Save previous message if exists
+                        if current_role and current_content.strip():
+                            messages.append({"role": current_role, "content": current_content.strip()})
+                        
+                        # Start a new assistant message
+                        current_role = "assistant"
+                        current_content = line[len(f"{self.assistant_name}:"):].strip()
+                    else:
+                        # Continue current message
+                        current_content += " " + line
+                
+                # Add the last message
+                if current_role and current_content.strip():
+                    messages.append({"role": current_role, "content": current_content.strip()})
+                
+                # Load messages into history (system prompt + last 4 messages)
+                if messages:
+                    logger.info(f"Initializing history with {len(messages)} messages from chatlog file")
+                    
+                    # Limit to last 4 messages (2 turns) to keep context window manageable
+                    if len(messages) > 4:
+                        messages = messages[-4:]
+                    
+                    # Set history with system prompt + parsed messages
+                    self.history = [self.system_prompt_msg] + messages
+                    
+                    logger.info(f"Loaded {len(self.history) - 1} messages into history")
+            except Exception as e:
+                logger.error(f"Error loading chatlog: {e}")
+                # Fall back to just system prompt
+                self.history = [self.system_prompt_msg]
+        
         self.ai_service = config.get("ai_service", "openai")
         
         if self.ai_service == "google":
@@ -475,6 +538,21 @@ class ChatGPTService:
                         )
                 else:                    
                     # Send the current message and stream the response using the existing chat instance
+                    # Add previous messages to chat history, if any
+                    if len(self.history) > 1:
+                        # Instead of recreating the chat, track which messages we've already sent
+                        # Skip system message (0) and the most recent user message (last)
+                        # Get only the new messages that need to be added to maintain context
+                        unprocessed_history = []
+                        for i, msg in enumerate(self.history[1:-1]):  # Skip system message and latest user message
+                            if msg["role"] == "user":
+                                unprocessed_history.append(msg)
+                        
+                        # Get last 3 user messages to match the 5 message context window (system + 3 previous + current)
+                        for msg in unprocessed_history[-3:]:
+                            logger.info(f"Adding previous message to Google chat: {msg['content'][:30]}...")
+                            self.chat.send_message(msg["content"])
+                    
                     response = self.chat.send_message_stream(self.history[-1]["content"])
             else:
                 response = self.llm.chat.completions.create(
@@ -507,12 +585,14 @@ class ChatGPTService:
                         
                         # Check if we have a complete sentence
                         if any(ending in sentence for ending in sentence_endings):
-                            # Find the last sentence ending
-                            last_end = max([sentence.rfind(ending) for ending in sentence_endings if ending in sentence])
-                            if last_end >= 0:
-                                complete_sentence = sentence[:last_end+1]
-                                remainder = sentence[last_end+1:]
+                            # Find the first sentence ending (not the last)
+                            ending_positions = [sentence.find(ending) for ending in sentence_endings if ending in sentence]
+                            first_end = min([pos for pos in ending_positions if pos >= 0])
+                            if first_end >= 0:
+                                complete_sentence = sentence[:first_end+1]
+                                remainder = sentence[first_end+1:]
                                 self.append2log(complete_sentence, True)
+                                logger.info(f"Complete sentence: {complete_sentence}")
                                 yield complete_sentence
                                 sentence = remainder
             else:
@@ -525,12 +605,14 @@ class ChatGPTService:
                         
                         # Check if we have a complete sentence
                         if any(ending in sentence for ending in sentence_endings):
-                            # Find the last sentence ending
-                            last_end = max([sentence.rfind(ending) for ending in sentence_endings if ending in sentence])
-                            if last_end >= 0:
-                                complete_sentence = sentence[:last_end+1]
-                                remainder = sentence[last_end+1:]
+                            # Find the first sentence ending (not the last)
+                            ending_positions = [sentence.find(ending) for ending in sentence_endings if ending in sentence]
+                            first_end = min([pos for pos in ending_positions if pos >= 0])
+                            if first_end >= 0:
+                                complete_sentence = sentence[:first_end+1]
+                                remainder = sentence[first_end+1:]
                                 self.append2log(complete_sentence, True)
+                                logger.info(f"Complete sentence: {complete_sentence}")
                                 yield complete_sentence
                                 sentence = remainder
                                 

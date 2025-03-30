@@ -18,6 +18,10 @@ httpx
 sounddevice
 opencv-python
 pillow
+# install without dependencies for windows
+#piper-tts --no-deps; platform_system == "Windows"
+#onnxruntime; platform_system == "Windows"
+piper-tts; platform_system == "Linux"
 # Optional RPI-specific dependencies
 dbus-python; platform_system == "Linux"  # dbus control for Shairport-Sync
 RPi.GPIO; platform_system == "Linux"  # GPIO control for Raspberry Pi
