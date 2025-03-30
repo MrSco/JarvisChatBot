@@ -1,6 +1,7 @@
 import os
 import re
 import tempfile
+import sys
 from elevenlabs import VoiceSettings
 from elevenlabs import stream, play
 from elevenlabs.client import ElevenLabs
@@ -120,9 +121,14 @@ class TextToSpeechService:
             
             logger.info(f"{self.assistant_name}: {text}")
             
+            # Get the current Python executable path (from virtual environment)
+            python_exec = sys.executable
+            # Quote the path for shell commands to handle spaces properly
+            quoted_python_exec = f'"{python_exec}"'
+            
             # Check if piper is installed
             try:
-                subprocess.run(['piper', '--help'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                subprocess.run([python_exec, '-m', 'piper', '--help'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
                 has_piper = True
             except (subprocess.SubprocessError, FileNotFoundError):
                 logger.error("Piper TTS not found - please install it first")
@@ -134,6 +140,8 @@ class TextToSpeechService:
                 self.piper_models_dir, 
                 f"{self.piper_voice}.onnx"
             )
+            # Quote the voice file path to handle spaces
+            quoted_voice_file = f'"{voice_file}"'
             json_file = f"{voice_file}.json"
             
             # Check if files exist
@@ -152,8 +160,8 @@ class TextToSpeechService:
                 has_mpv = False
             
             if has_mpv:
-                # Direct pipe from piper to mpv
-                piper_cmd = f"echo \"{text}\" | piper --model {voice_file}"
+                # Use Python executable to run piper as a module
+                piper_cmd = f"echo \"{text}\" | {quoted_python_exec} -m piper --model {quoted_voice_file}"
                 piper_process = subprocess.Popen(piper_cmd, shell=True, stdout=subprocess.PIPE)
                 
                 # Build mpv command with audio device if on RPi
@@ -178,7 +186,7 @@ class TextToSpeechService:
                     time.sleep(0.1)
             elif self.is_rpi:
                 # Fallback to aplay on RPi if mpv is not available
-                piper_cmd = f"echo \"{text}\" | piper --model {voice_file}"
+                piper_cmd = f"echo \"{text}\" | {quoted_python_exec} -m piper --model {quoted_voice_file}"
                 # Format for aplay: -D hw:0,0 or -D plughw:CARD=sndrpihifiberry,DEV=0
                 play_cmd = ['aplay', '-D', self.rpi_playback_device] if self.rpi_playback_device else ['aplay']
                 
@@ -193,10 +201,11 @@ class TextToSpeechService:
             else:
                 # Fallback to temp file on other platforms if mpv is not available
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-                    piper_cmd = f"echo \"{text}\" | piper --model {voice_file} --output_file {temp_file.name}"
+                    temp_file_name = temp_file.name
+                    quoted_temp_file = f'"{temp_file_name}"'
+                    piper_cmd = f"echo \"{text}\" | {quoted_python_exec} -m piper --model {quoted_voice_file} --output_file {quoted_temp_file}"
                     logger.info(f"Running piper command: {piper_cmd}")
                     subprocess.run(piper_cmd, shell=True, check=True)
-                    temp_file_name = temp_file.name
                 
                 # Create a temporary SoundEffectService instance to play the audio
                 temp_sound_service = SoundEffectService()
