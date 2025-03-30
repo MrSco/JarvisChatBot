@@ -130,9 +130,9 @@ class TextToSpeechService:
             try:
                 subprocess.run([python_exec, '-m', 'piper', '--help'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
                 has_piper = True
-            except (subprocess.SubprocessError, FileNotFoundError):
-                # include return code and error message
-                logger.error(f"Piper TTS not found - please install it first: {subprocess.returncode} {subprocess.stdout} {subprocess.stderr}")
+            except (subprocess.SubprocessError, FileNotFoundError) as e:
+                # Log the exception details
+                logger.error(f"Piper TTS not found - please install it first. Error: {str(e)}")
                 self.speak_with_pyttsx3(text)
                 return False
             
@@ -217,6 +217,9 @@ class TextToSpeechService:
                 os.remove(temp_file_name)
         except Exception as e:
             logger.error(f"Error playing Piper audio: {e}")
+            logger.error(f"Exception type: {type(e).__name__}, Details: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             self.speak_with_pyttsx3(text)
                 
     def speak_with_pyttsx3(self, text):
