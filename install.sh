@@ -14,6 +14,18 @@ pip3 install --upgrade pip
 # Install requirements
 pip3 install -r requirements.txt
 
+# download piper binary and add it to the PATH
+curl -L https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_arm64.tar.gz -o piper_arm64.tar.gz
+
+# extract the binary
+tar -xvzf piper_arm64.tar.gz
+
+# add line export PATH="$PATH:$HOME/piper" to the bottom of the .bashrc file
+echo "export PATH=\"$PATH:$HOME/piper\"" >> ~/.bashrc
+
+# reload the .bashrc file
+source ~/.bashrc
+
 # check if config.json exists and if not, copy config.json.example to config.json
 if [ ! -f config.json ]; then
     echo "config.json does not exist, copying config.json.example to config.json"
