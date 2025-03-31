@@ -128,7 +128,10 @@ class TextToSpeechService:
             
             # Check if piper is installed
             try:
-                subprocess.run([python_exec, '-m', 'piper', '--help'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                args = [python_exec, '-m', 'piper', '--help']
+                if self.is_rpi: # on RPi we use the piper binary directly
+                    args = ['piper', '--help']
+                subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
                 has_piper = True
             except (subprocess.SubprocessError, FileNotFoundError) as e:
                 # Log the exception details
