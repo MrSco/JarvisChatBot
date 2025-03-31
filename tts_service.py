@@ -163,7 +163,21 @@ class TextToSpeechService:
             except (subprocess.SubprocessError, FileNotFoundError):
                 has_mpv = False
             
-            if has_mpv:
+            if self.is_rpi:
+                # Fallback to aplay on RPi if mpv is not available
+                piper_cmd = f"echo \"{text}\" | piper --model {quoted_voice_file} --output-raw"
+                # Format for aplay: -D hw:0,0 or -D plughw:CARD=sndrpihifiberry,DEV=0
+                play_cmd = ['aplay', '-D', self.rpi_playback_device, '-r', '22050', '-f', 'S16_LE', '-t', 'raw'] if self.rpi_playback_device else ['aplay']
+                
+                piper_process = subprocess.Popen(piper_cmd, shell=True, stdout=subprocess.PIPE)
+                aplay_process = subprocess.Popen(play_cmd, stdin=piper_process.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                piper_process.stdout.close()  # Allow piper to receive a SIGPIPE if aplay exits
+                aplay_process.communicate()
+                
+                # Wait until the sound is finished
+                while aplay_process.poll() is None:
+                    time.sleep(0.1)
+            elif has_mpv:
                 # Use Python executable to run piper as a module
                 piper_cmd = "piper" if self.is_rpi else f"{quoted_python_exec} -m piper"
                 piper_cmd = f"echo \"{text}\" | {piper_cmd} --model {quoted_voice_file}"
@@ -188,20 +202,6 @@ class TextToSpeechService:
                 
                 # Wait until the sound is finished
                 while mpv_process.poll() is None:
-                    time.sleep(0.1)
-            elif self.is_rpi:
-                # Fallback to aplay on RPi if mpv is not available
-                piper_cmd = f"echo \"{text}\" | piper --model {quoted_voice_file}"
-                # Format for aplay: -D hw:0,0 or -D plughw:CARD=sndrpihifiberry,DEV=0
-                play_cmd = ['aplay', '-D', self.rpi_playback_device] if self.rpi_playback_device else ['aplay']
-                
-                piper_process = subprocess.Popen(piper_cmd, shell=True, stdout=subprocess.PIPE)
-                aplay_process = subprocess.Popen(play_cmd, stdin=piper_process.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                piper_process.stdout.close()  # Allow piper to receive a SIGPIPE if aplay exits
-                aplay_process.communicate()
-                
-                # Wait until the sound is finished
-                while aplay_process.poll() is None:
                     time.sleep(0.1)
             else:
                 # Fallback to temp file on other platforms if mpv is not available
