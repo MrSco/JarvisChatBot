@@ -5,7 +5,8 @@ After=network.target sound.target 2mic_button.service
 
 [Service]
 Type=simple
-ExecStart=/home/user/JarvisChatBot/venv/bin/python3 main.py
+Environment="EXTRA_PATH=/home/user/JarvisChatBot/venv/bin:/home/user/piper"
+ExecStart=/bin/bash -c 'export PATH=$EXTRA_PATH:$PATH && exec /home/user/JarvisChatBot/venv/bin/python3 main.py'
 WorkingDirectory=/home/user/JarvisChatBot
 Restart=on-failure
 RestartSec=1
