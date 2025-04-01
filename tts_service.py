@@ -1,17 +1,18 @@
 import os
 import re
 import tempfile
-import sys
 from elevenlabs import VoiceSettings
 from elevenlabs import stream, play
 from elevenlabs.client import ElevenLabs
 import pyttsx3
 from gtts import gTTS
 import subprocess
-import io
+import requests
 from sound_effect_service import SoundEffectService
 import logging
 import time
+import sys
+
 logger = logging.getLogger(__name__)
 
 class TextToSpeechService:
@@ -35,6 +36,93 @@ class TextToSpeechService:
         # Piper TTS settings
         self.piper_voice = config.get("assistant", 'jarvis')
         self.piper_models_dir = "piper_models"
+        
+        # Piper HTTP server settings
+        self.piper_http_port = config.get("piper_http_port", 5555)
+        self.piper_http_host = config.get("piper_http_host", "localhost")
+        self.piper_http_url = f"http://{self.piper_http_host}:{self.piper_http_port}"
+        self.piper_server_process = None
+        
+        # Start HTTP server if using piper
+        if self.tts_engine == "piper":
+            self._start_piper_http_server()
+
+    def _start_piper_http_server(self):
+        """Start the Piper HTTP server if it's not already running"""
+        try:            
+            # Check if server is already running
+            try:
+                # Try to connect to the server
+                requests.get(f"{self.piper_http_url}?text=test", timeout=0.5)
+                logger.info(f"Piper HTTP server already running at {self.piper_http_url}")
+                return True
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+                # Server not running, we'll start it
+                logger.info("Piper HTTP server not detected, starting it...")
+            
+            # Get the path to the model
+            model_path = os.path.join(os.path.dirname(__file__), self.piper_models_dir, f"{self.piper_voice}.onnx")
+            if not os.path.exists(model_path):
+                logger.error(f"Piper model file not found: {model_path}")
+                return False
+            
+            # Prepare the command to start the HTTP server
+            # we need quotes around the python_exec to handle spaces in the path
+            python_exec = f'"{sys.executable}"'
+            
+            # Build the command
+            # change to the python_run directory    
+            os.chdir(os.path.join(os.path.dirname(__file__), "piper", "src", "python_run"))
+            cmd = [
+                python_exec,
+                "-m", "piper.http_server",
+                "--model", f'"{model_path}"',
+                "--host", self.piper_http_host,
+                "--port", str(self.piper_http_port)
+            ]
+            
+            logger.info(f"Starting Piper HTTP server with command: {' '.join(cmd)}")
+            
+            # Start the server as a background process with shell=True to handle Windows permissions
+            self.piper_server_process = subprocess.Popen(
+                " ".join(cmd),
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            
+            # Wait for the server to start up
+            for i in range(10):
+                try:
+                    requests.get(f"{self.piper_http_url}?text=test", timeout=0.5)
+                    logger.info(f"Piper HTTP server started successfully at {self.piper_http_url}")
+                    return True
+                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+                    time.sleep(0.5)
+            
+            logger.error("Failed to start Piper HTTP server")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error starting Piper HTTP server: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return False
+    
+    def _cleanup_piper_server(self):
+        """Stop the Piper HTTP server if we started it"""
+        if self.piper_server_process:
+            try:
+                self.piper_server_process.terminate()
+                self.piper_server_process.wait(timeout=5)
+                logger.info("Piper HTTP server stopped")
+            except Exception as e:
+                logger.error(f"Error stopping Piper HTTP server: {e}")
+                try:
+                    self.piper_server_process.kill()
+                except:
+                    pass
+            self.piper_server_process = None
 
     def remove_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', '', text)
@@ -121,111 +209,91 @@ class TextToSpeechService:
             
             logger.info(f"{self.assistant_name}: {text}")
             
-            # Get the current Python executable path (from virtual environment)
-            python_exec = sys.executable
-            # Quote the path for shell commands to handle spaces properly
-            quoted_python_exec = f'"{python_exec}"'
-            
-            # Check if piper is installed
-            try:
-                args = [python_exec, '-m', 'piper', '--help']
-                if self.is_rpi: # on RPi we use the piper binary directly
-                    args = ['piper', '--help']
-                subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-                has_piper = True
-            except (subprocess.SubprocessError, FileNotFoundError) as e:
-                # Log the exception details
-                logger.error(f"Piper TTS not found - please install it first. Error: {str(e)}")
-                self.speak_with_pyttsx3(text)
-                return False
-            
-            # Set up the piper command
-            voice_file = os.path.join(
-                self.piper_models_dir, 
-                f"{self.piper_voice}.onnx"
-            )
-            # Quote the voice file path to handle spaces
-            quoted_voice_file = f'"{voice_file}"'
-            json_file = f"{voice_file}.json"
-            
-            # Check if files exist
-            if not os.path.exists(voice_file) or not os.path.exists(json_file):
-                logger.error(f"Piper model files not found: {voice_file} or {json_file}")
-                self.speak_with_pyttsx3(text)
-                return
-
-            # remove any spaces from the start/end of the text
             text = text.strip()
-            # First try to use mpv on any platform (including RPi)
-            try:
-                subprocess.run(['mpv', '--version'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-                has_mpv = True
-            except (subprocess.SubprocessError, FileNotFoundError):
-                has_mpv = False
+            if not text:
+                return
             
-            if self.is_rpi:
-                # Fallback to aplay on RPi if mpv is not available
-                piper_cmd = f"echo \"{text}\" | piper --model {quoted_voice_file} --output-raw"
-                # Format for aplay: -D hw:0,0 or -D plughw:CARD=sndrpihifiberry,DEV=0
-                play_cmd = ['aplay', '-D', self.rpi_playback_device, '-r', '22050', '-f', 'S16_LE', '-t', 'raw'] if self.rpi_playback_device else ['aplay']
-                
-                piper_process = subprocess.Popen(piper_cmd, shell=True, stdout=subprocess.PIPE)
-                aplay_process = subprocess.Popen(play_cmd, stdin=piper_process.stdout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                piper_process.stdout.close()  # Allow piper to receive a SIGPIPE if aplay exits
-                aplay_process.communicate()
-                
-                # Wait until the sound is finished
-                while aplay_process.poll() is None:
-                    time.sleep(0.1)
-            elif has_mpv:
-                # Use Python executable to run piper as a module
-                piper_cmd = "piper" if self.is_rpi else f"{quoted_python_exec} -m piper"
-                piper_cmd = f"echo \"{text}\" | {piper_cmd} --model {quoted_voice_file}"
-                piper_process = subprocess.Popen(piper_cmd, shell=True, stdout=subprocess.PIPE)
-                
-                # Build mpv command with audio device if on RPi
-                mpv_args = ['mpv', '--no-video', '--']
-                if self.is_rpi and self.rpi_playback_device:
-                    # Format for mpv: --audio-device=alsa/hw:0,0 or alsa/dmix:CARD=sndrpihifiberry,DEV=0
-                    mpv_args.insert(1, f'--audio-device=alsa/{self.rpi_playback_device}')
-                mpv_args.append('-')
-
-                #print the mpv command we are about to run
-                logger.info(f"Running mpv command:  {piper_cmd} | {' '.join(mpv_args)}")
-                
-                mpv_process = subprocess.Popen(mpv_args, 
-                                            stdin=piper_process.stdout, 
-                                            stdout=subprocess.DEVNULL, 
-                                            stderr=subprocess.DEVNULL)
-                piper_process.stdout.close()  # Allow piper to receive a SIGPIPE if mpv exits
-                mpv_process.communicate()
-                
-                # Wait until the sound is finished
-                while mpv_process.poll() is None:
-                    time.sleep(0.1)
+            # Check if we need to start the server
+            if self.tts_engine == "piper" and not self._check_piper_server():
+                logger.debug("Piper HTTP server not running, starting it...")
+                if not self._start_piper_http_server():
+                    raise Exception("Failed to start Piper HTTP server")
+            
+            # Start mpv process to receive the audio stream
+            logger.debug("Starting mpv process...")
+            if self.is_rpi and self.rpi_playback_device:
+                # Use aplay on RPi with the specified device
+                mpv_process = subprocess.Popen(
+                    ["aplay", "-D", self.rpi_playback_device],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
             else:
-                # Fallback to temp file on other platforms if mpv is not available
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-                    temp_file_name = temp_file.name
-                    quoted_temp_file = f'"{temp_file_name}"'
-                    piper_cmd = f"echo \"{text}\" | {quoted_python_exec} -m piper --model {quoted_voice_file} --output_file {quoted_temp_file}"
-                    logger.info(f"Running piper command: {piper_cmd}")
-                    subprocess.run(piper_cmd, shell=True, check=True)
-                
-                # Create a temporary SoundEffectService instance to play the audio
-                temp_sound_service = SoundEffectService()
-                temp_sound_service.play(temp_file_name)
-                
-                # Clean up the temporary file after playing
-                time.sleep(0.1)  # Small delay to ensure the file is accessible
-                os.remove(temp_file_name)
+                # Use mpv on other platforms
+                mpv_process = subprocess.Popen(
+                    ["mpv", "--no-video", "-"],  # Read from stdin
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            
+            # Send GET request to Piper HTTP server
+            logger.debug(f"Sending text to Piper HTTP server: {text}")
+            response = requests.get(
+                self.piper_http_url,
+                params={"text": text},
+                stream=True
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Server returned error: {response.text}")
+                raise Exception(f"HTTP error {response.status_code}")
+            
+            # Stream the audio data directly to mpv/aplay
+            logger.debug("Streaming audio to player...")
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    mpv_process.stdin.write(chunk)
+            
+            # Close stdin and wait for the player to finish
+            mpv_process.stdin.close()
+            mpv_process.wait()
+            
+            logger.debug("Audio playback completed")
+
         except Exception as e:
-            logger.error(f"Error playing Piper audio: {e}")
-            logger.error(f"Exception type: {type(e).__name__}, Details: {str(e)}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.error(f"Error with Piper HTTP TTS: {e}")
+            # If all else fails, use pyttsx3
             self.speak_with_pyttsx3(text)
-                
+    
+    def _check_piper_server(self):
+        """Check if the Piper HTTP server is running"""
+        import requests
+        try:
+            requests.get(f"{self.piper_http_url}?text=test", timeout=0.5)
+            return True
+        except:
+            return False
+    
+    def _play_audio_file(self, file_path):
+        """Play an audio file using the appropriate method"""
+        try:
+            if self.is_rpi and self.rpi_playback_device:
+                # Use aplay on RPi with the specified device
+                subprocess.run(["aplay", "-D", self.rpi_playback_device, file_path], check=True)
+            else:
+                # Use mpv on other platforms
+                subprocess.run(["mpv", "--no-video", file_path], check=True)
+        except Exception as e:
+            logger.error(f"Error playing audio file: {e}")
+            # Try to use SoundEffectService as fallback
+            try:
+                temp_sound_service = SoundEffectService()
+                temp_sound_service.play(file_path)
+            except Exception as e2:
+                logger.error(f"Failed to play audio with fallback method: {e2}")
+    
     def speak_with_pyttsx3(self, text):
         try:
             # First stop any sound effects
@@ -262,3 +330,7 @@ class TextToSpeechService:
             
         except Exception as e:
             logger.error(f"Failed to use pyttsx3: {e}")
+
+    def __del__(self):
+        """Clean up resources when the object is destroyed"""
+        self._cleanup_piper_server()

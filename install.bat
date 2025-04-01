@@ -20,6 +20,11 @@ pip install -r requirements.txt
 pip install piper-tts --no-deps
 pip install onnxruntime
 
+:: install piper.http-server
+cd piper\src\python_run 
+pip install -e .
+cd ..\..\..
+
 :: check if config.json exists and if not, copy config.json.example to config.json
 if not exist config.json (
     echo config.json does not exist, copying config.json.example to config.json
