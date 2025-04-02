@@ -25,8 +25,11 @@ if ! command -v piper &> /dev/null; then
     # remove the tar.gz file
     rm piper_arm64.tar.gz
 
-    # add line export PATH="$PATH:$HOME/piper" to the bottom of the .bashrc file
-    echo "export PATH=\"$PATH:$HOME/piper\"" >> ~/.bashrc
+    # check if bashrc already has the line export PATH="$PATH:$HOME/JarvisChatBot/piper"
+    if ! grep -q "export PATH=\"$PATH:$HOME/JarvisChatBot/piper\"" ~/.bashrc; then
+        # add line export PATH="$PATH:$HOME/JarvisChatBot/piper" to the bottom of the .bashrc file
+        echo "export PATH=\"$PATH:$HOME/JarvisChatBot/piper\"" >> ~/.bashrc
+    fi
 
     # reload the .bashrc file
     source ~/.bashrc
