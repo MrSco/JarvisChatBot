@@ -46,6 +46,7 @@ class TextToSpeechService:
         
         # Piper binary process (only used on RPi)
         self.piper_process = None
+        self.piper_time_between_chunks = config.get("piper_time_between_chunks", 1)
         
         # Start appropriate Piper service based on platform
         if self.tts_engine == "piper":
@@ -134,6 +135,11 @@ class TextToSpeechService:
     def _start_piper_binary(self):
         """Start the Piper binary process for RPi"""
         try:
+            # Get the path to piper binary
+            piper_path = os.path.join("./piper", "piper")
+            if not os.path.exists(piper_path):
+                logger.error(f"Piper binary not found: {piper_path}")
+                return False
             # Get the path to the model
             model_path = os.path.join(self.piper_models_dir, f"{self.piper_voice}.onnx")
             if not os.path.exists(model_path):
@@ -142,7 +148,7 @@ class TextToSpeechService:
             
             # Build the command for the Piper binary
             cmd = [
-                "piper",
+                piper_path,
                 "--model", model_path,
                 "--output-raw"  # Output raw audio data
             ]
@@ -152,7 +158,6 @@ class TextToSpeechService:
             # Start the Piper process
             self.piper_process = subprocess.Popen(
                 cmd,
-                shell=True,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
@@ -258,32 +263,67 @@ class TextToSpeechService:
             
             if self.is_rpi:
                 # Use Piper binary on RPi
-                if not self.piper_process:
+                if not self.piper_process or self.piper_process.poll() is not None:
                     if not self._start_piper_binary():
                         raise Exception("Failed to start Piper binary")
                 
                 # Start aplay process to receive the audio stream
+                aplay_args = ["aplay"]
+                if self.rpi_playback_device:
+                    aplay_args.extend(["-D", self.rpi_playback_device])
+                aplay_args.extend(["-r", "22050", "-f", "S16_LE", "-t", "raw", "-"])
+                
                 aplay_process = subprocess.Popen(
-                    ["aplay", "-D", self.rpi_playback_device] if self.rpi_playback_device else ["aplay"],
+                    aplay_args,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
                 
-                # Send text to Piper and pipe output to aplay
-                self.piper_process.stdin.write(f"{text}\n".encode())
-                self.piper_process.stdin.flush()
-                
-                # Stream audio data to aplay
-                while True:
-                    chunk = self.piper_process.stdout.read(8192)
-                    if not chunk:
-                        break
-                    aplay_process.stdin.write(chunk)
-                
-                # Close stdin and wait for aplay to finish
-                aplay_process.stdin.close()
-                aplay_process.wait()
+                try:
+                    # Send text to Piper and pipe output to aplay
+                    self.piper_process.stdin.write(f"{text}\n".encode())
+                    self.piper_process.stdin.flush()
+                    
+                    # Set stdout to non-blocking mode
+                    os.set_blocking(self.piper_process.stdout.fileno(), False)
+                    
+                    # Stream audio data to aplay
+                    last_chunk_time = time.time()
+                    while True:
+                        try:
+                            chunk = self.piper_process.stdout.read(8192)
+                            if chunk is None:  # No data available
+                                if time.time() - last_chunk_time > self.piper_time_between_chunks:
+                                    logger.info(f"No data for {self.piper_time_between_chunks} seconds, assuming finished")
+                                    break
+                                time.sleep(0.1)  # Short sleep to prevent busy waiting
+                                continue
+                            
+                            if not chunk:  # EOF
+                                break
+                                
+                            last_chunk_time = time.time()
+                            aplay_process.stdin.write(chunk)
+                            aplay_process.stdin.flush()
+                            
+                        except BlockingIOError:
+                            if time.time() - last_chunk_time > self.piper_time_between_chunks:
+                                logger.info(f"No data for {self.piper_time_between_chunks} seconds, assuming finished")
+                                break
+                            time.sleep(0.1)  # Short sleep to prevent busy waiting
+                            continue
+                            
+                    # Close stdin and wait for aplay to finish
+                    aplay_process.stdin.close()
+                    aplay_process.wait()
+                    
+                except BrokenPipeError:
+                    logger.warning("Pipe broken, restarting Piper process")
+                    self._cleanup_piper_binary()
+                    if not self._start_piper_binary():
+                        raise Exception("Failed to restart Piper binary")
+                    raise  # Re-raise to retry the operation
                 
             else:
                 # Use HTTP server on other platforms
@@ -319,7 +359,6 @@ class TextToSpeechService:
                 mpv_process.stdin.close()
                 mpv_process.wait()
             
-            logger.debug("Audio playback completed")
 
         except Exception as e:
             logger.error(f"Error with Piper TTS: {e}")
@@ -361,7 +400,6 @@ class TextToSpeechService:
             logger.info(f"{self.assistant_name}: {text}")
             if self.is_rpi:
                 cmd = f"espeak -s{self.speech_rate} --stdout \"{text}\""
-                #logger.debug(f"Speaking with: {cmd}")
                 espeak_process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                 args = ['aplay', '-D', self.rpi_playback_device]
                 if self.rpi_playback_device == "":
@@ -373,10 +411,7 @@ class TextToSpeechService:
                 while aplay_process.poll() is None:
                     time.sleep(0.1)
             else:
-                #logger.debug(f"Speaking with pyttsx3: {text}")
                 engine = pyttsx3.init()
-                #logger.debug("Engine initialized")
-                # Set the speech rate
                 engine.setProperty('rate', self.speech_rate)
                 voices = engine.getProperty('voices') 
                 engine.setProperty('voice', voices[self.assistant_gender].id)
