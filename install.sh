@@ -15,7 +15,7 @@ pip3 install --upgrade pip
 pip3 install -r requirements.txt
 
 # check if piper is installed
-if ! command -v piper &> /dev/null; then
+if ! command -v ./piper/piper &> /dev/null; then
     # download piper binary and add it to the PATH
     curl -L https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_arm64.tar.gz -o piper_arm64.tar.gz
 
@@ -25,14 +25,6 @@ if ! command -v piper &> /dev/null; then
     # remove the tar.gz file
     rm piper_arm64.tar.gz
 
-    # check if bashrc already has the line export PATH="$PATH:$HOME/JarvisChatBot/piper"
-    if ! grep -q "export PATH=\"$PATH:$HOME/JarvisChatBot/piper\"" ~/.bashrc; then
-        # add line export PATH="$PATH:$HOME/JarvisChatBot/piper" to the bottom of the .bashrc file
-        echo "export PATH=\"$PATH:$HOME/JarvisChatBot/piper\"" >> ~/.bashrc
-    fi
-
-    # reload the .bashrc file
-    source ~/.bashrc
 fi
 
 # check if vasco model is downloaded already
