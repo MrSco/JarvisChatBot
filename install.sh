@@ -35,6 +35,18 @@ if ! command -v piper &> /dev/null; then
     source ~/.bashrc
 fi
 
+# check if vasco model is downloaded already
+if [ ! -f piper_models/vasco.onnx ]; then
+    # download the model
+    curl -L https://huggingface.co/poisson-fish/piper-vasco/blob/main/onnx/vasco.tar.gz -o piper_models/vasco.tar.gz
+
+    # extract the model
+    tar -xvzf piper_models/vasco.tar.gz -C piper_models
+
+    # remove the tar.gz file
+    rm piper_models/vasco.tar.gz
+fi
+
 # check if config.json exists and if not, copy config.json.example to config.json
 if [ ! -f config.json ]; then
     echo "config.json does not exist, copying config.json.example to config.json"

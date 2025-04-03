@@ -166,3 +166,7 @@ cython_debug/
 #.idea/
 local-notes.txt
 output.mp3
+
+# Large model files
+piper_models/vasco.onnx
+piper_models/vasco.onnx.json

@@ -47,6 +47,7 @@ class SoundEffectService:
             pass
         self.rpi_playback_device = config.get("rpi_playback_device", "")
         self.assistant_name = config["assistant"]
+        self.tts_engine = config.get("tts_engine", "elevenlabs")
         self.is_looping = False
         self.loop_thread = None
         self.generic_sound_names = ["error", "awake", "done", "initializing", "loading", "halflifebutton", "alarm", "timer"]
@@ -73,7 +74,9 @@ class SoundEffectService:
         return self.filler_sound_names[random.randint(0, len(self.filler_sound_names) - 1)]
 
     def get_sound_path(self, sound_name, assistant_name):
-        return os.path.join(sounds_dir, assistant_name if not sound_name in self.generic_sound_names else "", f"{sound_name}.wav")
+        useAssistantSounds = assistant_name if not sound_name in self.generic_sound_names else ''
+        usePiperSounds = 'piper' if useAssistantSounds != '' and self.tts_engine == 'piper' else ''
+        return os.path.join(sounds_dir, usePiperSounds, useAssistantSounds, f"{sound_name}.wav")
 
     def wait_for_sound_to_finish(self):
         # Poll until the media player's state is Ended, Stopped, or Error
