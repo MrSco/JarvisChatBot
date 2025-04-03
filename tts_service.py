@@ -226,7 +226,7 @@ class TextToSpeechService:
             if self.tts_engine == "gtts":
                 self.speak_with_gtts(text)
             else:
-                self.speak_with_pyttsx3(text)
+                self.speak_with_piper(text)
 
     def speak_with_gtts(self, text):
         try:
