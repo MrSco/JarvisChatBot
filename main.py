@@ -253,7 +253,7 @@ class WakeWordDetector:
         self.rpi_audio_device = config.get("rpi_audio_device", "")
         self.tts_engine = config["tts_engine"]
         if assistant.get('elevenlabs_voice_id', "") == "":
-            self.tts_engine = "pyttsx3"
+            self.tts_engine = "piper"
         self.chat_gpt_service = ChatGPTService(config)
         # local ip address
         self.chat_gpt_service.host = get_local_ip()
@@ -367,7 +367,7 @@ class WakeWordDetector:
         self.handle_led_event("VoiceStarted")
         if self.recorder is not None:
             self.recorder.stop()
-        if assistant.get('elevenlabs_voice_id', "") == "":
+        if assistant.get('elevenlabs_voice_id', "") == "" and self.tts_engine != "piper":
             #print("Speaking ready sound...")
             self.speech.speak(f"{assistant_name} ready!")
         else:
@@ -1040,7 +1040,7 @@ def update_configuration(settings_data=None, new_assistant_name=None):
             detector.is_updating = True
             detector.tts_engine = config["tts_engine"]
             if assistant.get('elevenlabs_voice_id', "") == "":
-                detector.tts_engine = "pyttsx3"
+                detector.tts_engine = "piper"
             try:
                 detector._cleanup_audio_stream()
                 #print("Audio stream cleaned up")
@@ -1082,7 +1082,7 @@ def update_configuration(settings_data=None, new_assistant_name=None):
                 #print("State reset")
                 if new_assistant_name:
                     #print("Playing ready sound...")
-                    if assistant.get('elevenlabs_voice_id', "") == "":
+                    if assistant.get('elevenlabs_voice_id', "") == "" and detector.tts_engine != "piper":
                         #print("Speaking ready sound...")
                         detector.speech.speak(f"{assistant_name} ready!")
                     else:
@@ -1176,7 +1176,7 @@ def signal_handler(sig, frame):
     if alarm_timer_service is not None:
         alarm_timer_service.cleanup()
     # No need to stop the LED server as we're not running it in this process
-    if assistant.get('elevenlabs_voice_id', "") == "":
+    if assistant.get('elevenlabs_voice_id', "") == "" and detector.tts_engine != "piper":
         tts_service = TextToSpeechService(config)
         tts_service.is_rpi = is_rpi
         tts_service.speak("Goodbye!")
