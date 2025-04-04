@@ -172,6 +172,21 @@ class TextToSpeechService:
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
 
+    def _cleanup_piper_binary(self):
+        """Clean up the Piper binary process"""
+        if self.piper_process:
+            try:
+                self.piper_process.terminate()
+                self.piper_process.wait(timeout=5)
+                logger.info("Piper binary stopped")
+            except Exception as e:
+                logger.error(f"Error stopping Piper binary: {e}")
+                try:
+                    self.piper_process.kill()
+                except:
+                    pass
+            self.piper_process = None
+
     def remove_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', '', text)
 
@@ -288,32 +303,55 @@ class TextToSpeechService:
                     # Set stdout to non-blocking mode
                     os.set_blocking(self.piper_process.stdout.fileno(), False)
                     
-                    # Stream audio data to aplay
-                    last_chunk_time = time.time()
+                    # Stream audio data to aplay - this time read EVERYTHING until we're done
+                    consecutive_empty_reads = 0
+                    max_empty_reads = 5  # After this many empty reads, consider speech complete
+                    has_received_data = False  # Flag to ensure we've received at least some data
+                    start_time = time.time()
+                    max_wait_time = 5.0  # Maximum time to wait for initial data (seconds)
+                    
                     while True:
                         try:
                             chunk = self.piper_process.stdout.read(8192)
-                            if chunk is None:  # No data available
-                                if time.time() - last_chunk_time > self.piper_time_between_chunks:
-                                    logger.info(f"No data for {self.piper_time_between_chunks} seconds, assuming finished")
+                            
+                            if not chunk:  # No data or EOF
+                                consecutive_empty_reads += 1
+                                
+                                # Check if we've been waiting too long for initial data
+                                if not has_received_data and (time.time() - start_time > max_wait_time):
+                                    logger.warning(f"No data received from Piper after {max_wait_time} seconds, giving up")
                                     break
-                                time.sleep(0.1)  # Short sleep to prevent busy waiting
+                                    
+                                if consecutive_empty_reads >= max_empty_reads:
+                                    # Only break if we've received some data already
+                                    if has_received_data:
+                                        logger.info(f"Detected end of speech after {consecutive_empty_reads} empty reads")
+                                        break
+                                time.sleep(0.05)  # Shorter sleep for more responsive detection
                                 continue
                             
-                            if not chunk:  # EOF
-                                break
-                                
-                            last_chunk_time = time.time()
+                            # We've received some data
+                            has_received_data = True
+                            consecutive_empty_reads = 0
                             aplay_process.stdin.write(chunk)
                             aplay_process.stdin.flush()
                             
                         except BlockingIOError:
-                            if time.time() - last_chunk_time > self.piper_time_between_chunks:
-                                logger.info(f"No data for {self.piper_time_between_chunks} seconds, assuming finished")
-                                break
-                            time.sleep(0.1)  # Short sleep to prevent busy waiting
-                            continue
+                            consecutive_empty_reads += 1
                             
+                            # Check if we've been waiting too long for initial data
+                            if not has_received_data and (time.time() - start_time > max_wait_time):
+                                logger.warning(f"No data received from Piper after {max_wait_time} seconds, giving up")
+                                break
+                                
+                            if consecutive_empty_reads >= max_empty_reads:
+                                # Only break if we've received some data already
+                                if has_received_data:
+                                    logger.info(f"Detected end of speech after {consecutive_empty_reads} blocking reads")
+                                    break
+                            time.sleep(0.05)  # Shorter sleep for more responsive detection
+                            continue
+                
                     # Close stdin and wait for aplay to finish
                     aplay_process.stdin.close()
                     aplay_process.wait()
