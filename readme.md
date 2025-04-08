@@ -159,13 +159,6 @@ install.bat
 
 # Edit the config.json file
 
-Copy the `config.json.example` file to `config.json` and edit the file to include your OpenAI, Groq, Google Gemini, and ElevenLabs keys. Also copy the `assistants.json.example` file to `assistants.json`.
-
-
-```bash
-cp config.json.example config.json
-cp assistants.json.example assistants.json
-```
 
 ```bash
 nano config.json
