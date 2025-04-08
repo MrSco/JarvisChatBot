@@ -1103,46 +1103,29 @@ def update_configuration(settings_data=None, new_assistant_name=None):
         logger.error(f"Error updating configuration: {e}")
         return False
 
+def check_internet_connection(url='http://www.google.com/', timeout=5):
+    try:
+        response = requests.get(url, timeout=timeout)
+        return True
+    except requests.ConnectionError:
+        return False
+
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     global config
     if request.method == 'POST':
         logger.info(f"Updating settings... with new settings {request.form}")
         if update_configuration(settings_data=request.form):
-            return jsonify({"status": "ok"}), 200
+            return jsonify({"status": "ok", "models": config.get('available_models', {})}), 200
         return jsonify({"status": "error"}), 500
     return render_template('settings.html', config=config)
-
-@app.route('/play_radio', methods=['POST'])
-def play_radio():
-    global radio_player
-    if radio_player:
-        data = request.get_json()
-        logger.info(f"Received data: {data}")
-        if data and data.get('radio') == 'kid':
-            stream_url = config["kids_radio_stream_url"]
-        else:
-            stream_url = config["radio_stream_url"]
-        radio_player.start(stream_url)
-        if radio_player.running:
-            return jsonify({"status": "done"}), 200
-    return jsonify({"status": "error"}), 500
-
-@app.route('/stop_radio', methods=['POST'])
-def stop_radio():
-    global radio_player
-    if radio_player:
-        radio_player.stop()
-        if not radio_player.running:
-            return jsonify({"status": "done"}), 200
-    return jsonify({"status": "error"}), 500
 
 @socketio.on('change_assistant')
 def change_assistant(data):
     new_assistant = data.get('assistant')
     if new_assistant and new_assistant in assistants:
         if update_configuration(new_assistant_name=new_assistant):
-            socketio.emit('assistant_changed', {'assistant': new_assistant})
+            socketio.emit('assistant_changed', {'assistant': new_assistant, 'models': config.get('available_models', {})})
             return
     socketio.emit('assistant_changed', {'assistant': None})
 
@@ -1187,13 +1170,6 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-def check_internet_connection(url='http://www.google.com/', timeout=5):
-    try:
-        response = requests.get(url, timeout=timeout)
-        return True
-    except requests.ConnectionError:
-        return False
-    
 if __name__ == "__main__":
     #wait for up to 10 seconds for internet connection
     for i in range(10):

@@ -246,6 +246,28 @@ else if (location.toString().includes('/settings')) {
     document.addEventListener('DOMContentLoaded', function () {
         setActiveLink();
 
+        // Function to populate model dropdown
+        function populateModelDropdown(selectId, models, currentValue) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = ''; // Clear existing options
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model;
+                option.textContent = model;
+                select.appendChild(option);
+            });
+            if (currentValue && models.includes(currentValue)) {
+                select.value = currentValue;
+            }
+        }
+
+        // Function to update models when service changes
+        function updateModels(service) {
+            const selectId = `${service}_modelSelect`;
+            const currentValue = window[`${service}_model`];
+            populateModelDropdown(selectId, available_models[service], currentValue);
+        }
+
         // Get the model selection dropdowns
         var openai_modelSelect = document.getElementById('openai_modelSelect');
         var groq_modelSelect = document.getElementById('groq_modelSelect');
@@ -261,6 +283,16 @@ else if (location.toString().includes('/settings')) {
         ai_serviceSelect.value = ai_service;
         tts_engineSelect.value = tts_engine;
         image_storageSelect.value = image_storage;
+
+        // Load initial models for current service
+        updateModels(ai_service);
+
+        // Update models when service changes
+        ai_serviceSelect.addEventListener('change', function() {
+            updateModels(this.value);
+            updateModelVisibility();
+        });
+        
         // Function to show/hide model dropdowns based on selected service
         function updateModelVisibility() {
             var selectedService = ai_serviceSelect.value;
@@ -366,6 +398,12 @@ else if (location.toString().includes('/settings')) {
                 document.querySelector('.loading-overlay').style.display = 'none';
                 
                 if (response.ok) {
+                    response.json().then(data => {
+                        if (data.models) {
+                            available_models = data.models;
+                            updateModels(ai_serviceSelect.value);
+                        }
+                    });
                     alert('Settings saved successfully!');
                 } else {
                     alert('Failed to save settings.');

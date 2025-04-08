@@ -1,4 +1,5 @@
 import base64
+import json
 import threading
 import time
 import types
@@ -103,8 +104,19 @@ class ChatGPTService:
         
         self.ai_service = config.get("ai_service", "openai")
         
+        # Initialize API keys for each service
+        os.environ["GOOGLE_API_KEY"] = config.get("google_key", "")
+        os.environ["GROQ_API_KEY"] = config.get("groq_key", "")
+        os.environ["OPENAI_API_KEY"] = config.get("openai_key", "")
+    
+        # Fetch available models for all providers
+        self.available_models = {}
+        self.fetch_all_available_models()
+        
+        # Store models in config for frontend access
+        config['available_models'] = self.available_models
+        
         if self.ai_service == "google":
-            os.environ["GOOGLE_API_KEY"] = config["google_key"]
             self.model = config["google_model"]
             # Initialize Google Gemini client
             self.llm = genai.Client()
@@ -115,12 +127,10 @@ class ChatGPTService:
                 config=types.GenerateContentConfig(system_instruction=self.system_prompt.replace("{today}", str(date.today())).replace("{theCurrentTime}", current_time))
             )
         elif self.ai_service == "groq":
-            os.environ["GROQ_API_KEY"] = config["groq_key"]
             self.model = config["groq_model"]
             self.groq_vision_model = config["groq_vision_model"]
-            self.llm = Groq(api_key=config["groq_key"])
+            self.llm = Groq()
         else:
-            os.environ["OPENAI_API_KEY"] = config["openai_key"]
             self.model = config["openai_model"]
             self.llm = openai
         self.sound_effect = None
@@ -625,3 +635,75 @@ class ChatGPTService:
             self.history.append({"role": "assistant", "content": response_full_text})
         
         return text_iterator()
+
+    # Add methods to fetch available models for each provider
+    def fetch_openai_models(self):
+        """Fetch available OpenAI models"""
+        try:
+            if not os.environ.get("OPENAI_API_KEY"):
+                return []
+                
+            models = openai.models.list()
+            chat_models = [model.id for model in models]
+            # Sort the models alphabetically
+            chat_models.sort()
+            return chat_models
+        except Exception as e:
+            logger.error(f"Error fetching OpenAI models: {e}")
+            return []
+
+    def fetch_groq_models(self):
+        """Fetch available Groq models"""
+        try:
+            if not os.environ.get("GROQ_API_KEY"):
+                return []
+                
+            client = Groq()
+            models = []
+            # The response is a ModelListResponse object with a 'data' attribute
+            model_list = client.models.list()
+            
+            # Access the data attribute which contains the list of models
+            if hasattr(model_list, 'data'):
+                for model in model_list.data:
+                    # Each model is an object with an 'id' attribute
+                    if hasattr(model, 'id'):
+                        models.append(model.id)
+            
+            # Sort the models alphabetically
+            models.sort()
+            
+            return models
+        except Exception as e:
+            logger.error(f"Error fetching Groq models: {e}")
+            return []
+
+    def fetch_google_models(self):
+        """Fetch available Google Gemini models"""
+        try:
+            if not os.environ.get("GOOGLE_API_KEY"):
+                return []
+                
+            client = genai.Client()
+            text_models = []
+            for m in client.models.list():
+                for action in m.supported_actions:
+                    if action == "generateContent":
+                        text_models.append(m.name.replace("models/", ""))
+                        break
+            # Sort the models alphabetically
+            text_models.sort()
+            return text_models
+        except Exception as e:
+            logger.error(f"Error fetching Google models: {e}")
+            return []
+
+    def fetch_all_available_models(self):
+        """Fetch available models for all providers"""
+        self.available_models = {
+            'openai': self.fetch_openai_models(),
+            'groq': self.fetch_groq_models(),
+            'google': self.fetch_google_models()
+        }
+        logger.info(f"Fetched available models: {len(self.available_models['openai'])} OpenAI, {len(self.available_models['groq'])} Groq, {len(self.available_models['google'])} Google")
+        return self.available_models

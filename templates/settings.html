@@ -21,6 +21,7 @@
         var max_threshold = "{{ config['max_threshold'] }}";
         var led_brightness = "{{ config['led_brightness'] }}";
         var vad_threshold = "{{ config['vad_threshold'] }}";
+        var available_models = JSON.parse('{{ config.get("available_models", {"openai": [], "groq": [], "google": []}) | tojson | safe }}');
     </script>
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
 </head>
