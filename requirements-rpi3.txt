@@ -1,0 +1,25 @@
+pydantic-core==2.27.2
+openai
+groq
+elevenlabs
+SpeechRecognition
+pyaudio
+geocoder
+flask
+flask_socketio
+pyttsx3
+pvporcupine
+pvrecorder
+gtts
+python-vlc
+tzlocal
+google-genai
+httpx
+sounddevice
+pillow
+# Optional RPI-specific dependencies
+dbus-python; platform_system == "Linux"  # dbus control for Shairport-Sync
+RPi.GPIO; platform_system == "Linux"  # GPIO control for Raspberry Pi
+gpiozero; platform_system == "Linux"  # GPIO utilities for Raspberry Pi
+spidev; platform_system == "Linux"  # SPI control for Raspberry Pi
+lgpio; platform_system == "Linux"  # GPIO utilities for Raspberry Pi

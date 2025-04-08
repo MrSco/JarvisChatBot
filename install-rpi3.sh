@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Install OpenCV
+sudo apt-get install python3-opencv
 
 # Create a virtual environment
 python3 -m venv venv
@@ -12,7 +14,7 @@ source venv/bin/activate
 pip3 install --upgrade pip
 
 # Install requirements
-pip3 install -r requirements.txt
+pip3 install -r requirements-rpi3.txt
 
 # check if piper is installed
 if ! command -v ./piper/piper &> /dev/null; then
