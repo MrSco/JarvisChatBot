@@ -5,6 +5,7 @@ choco install python311 mpv vlc -y
 
 :: Create a virtual environment
 python -m venv venv
+echo virtual environment created
 
 :: Activate the virtual environment
 call venv\Scripts\activate.bat
@@ -19,14 +20,26 @@ pip install -r requirements.txt
 :: Install piper-tts
 pip install piper-tts --no-deps
 pip install onnxruntime
+echo piper-tts installed
+
+:: install piper
+if not exist piper (
+    echo piper does not exist, cloning the repository
+    git clone https://github.com/rhasspy/piper.git
+    :: modify the requirements.txt file to comment out the piper-phonemize line
+    powershell -Command "(Get-Content piper\src\python_run\requirements.txt) -replace 'piper-phonemize~=1.1.0', '#piper-phonemize~=1.1.0' | Set-Content piper\src\python_run\requirements.txt"
+)
+echo piper cloned
 
 :: install piper.http-server
 cd piper\src\python_run 
 pip install -e .
 cd ..\..\..
+echo piper.http-server installed
 
 :: check if vasco model is downloaded already
 if not exist piper_models\vasco.onnx (
+    echo vasco.onnx does not exist, downloading the model
     :: download the model
     curl -L https://huggingface.co/poisson-fish/piper-vasco/blob/main/onnx/vasco.tar.gz -o piper_models\vasco.tar.gz
 
