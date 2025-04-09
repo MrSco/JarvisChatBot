@@ -12,15 +12,18 @@ pip3 install --upgrade pip
 
 # Install requirements
 pip3 install -r requirements-rpi3.txt
+pip3 install 'numpy<2.0'
 
 # Install OpenCV
 sudo apt-get install python3-opencv libopenblas-dev -y
 
-# Create a symbolic link to the OpenCV library
-cd venv/lib/python3.*/site-packages/
-ln -s /usr/lib/python3/dist-packages/cv2.cpython-311-arm-linux-gnueabihf.so cv2.so
+if [ ! -d "venv/lib/python3.*/site-packages/cv2.cpython-311-arm-linux-gnueabihf.so" ]; then
+    # Create a symbolic link to the OpenCV library
+    cd venv/lib/python3.*/site-packages/
+    ln -s /usr/lib/python3/dist-packages/cv2.cpython-311-arm-linux-gnueabihf.so cv2.so
 
-pip3 install 'numpy<2.0'
+    cd ../../../..
+fi
 
 # check if piper is installed
 if ! command -v ./piper/piper &> /dev/null; then
