@@ -305,7 +305,7 @@ class TextToSpeechService:
                     
                     # Stream audio data to aplay - this time read EVERYTHING until we're done
                     consecutive_empty_reads = 0
-                    max_empty_reads = 5  # After this many empty reads, consider speech complete
+                    max_empty_reads = 30  # After this many empty reads, consider speech complete
                     has_received_data = False  # Flag to ensure we've received at least some data
                     start_time = time.time()
                     max_wait_time = 5.0  # Maximum time to wait for initial data (seconds)
