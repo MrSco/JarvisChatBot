@@ -167,8 +167,8 @@ cython_debug/
 local-notes.txt
 output.mp3
 
-# piper binary folder
-piper/
+# piper binary folder only in root
+/piper/
 
 # Large model files
 piper_models/vasco.onnx
