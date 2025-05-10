@@ -1,7 +1,7 @@
 {
     "jarvis": {
         "name": "Jarvis",
-        "wake_word": "jarvis",
+        "wake_word": "hey jarvis",
         "gender": "male",
         "accent": "co.uk",
         "page_title": "J.A.R.V.I.S.",
@@ -41,7 +41,7 @@
     },
     "hal": {
         "name": "HAL",
-        "wake_word": "hal",
+        "wake_word": "hey hal",
         "gender": "male",
         "accent": "us",
         "page_title": "HAL 9000",

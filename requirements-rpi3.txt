@@ -8,8 +8,6 @@ geocoder
 flask
 flask_socketio
 pyttsx3
-pvporcupine
-pvrecorder
 gtts
 python-vlc
 tzlocal
@@ -17,6 +15,9 @@ google-genai
 httpx
 sounddevice
 pillow
+numpy<2.0
+onnxruntime; platform_machine != "armv7l"
+openwakeword
 # Optional RPI-specific dependencies
 dbus-python; platform_system == "Linux"  # dbus control for Shairport-Sync
 RPi.GPIO; platform_system == "Linux"  # GPIO control for Raspberry Pi

@@ -12,7 +12,10 @@ import time
 from typing import Iterable
 from chat_gpt_service import ChatGPTService
 from input_listener import InputListener
-import pvporcupine
+import pyaudio
+import numpy as np
+import openwakeword
+from openwakeword.model import Model
 from sound_effect_service import SoundEffectService
 from tts_service import TextToSpeechService
 from alarm_timer_service import AlarmTimerService
@@ -22,7 +25,7 @@ from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
 import requests
 from radio_player import RadioPlayer
-from pvrecorder import PvRecorder
+import sounddevice as sd
 
 # Configure logging
 logging.basicConfig(
@@ -89,7 +92,6 @@ assistant_acronym = assistant["acronym"]
 vad_threshold = config["vad_threshold"]
 print_audio_level = config["print_audio_level"]
 max_threshold = config["max_threshold"]
-picovoice_key = config["picovoice_key"]
 
 if not os.path.exists("chatlogs"):
     os.makedirs("chatlogs")
@@ -264,20 +266,38 @@ class WakeWordDetector:
         assistant_wake_word = assistant["wake_word"].lower()
         
         # Initialize audio objects
-        self.porcupine = None
-        self.recorder = None
+        self.audio = None
+        self.mic_stream = None
+        self.oww_model = None
         self.sound_effect = None
         self.speech = None
         self.listener = None
         
-        # init porcupine but if key is bad or missing exit and notify user
-        # Initialize Porcupine with the selected keyword
+        # Initialize audio settings
+        self.FORMAT = pyaudio.paInt16
+        self.CHANNELS = 1
+        self.RATE = 16000
+        self.CHUNK = 1280  # Same as example default
+        
+        # Initialize openwakeword
         try:
-            self._init_porcupine(assistant_wake_word)
-            #print(f"Initialized Porcupine with keyword: {assistant_wake_word}")
+            # One-time download of all pre-trained models
+            openwakeword.utils.download_models()
+
+            oww_model_path = os.path.join(script_dir, "oww_models", config["oww_model"].replace("{assistant_name}", assistant_name))
+            oww_additional = config["oww_model"].replace("{assistant_name}", f"{assistant_name}1")
+            oww_model_path1 = os.path.join(script_dir, "oww_models", oww_additional) if os.path.exists(os.path.join(script_dir, "oww_models", oww_additional)) else None
+            oww_models = [oww_model_path]
+            if oww_model_path1:
+                oww_models.append(oww_model_path1)
+            if assistant_name.lower() == "jarvis":
+                oww_models.append("hey jarvis")
+            oww_inference_framework = config["oww_model"].split(".")[-1]
+            # Load pre-trained openwakeword model for the assistant's wake word
+            self.oww_model = Model(wakeword_models=oww_models, inference_framework=oww_inference_framework)
+            logger.info(f"Initialized openwakeword with wake word: {assistant_wake_word}")
         except Exception as e:
-            logger.error(f"Error initializing Porcupine: {e}")
-            logger.error("Please check your Picovoice key and try again.")
+            logger.error(f"Error initializing openwakeword: {e}")
             loading_sound.stop_sound()
             self.cleanup()
             sys.exit(1)
@@ -301,50 +321,46 @@ class WakeWordDetector:
         self.chat_gpt_service.speech = self.speech
         self.chat_gpt_service.handle_led_event = self.handle_led_event
 
-    def _init_porcupine(self, wake_word):
-        """Initialize or reinitialize Porcupine with the given wake word"""
-        if self.porcupine is not None:
-            try:
-                self.porcupine.delete()
-            except Exception as e:
-                logger.error(f"Error deleting old Porcupine instance: {e}")
-        
-        if wake_word != "jarvis":
-            self.porcupine = pvporcupine.create(
-                access_key=picovoice_key,
-                keyword_paths=[os.path.join(
-                    script_dir, 
-                    "porcupine_models", 
-                    "rpi" if is_rpi else "", 
-                    f"{assistant_name.lower()}.ppn"
-                )]
-            )
-        else:
-            self.porcupine = pvporcupine.create(
-                access_key=picovoice_key,
-                keywords=[wake_word]
-            )
-
-
     def _cleanup_audio_stream(self):
         """Clean up the audio stream"""
-        if self.recorder is not None:
-            self.recorder.stop()
-            self.recorder.delete()
-        self.recorder = None
+        if self.mic_stream is not None:
+            if self.mic_stream.is_active():
+                self.mic_stream.stop_stream()
+            self.mic_stream.close()
+        if self.audio is not None:
+            self.audio.terminate()
+        self.mic_stream = None
+        self.audio = None
 
     def _init_audio_stream(self):
         """Initialize the audio stream"""
         self.handle_led_event("Connected")
         self.is_request_processing = False
-        if self.recorder is None:
-            #logger.debug("Initializing PvRecorder...")
-            self.recorder = PvRecorder(
-                frame_length=self.porcupine.frame_length,
-                device_index=-1  # Use default device
-            )        
-            #logger.debug("Starting recorder...")
-        self.recorder.start()
+        
+        if self.audio is None:
+            self.audio = pyaudio.PyAudio()
+            
+        if self.mic_stream is None:
+            try:
+                self.mic_stream = self.audio.open(
+                    format=self.FORMAT,
+                    channels=self.CHANNELS,
+                    rate=self.RATE,
+                    input=True,
+                    frames_per_buffer=self.CHUNK,
+                    input_device_index=None,  # Let system choose default input device
+                    stream_callback=None
+                )
+            except Exception as e:
+                logger.error(f"Error initializing audio stream: {e}")
+                self.something_went_wrong()
+                return
+        
+        # Feed silence to reset the model's state
+        silence = np.zeros(self.CHUNK, dtype=np.int16)
+        for _ in range(10):  # Feed silence for about 1 second
+            self.oww_model.predict(silence)
+
         if (shairport_handler is not None and shairport_handler.shairport_active) \
             or (radio_player is not None and radio_player.running) and not self.is_awoken:
             self.is_awoken = True
@@ -352,30 +368,22 @@ class WakeWordDetector:
             logger.info("Music active. Pausing chatbot vad...")
         else:
             self.is_awoken = False
-            #logger.debug("Audio stream initialized")
             time.sleep(0.1)
             socketio.emit('chatbot_ready', {'status': 'ready'})
             logger.info(f"Listening for '{assistant['wake_word']}'...")
-    
-    def play_or_speak(self, text):
-        if self.tts_engine == "pyttsx3":            
-            self.speech.speak(text.split(".")[0].replace("_", " "))
-        else:
-            self.sound_effect.play(text)
 
     def process_audio(self):
         self.handle_led_event("VoiceStarted")
-        if self.recorder is not None:
-            self.recorder.stop()
+        if self.mic_stream is not None and self.mic_stream.is_active():
+            self.mic_stream.stop_stream()
+            
         if assistant.get('elevenlabs_voice_id', "") == "" and self.tts_engine != "piper":
-            #print("Speaking ready sound...")
             self.speech.speak(f"{assistant_name} ready!")
         else:
-            #print("Playing ready sound...")
             self.sound_effect.play("ready")
 
-        if self.recorder is not None:
-            self.recorder.start()
+        if self.mic_stream is not None:
+            self.mic_stream.start_stream()
             
         logger.info(f"Listening for '{assistant['wake_word']}'...")
         
@@ -393,13 +401,18 @@ class WakeWordDetector:
                         continue
                         
                     # Read audio data
-                    pcm = self.recorder.read()
+                    audio_data = self.mic_stream.read(self.CHUNK, exception_on_overflow=False)
+                    audio = np.frombuffer(audio_data, dtype=np.int16)
                     
-                    # Process with Porcupine
-                    keyword_index = self.porcupine.process(pcm)
+                    # Process with openwakeword
+                    prediction = self.oww_model.predict(audio)
                     
-                    if keyword_index >= 0 and not self.is_request_processing:
-                        logger.info(f"Wake word detected! Keyword index: {keyword_index}")
+                    # set a variable to true if any of the predictions are above 0.5
+                    wake_word_detected = any(prediction[key] > 0.5 for key in prediction)
+                    
+                    # Check if wake word was detected
+                    if wake_word_detected and not self.is_request_processing:
+                        logger.info(f"Wake word detected!")
                         
                         # Clean up audio stream before using microphone
                         self._cleanup_audio_stream()
@@ -419,7 +432,8 @@ class WakeWordDetector:
                             self._init_audio_stream()
                             continue
 
-                        self.process_transcript(self.listener.transcript)                    
+                        self.process_transcript(self.listener.transcript)
+                                                    
                 except Exception as e:
                     logger.error(f"Error processing audio: {e}")
                     self.something_went_wrong()
@@ -844,25 +858,24 @@ class WakeWordDetector:
             self.cleanup()
 
     def cleanup(self):
-        #print("Cleaning up detector...")
         self.is_running = False
-            
         self._cleanup_audio_stream()
-                
-        if self.porcupine is not None:
-            try:
-                self.porcupine.delete()
-            except Exception as e:
-                logger.error(f"Error deleting Porcupine: {e}")
-            
+        
         # Reset all references
-        self.porcupine = None
+        self.oww_model = None
         self.speech = None
         self.sound_effect = None
         self.chat_gpt_service = None
         self.listener = None
         self.is_awoken = False
         self.is_request_processing = False
+
+    def play_or_speak(self, text):
+        """Play a sound effect or speak text based on the TTS engine configuration"""
+        if self.tts_engine == "pyttsx3":            
+            self.speech.speak(text.split(".")[0].replace("_", " "))
+        else:
+            self.sound_effect.play(text)
 
 @app.template_filter('find_url')
 def find_url_filter(text):
@@ -1033,7 +1046,6 @@ def update_configuration(settings_data=None, new_assistant_name=None):
         # Update LED service if brightness changed
         if is_rpi and led_service is not None:
             led_service.led_brightness = min(config["led_brightness"], 8)
-            #print(f"LED brightness updated to {led_service.led_brightness}")
         
         # Update detector services if it exists
         if detector is not None:
@@ -1043,59 +1055,56 @@ def update_configuration(settings_data=None, new_assistant_name=None):
                 detector.tts_engine = "piper"
             try:
                 detector._cleanup_audio_stream()
-                #print("Audio stream cleaned up")
                 
-                # Update Porcupine if needed
-                if new_assistant_name or (settings_data and "picovoice_key" in settings_data):
-                    detector._init_porcupine(assistant["wake_word"].lower())
-                    #print("Porcupine updated")
+                # Update openwakeword if needed
+                if new_assistant_name:
+                    oww_model_path = os.path.join(script_dir, "oww_models", config["oww_model"].replace("{assistant_name}", assistant_name))
+                    oww_additional = config["oww_model"].replace("{assistant_name}", f"{assistant_name}1")
+                    oww_model_path1 = os.path.join(script_dir, "oww_models", oww_additional) if os.path.exists(os.path.join(script_dir, "oww_models", oww_additional)) else None
+                    oww_models = [oww_model_path]
+                    if oww_model_path1:
+                        oww_models.append(oww_model_path1)
+                    if assistant_name.lower() == "jarvis":
+                        oww_models.append("hey jarvis")
+                    oww_inference_framework = config["oww_model"].split(".")[-1]
+                    # Load pre-trained openwakeword model for the assistant's wake word
+                    detector.oww_model = Model(wakeword_models=oww_models, inference_framework=oww_inference_framework)
+                    logger.info(f"Updated openwakeword with wake word: {assistant['wake_word']}")
                 
                 # Update other detector services
                 detector.listener = None
                 detector.listener = InputListener(config)
                 detector.listener.handle_led_event = detector.handle_led_event
-                #print("Input listener updated")
                 detector._init_audio_stream()
-                #print("Audio stream reinitialized")
-                detector.speech = None
+                detector.speech.__del__()
                 detector.speech = TextToSpeechService(config)
                 detector.speech.is_rpi = is_rpi
-                #print("TTS service updated")
                 detector.sound_effect = None
                 detector.sound_effect = SoundEffectService(config)
-                #print("Sound effect service updated")
                 detector.chat_gpt_service = None
                 detector.chat_gpt_service = ChatGPTService(config)
                 # get machine name from os and append .local for local network resolution
                 detector.chat_gpt_service.host = f"{socket.gethostname()}.local"
                 detector.chat_gpt_service.port = config.get("port", 5000)
-                #print("ChatGPT service updated")
                 detector.chat_gpt_service.append2log = append2log
                 detector.chat_gpt_service.speech = detector.speech
                 detector.chat_gpt_service.handle_led_event = detector.handle_led_event
-                #print("append2log updated")        
                 
                 # Reset state
-                #print("Resetting state...")
                 detector.is_awoken = False
                 detector.is_request_processing = False
-                #print("State reset")
+                
                 if new_assistant_name:
-                    #print("Playing ready sound...")
                     if assistant.get('elevenlabs_voice_id', "") == "" and detector.tts_engine != "piper":
-                        #print("Speaking ready sound...")
                         detector.speech.speak(f"{assistant_name} ready!")
                     else:
-                        #print("Playing ready sound...")
                         detector.sound_effect.play("ready")
-                    #print("Ready sound played")
             finally:
                 detector.is_updating = False
         
         # Update radio player URLs if it exists
         if radio_player is not None:
             radio_player.update_stream_urls(config["radio_stream_url"], config["kids_radio_stream_url"])
-            #print("Radio player updated")
             
         return True
             

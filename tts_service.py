@@ -13,6 +13,7 @@ import logging
 import time
 import sys
 import platform
+import psutil
 
 logger = logging.getLogger(__name__)
 
@@ -121,16 +122,40 @@ class TextToSpeechService:
         """Stop the Piper HTTP server if we started it"""
         if self.piper_server_process:
             try:
-                self.piper_server_process.terminate()
-                self.piper_server_process.wait(timeout=5)
+                # Get the process and all its children
+                parent = psutil.Process(self.piper_server_process.pid)
+                children = parent.children(recursive=True)
+                
+                # Terminate all child processes first
+                for child in children:
+                    try:
+                        child.terminate()
+                    except:
+                        pass
+                
+                # Then terminate the parent
+                parent.terminate()
+                
+                # Wait for all processes to terminate
+                gone, alive = psutil.wait_procs([parent] + children, timeout=3)
+                
+                # Force kill any remaining processes
+                for p in alive:
+                    try:
+                        p.kill()
+                    except:
+                        pass
+                
+                self.piper_server_process = None
                 logger.info("Piper HTTP server stopped")
+                
             except Exception as e:
                 logger.error(f"Error stopping Piper HTTP server: {e}")
                 try:
                     self.piper_server_process.kill()
                 except:
                     pass
-            self.piper_server_process = None
+                self.piper_server_process = None
 
     def _start_piper_binary(self):
         """Start the Piper binary process for RPi"""

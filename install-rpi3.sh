@@ -10,9 +10,17 @@ source venv/bin/activate
 #update pip
 pip3 install --upgrade pip
 
+ARCH="$(uname -m)"
+
+if [[ "$ARCH" == "armv7l" ]]; then
+    echo "Installing gfortran build-essential python3-dev python3-scipy..."
+    sudo apt install gfortran build-essential python3-dev python3-scipy
+    echo "Installing prebuilt wheel for onnxruntime..."
+    pip install onnxruntime-1.23.0-cp311-cp311-linux_armv7l.whl
+fi
+
 # Install requirements
 pip3 install -r requirements-rpi3.txt
-pip3 install 'numpy<2.0'
 
 # Install OpenCV
 sudo apt-get install python3-opencv libopenblas-dev -y

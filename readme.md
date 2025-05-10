@@ -40,7 +40,7 @@ There is also a configuration file, **config.json**, which stores important para
 
 ## Dependencies
 This project uses:
-- [Picovoice](https://picovoice.ai/): This is used to listen for the wake word.
+- [OpenWakeword](https://github.com/dscripka/openWakeWord): This is used to listen for the wake word.
 - [SpeechRecognition](https://pypi.org/project/SpeechRecognition) (Google's legacy speech recognition engine)
 - [OpenAI](https://openai.com/): One of the AI services used to respond to requests. You will need an API key from OpenAI to use this service.
 - [Groq](https://groq.com/): Alternative AI service provider. You will need a Groq API key to use this service.
@@ -60,7 +60,6 @@ All the keys and important parameters are stored in the `config.json` file. This
 - AI service selection (`ai_service`): Choose between "openai", "groq", or "google".
 - Radio streams (`radio_stream_url`, `kids_radio_stream_url`): URLs for radio streaming.
 - SpeechRecognition (`language`, `dynamic_energy_threshold`, `timeout`, `phrase_time_limit`): The language code for the speech recognition engine.
-- Picovoice (`picovoice_key`): The Picovoice API key.
 - Assistant configuration (`assistant_dict`): Contains assistant-specific settings including:
   - `name`: The assistant's name
   - `gender`: The assistant's gender ("male" or "female")
