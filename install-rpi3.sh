@@ -13,8 +13,8 @@ pip3 install --upgrade pip
 ARCH="$(uname -m)"
 
 if [[ "$ARCH" == "armv7l" ]]; then
-    echo "Installing gfortran build-essential python3-dev python3-scipy..."
-    sudo apt install gfortran build-essential python3-dev python3-scipy
+    echo "Installing gfortran build-essential python3-dev python3-scipy libjpeg-dev zlib1g-dev libpng-dev..."
+    sudo apt install gfortran build-essential python3-dev python3-scipy libjpeg-dev zlib1g-dev libpng-dev -y
     echo "Installing prebuilt wheel for onnxruntime..."
     pip install onnxruntime-1.23.0-cp311-cp311-linux_armv7l.whl
 fi
