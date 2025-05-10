@@ -13,7 +13,6 @@ import logging
 import time
 import sys
 import platform
-import psutil
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +121,7 @@ class TextToSpeechService:
         """Stop the Piper HTTP server if we started it"""
         if self.piper_server_process:
             try:
+                import psutil
                 # Get the process and all its children
                 parent = psutil.Process(self.piper_server_process.pid)
                 children = parent.children(recursive=True)
