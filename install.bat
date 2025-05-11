@@ -17,25 +17,19 @@ pip install https://github.com/Marc56K/piper-phonemize-win32/releases/download/v
 :: Install requirements
 pip install -r requirements.txt
 
-:: Install piper-tts
-pip install piper-tts --no-deps
-pip install onnxruntime
-echo piper-tts installed
+:: check if piper is installed
+if not exist piper\piper.exe (
+    :: download piper binary
+    curl -L https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_windows_amd64.zip -o piper_windows_amd64.zip
 
-:: install piper
-if not exist piper (
-    echo piper does not exist, cloning the repository
-    git clone https://github.com/rhasspy/piper.git
-    :: modify the requirements.txt file to comment out the piper-phonemize line
-    powershell -Command "(Get-Content piper\src\python_run\requirements.txt) -replace 'piper-phonemize~=1.1.0', '#piper-phonemize~=1.1.0' | Set-Content piper\src\python_run\requirements.txt"
+    :: extract the binary
+    tar -xvzf piper_windows_amd64.zip
+
+    :: remove the zip file
+    del piper_windows_amd64.zip
+
 )
-echo piper cloned
-
-:: install piper.http-server
-cd piper\src\python_run 
-pip install -e .
-cd ..\..\..
-echo piper.http-server installed
+echo piper binary installed
 
 :: check if vasco model is downloaded already
 if not exist piper_models\vasco.onnx (

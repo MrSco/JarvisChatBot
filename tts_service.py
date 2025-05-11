@@ -7,11 +7,9 @@ from elevenlabs.client import ElevenLabs
 import pyttsx3
 from gtts import gTTS
 import subprocess
-import requests
 from sound_effect_service import SoundEffectService
 import logging
 import time
-import sys
 import platform
 
 logger = logging.getLogger(__name__)
@@ -37,131 +35,21 @@ class TextToSpeechService:
         # Piper TTS settings
         self.piper_voice = config.get("assistant", 'jarvis')
         self.piper_models_dir = "piper_models"
-        
-        # Piper HTTP server settings (only used on non-RPi)
-        self.piper_http_port = config.get("piper_http_port", 5555)
-        self.piper_http_host = config.get("piper_http_host", "localhost")
-        self.piper_http_url = f"http://{self.piper_http_host}:{self.piper_http_port}"
-        self.piper_server_process = None
-        
+                
         # Piper binary process (only used on RPi)
         self.piper_process = None
         self.piper_time_between_chunks = config.get("piper_time_between_chunks", 1)
+        self.piper_output_file = None
         
         # Start appropriate Piper service based on platform
         if self.tts_engine == "piper":
-            if self.is_rpi:
-                self._start_piper_binary()
-            else:
-                self._start_piper_http_server()
-
-    def _start_piper_http_server(self):
-        """Start the Piper HTTP server if it's not already running"""
-        try:            
-            # Check if server is already running
-            try:
-                # Try to connect to the server
-                requests.get(f"{self.piper_http_url}?text=test", timeout=0.5)
-                logger.info(f"Piper HTTP server already running at {self.piper_http_url}")
-                return True
-            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-                # Server not running, we'll start it
-                logger.info("Piper HTTP server not detected, starting it...")
-            
-            # Get the path to the model
-            model_path = os.path.join(os.path.dirname(__file__), self.piper_models_dir, f"{self.piper_voice}.onnx")
-            if not os.path.exists(model_path):
-                logger.error(f"Piper model file not found: {model_path}")
-                return False
-            
-            # Prepare the command to start the HTTP server
-            # we need quotes around the python_exec to handle spaces in the path
-            python_exec = f'"{sys.executable}"'
-            
-            # Build the command
-            # change to the python_run directory    
-            os.chdir(os.path.join(os.path.dirname(__file__), "piper", "src", "python_run"))
-            cmd = [
-                python_exec,
-                "-m", "piper.http_server",
-                "--model", f'"{model_path}"',
-                "--host", self.piper_http_host,
-                "--port", str(self.piper_http_port)
-            ]
-            
-            logger.info(f"Starting Piper HTTP server with command: {' '.join(cmd)}")
-            
-            # Start the server as a background process with shell=True to handle Windows permissions
-            self.piper_server_process = subprocess.Popen(
-                " ".join(cmd),
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            
-            # Wait for the server to start up
-            for i in range(10):
-                try:
-                    requests.get(f"{self.piper_http_url}?text=test", timeout=0.5)
-                    logger.info(f"Piper HTTP server started successfully at {self.piper_http_url}")
-                    return True
-                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-                    time.sleep(0.5)
-            
-            logger.error("Failed to start Piper HTTP server")
-            return False
-            
-        except Exception as e:
-            logger.error(f"Error starting Piper HTTP server: {e}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            return False
-    
-    def _cleanup_piper_server(self):
-        """Stop the Piper HTTP server if we started it"""
-        if self.piper_server_process:
-            try:
-                import psutil
-                # Get the process and all its children
-                parent = psutil.Process(self.piper_server_process.pid)
-                children = parent.children(recursive=True)
-                
-                # Terminate all child processes first
-                for child in children:
-                    try:
-                        child.terminate()
-                    except:
-                        pass
-                
-                # Then terminate the parent
-                parent.terminate()
-                
-                # Wait for all processes to terminate
-                gone, alive = psutil.wait_procs([parent] + children, timeout=3)
-                
-                # Force kill any remaining processes
-                for p in alive:
-                    try:
-                        p.kill()
-                    except:
-                        pass
-                
-                self.piper_server_process = None
-                logger.info("Piper HTTP server stopped")
-                
-            except Exception as e:
-                logger.error(f"Error stopping Piper HTTP server: {e}")
-                try:
-                    self.piper_server_process.kill()
-                except:
-                    pass
-                self.piper_server_process = None
+            self._start_piper_binary()
 
     def _start_piper_binary(self):
         """Start the Piper binary process for RPi"""
         try:
             # Get the path to piper binary
-            piper_path = os.path.join("./piper", "piper")
+            piper_path = os.path.join("./piper", "piper" if self.is_rpi else "piper.exe")
             if not os.path.exists(piper_path):
                 logger.error(f"Piper binary not found: {piper_path}")
                 return False
@@ -172,11 +60,13 @@ class TextToSpeechService:
                 return False
             
             # Build the command for the Piper binary
-            cmd = [
-                piper_path,
-                "--model", model_path,
-                "--output-raw"  # Output raw audio data
-            ]
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+                self.piper_output_file = temp_file.name
+                cmd = [
+                    piper_path,
+                    "--model", model_path,
+                    "--output-file", self.piper_output_file
+                ]
             
             logger.info(f"Starting Piper binary with command: {' '.join(cmd)}")
             
@@ -298,144 +188,52 @@ class TextToSpeechService:
             logger.info(f"{self.assistant_name}: {text}")
             
             text = text.strip()
-            if not text:
+            if not text or text in [".", "..", "...", '"']:
                 return
+
+            # Create a temporary file
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+                temp_path = temp_file.name
+                
+            logger.info(f"Using temporary file: {temp_path}")
             
-            if self.is_rpi:
-                # Use Piper binary on RPi
-                if not self.piper_process or self.piper_process.poll() is not None:
-                    if not self._start_piper_binary():
-                        raise Exception("Failed to start Piper binary")
-                
-                # Start aplay process to receive the audio stream
-                aplay_args = ["aplay"]
-                if self.rpi_playback_device:
-                    aplay_args.extend(["-D", self.rpi_playback_device])
-                aplay_args.extend(["-r", "22050", "-f", "S16_LE", "-t", "raw", "-"])
-                
-                aplay_process = subprocess.Popen(
-                    aplay_args,
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
-                )
-                
-                try:
-                    # Send text to Piper and pipe output to aplay
-                    self.piper_process.stdin.write(f"{text}\n".encode())
-                    self.piper_process.stdin.flush()
-                    
-                    # Set stdout to non-blocking mode
-                    os.set_blocking(self.piper_process.stdout.fileno(), False)
-                    
-                    # Stream audio data to aplay - this time read EVERYTHING until we're done
-                    consecutive_empty_reads = 0
-                    max_empty_reads = 30  # After this many empty reads, consider speech complete
-                    has_received_data = False  # Flag to ensure we've received at least some data
-                    start_time = time.time()
-                    max_wait_time = 10.0  # Maximum time to wait for initial data (seconds)
-                    
-                    while True:
-                        try:
-                            chunk = self.piper_process.stdout.read(8192)
-                            
-                            if not chunk:  # No data or EOF
-                                consecutive_empty_reads += 1
-                                
-                                # Check if we've been waiting too long for initial data
-                                if not has_received_data and (time.time() - start_time > max_wait_time):
-                                    logger.warning(f"No data received from Piper after {max_wait_time} seconds, giving up")
-                                    break
-                                    
-                                if consecutive_empty_reads >= max_empty_reads:
-                                    # Only break if we've received some data already
-                                    if has_received_data:
-                                        logger.info(f"Detected end of speech after {consecutive_empty_reads} empty reads")
-                                        break
-                                time.sleep(0.05)  # Shorter sleep for more responsive detection
-                                continue
-                            
-                            # We've received some data
-                            has_received_data = True
-                            consecutive_empty_reads = 0
-                            aplay_process.stdin.write(chunk)
-                            aplay_process.stdin.flush()
-                            
-                        except BlockingIOError:
-                            consecutive_empty_reads += 1
-                            
-                            # Check if we've been waiting too long for initial data
-                            if not has_received_data and (time.time() - start_time > max_wait_time):
-                                logger.warning(f"No data received from Piper after {max_wait_time} seconds, giving up")
-                                break
-                                
-                            if consecutive_empty_reads >= max_empty_reads:
-                                # Only break if we've received some data already
-                                if has_received_data:
-                                    logger.info(f"Detected end of speech after {consecutive_empty_reads} blocking reads")
-                                    break
-                            time.sleep(0.05)  # Shorter sleep for more responsive detection
-                            continue
-                
-                    # Close stdin and wait for aplay to finish
-                    aplay_process.stdin.close()
-                    aplay_process.wait()
-                    
-                except BrokenPipeError:
-                    logger.warning("Pipe broken, restarting Piper process")
-                    self._cleanup_piper_binary()
-                    if not self._start_piper_binary():
-                        raise Exception("Failed to restart Piper binary")
-                    raise  # Re-raise to retry the operation
-                
-            else:
-                # Use HTTP server on other platforms
-                if not self._check_piper_server():
-                    if not self._start_piper_http_server():
-                        raise Exception("Failed to start Piper HTTP server")
-                
-                # Start mpv process to receive the audio stream
-                mpv_process = subprocess.Popen(
-                    ["mpv", "--no-video", "-"],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
-                )
-                
-                # Send GET request to Piper HTTP server
-                response = requests.get(
-                    self.piper_http_url,
-                    params={"text": text},
-                    stream=True
-                )
-                
-                if response.status_code != 200:
-                    logger.error(f"Server returned error: {response.text}")
-                    raise Exception(f"HTTP error {response.status_code}")
-                
-                # Stream the audio data to mpv
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        mpv_process.stdin.write(chunk)
-                
-                # Close stdin and wait for mpv to finish
-                mpv_process.stdin.close()
-                mpv_process.wait()
+            # Use Piper binary with file output
+            if not self.piper_process or self.piper_process.poll() is not None:
+                if not self._start_piper_binary():
+                    raise Exception("Failed to start Piper binary")
             
+            try:
+                # Send text to piper with output file specification
+                cmd = f"{text}\n"
+                self.piper_process.stdin.write(cmd.encode())
+                self.piper_process.stdin.flush()
+                self.piper_process.stdin.close()
+
+                # Wait for Piper to finish generating
+                while True:
+                    line = self.piper_process.stderr.readline().decode()
+                    if not line:
+                        logger.warning("Piper stderr closed unexpectedly")
+                        break
+                    logger.info(f"Piper: {line.strip()}")
+                    if "Real-time factor" in line:
+                        logger.info("Found completion signal!")
+                        break
+
+                self._play_audio_file(self.piper_output_file)                
+
+            except BrokenPipeError:
+                logger.warning("Pipe broken, restarting Piper process")
+                self._cleanup_piper_binary()
+                if not self._start_piper_binary():
+                    raise Exception("Failed to restart Piper binary")
+                raise  # Re-raise to retry the operation
 
         except Exception as e:
             logger.error(f"Error with Piper TTS: {e}")
             # If all else fails, use pyttsx3
             self.speak_with_pyttsx3(text)
     
-    def _check_piper_server(self):
-        """Check if the Piper HTTP server is running"""
-        import requests
-        try:
-            requests.get(f"{self.piper_http_url}?text=test", timeout=0.5)
-            return True
-        except:
-            return False
     
     def _play_audio_file(self, file_path):
         """Play an audio file using the appropriate method"""
@@ -445,7 +243,7 @@ class TextToSpeechService:
                 subprocess.run(["aplay", "-D", self.rpi_playback_device, file_path], check=True)
             else:
                 # Use mpv on other platforms
-                subprocess.run(["mpv", "--no-video", file_path], check=True)
+                subprocess.run(["mpv", "--no-video", file_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         except Exception as e:
             logger.error(f"Error playing audio file: {e}")
             # Try to use SoundEffectService as fallback
@@ -490,10 +288,12 @@ class TextToSpeechService:
 
     def __del__(self):
         """Clean up resources when the object is destroyed"""
-        if self.is_rpi and self.piper_process:
+        if self.piper_process:
             try:
                 self.piper_process.terminate()
                 self.piper_process.wait(timeout=5)
+                # Clean up the temporary file
+                os.unlink(self.piper_output_file)
                 logger.info("Piper binary stopped")
             except Exception as e:
                 logger.error(f"Error stopping Piper binary: {e}")
@@ -501,5 +301,3 @@ class TextToSpeechService:
                     self.piper_process.kill()
                 except:
                     pass
-        elif not self.is_rpi:
-            self._cleanup_piper_server()

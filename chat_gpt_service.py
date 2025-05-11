@@ -36,8 +36,7 @@ class ChatGPTService:
         self.system_prompt = config["system_prompt"] \
             .replace("{assistant_name}", self.assistant_name) \
             .replace("{assistant_acronym}", self.assistant_acronym) \
-            .replace("{assistant_descr}", self.assistant_descr) \
-            .replace("{weather_info}", self.weather_info)
+            .replace("{assistant_descr}", self.assistant_descr)
         self.system_prompt_msg = {"role": "system", "content": self.system_prompt}
         
         # Initialize history with system prompt
@@ -277,7 +276,7 @@ class ChatGPTService:
             if self.ai_service == "google":
                 # Use Gemini's image generation
                 response = self.llm.models.generate_content(
-                    model="gemini-2.0-flash-exp-image-generation",
+                    model=self.model,
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_modalities=['Text', 'Image']
@@ -291,7 +290,7 @@ class ChatGPTService:
             elif self.ai_service == "openai":
                 # Use OpenAI's DALL-E
                 response = self.llm.images.generate(
-                    model="dall-e-3",
+                    model=self.model,
                     prompt=prompt,
                     size="1024x1024",
                     quality="standard",
@@ -348,7 +347,9 @@ class ChatGPTService:
         # replace the timestamp in the history with the current time
         current_time = datetime.now(get_localzone()).strftime('%I:%M %p %Z').lstrip("0")
         if self.history and self.history[0]["role"] == "system":
-            self.history[0]["content"] = self.history[0]["content"].replace("{today}", str(date.today())).replace("{theCurrentTime}", current_time)
+            self.history[0]["content"] = self.system_prompt.replace("{today}", str(date.today())) \
+                .replace("{theCurrentTime}", current_time) \
+                .replace("{weather_info}", self.weather_info)
         
         # Check if this is a DuneWeaver request when URL is configured
         if self.duneweaver and self.duneweaver.dw_prompt and self.duneweaver.is_duneweaver_request(request):
