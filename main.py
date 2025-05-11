@@ -647,6 +647,14 @@ class WakeWordDetector:
                 "play the children's music",
                 "play the children's songs",
                 "play the children's tunes",
+                "play children radio",
+                "play children music",
+                "play children songs",
+                "play children tunes",
+                "play the children radio",
+                "play the children music",
+                "play the children songs",
+                "play the children tunes",
             ]
 
             if any(phrase in transcript.lower() for phrase in radio_phrases) and not image:
