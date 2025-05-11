@@ -173,3 +173,6 @@ output.mp3
 # Large model files
 piper_models/vasco.onnx
 piper_models/vasco.onnx.json
+
+# sound lock files
+.sound_lock
