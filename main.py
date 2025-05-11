@@ -305,15 +305,14 @@ class WakeWordDetector:
         #stop loading sound so we can test ambient noise properly
         logger.info("Stopping loading sound...")
         loading_sound.stop_sound()
-        self.listener = InputListener(config)
-        self.listener.handle_led_event = self.handle_led_event
-        self._init_audio_stream()
-
         self.language = config["language"]
         self.is_request_processing = False
         self.is_awoken = False
         self.is_running = True
         self.is_updating = False  # New flag to track assistant updates
+        self.listener = InputListener(config)
+        self.listener.handle_led_event = self.handle_led_event
+        self._init_audio_stream()
 
         self.speech = TextToSpeechService(config)
         self.speech.is_rpi = is_rpi
@@ -367,10 +366,12 @@ class WakeWordDetector:
             socketio.emit('music_active', {'status': 'ready'})
             logger.info("Music active. Pausing chatbot vad...")
         else:
+            was_awoken = self.is_awoken
             self.is_awoken = False
             time.sleep(0.1)
             socketio.emit('chatbot_ready', {'status': 'ready'})
-            logger.info(f"Listening for '{assistant['wake_word']}'...")
+            if was_awoken:
+                logger.info(f"Listening for '{assistant['wake_word']}'...")
 
     def process_audio(self):
         self.handle_led_event("VoiceStarted")
@@ -384,7 +385,7 @@ class WakeWordDetector:
 
         if self.mic_stream is not None:
             self.mic_stream.start_stream()
-            
+                    
         logger.info(f"Listening for '{assistant['wake_word']}'...")
         
         while self.is_running:
