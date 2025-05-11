@@ -238,7 +238,7 @@ class ChatGPTService:
                 raise Exception(f"Failed to upload: {response.text}")
             
             file_url = response.json()["image"]["url"]
-            logger.info("Image uploaded successfully to FreeImage.host!")
+            logger.info(f"Image uploaded successfully to FreeImage.host! {file_url}")
             return file_url
 
         except Exception as e:
@@ -334,7 +334,7 @@ class ChatGPTService:
             else:
                 safe_file_name = os.path.basename(self.save_file(image_data, filename))
                 image_url = f"http://{self.host}:{self.port}/{self.upload_folder}/{safe_file_name}"
-                return image_url
+            return image_url
         except Exception as e:
             logger.error(f"Error saving generated image: {e}")
             return ""
