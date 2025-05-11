@@ -54,7 +54,7 @@ This project uses:
 All the keys and important parameters are stored in the `config.json` file. This includes:
 
 - OpenAI API key (`openai_key`, `openai_model`, `system_prompt`): Used for interacting with OpenAI.
-- Groq API key (`groq_key`, `groq_model`, `groq_vision_model`): Used for interacting with Groq.
+- Groq API key (`groq_key`, `groq_model`): Used for interacting with Groq.
 - Google Gemini API key (`google_key`, `google_model`): Used for interacting with Google Gemini.
 - ElevenLabs credentials (`elevenlabs_key`, `elevenlabs_voice_id`): Used for text-to-speech conversion with ElevenLabs.
 - AI service selection (`ai_service`): Choose between "openai", "groq", or "google".

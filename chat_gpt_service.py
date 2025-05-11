@@ -128,7 +128,6 @@ class ChatGPTService:
             )
         elif self.ai_service == "groq":
             self.model = config["groq_model"]
-            self.groq_vision_model = config["groq_vision_model"]
             self.llm = Groq()
         else:
             self.model = config["openai_model"]
@@ -493,7 +492,6 @@ class ChatGPTService:
                 return None
 
             if self.ai_service == "groq":
-                modelToUse = self.groq_vision_model
                 # Clear history for image requests
                 self.history = []
         else:
