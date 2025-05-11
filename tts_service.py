@@ -256,7 +256,11 @@ class TextToSpeechService:
                 while True:
                     # Check MPV's stderr for status
                     line = self.mpv_process.stderr.readline()
-                    if "ended" in line.strip():
+                    if "ended" in line.strip() or "EOF" in line.strip():
+                        logger.info("Playback complete!")
+                        break
+                    line = self.mpv_process.stdout.readline()
+                    if "ended" in line.strip() or "EOF" in line.strip():
                         logger.info("Playback complete!")
                         break
                     time.sleep(0.1)  # Small sleep to prevent busy waiting
