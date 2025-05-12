@@ -10,39 +10,33 @@ def init_piper():
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
-    )
+    )    
     
+    return p1
+
+def speak_text(piper_process, text, previous_total_duration=0):
+    print(f"\nSpeaking: {text}")
+
     # Start mpv process that will stay running
     print("Starting MPV process...")
-    p2 = subprocess.Popen(
+    mpv_process = subprocess.Popen(
         [
             'mpv',
             '--no-video',
             '--demuxer=rawaudio',
-            '--demuxer-rawaudio-rate=22050',
-            '--demuxer-rawaudio-format=s16le',
-            '--demuxer-rawaudio-channels=1',
-            '--audio-channels=mono',
-            '--audio-samplerate=22050',
-            '--term-status-msg=status: ${=time-pos}',  # Output current playback position
-            '--term-playing-msg=started',              # Message when playback starts
-            '--term-status-msg=ended',                 # Message when playback ends
+                '--demuxer-rawaudio-rate=22050',
+                '--demuxer-rawaudio-format=s16le',
+                '--demuxer-rawaudio-channels=1',
+                '--audio-channels=mono',
+                '--audio-samplerate=22050',
+                '--term-status-msg=status: ${=playtime-remaining}\\n',  # Output current playtime-remaining
             '-'
         ],
-        stdin=p1.stdout,
+        stdin=piper_process.stdout,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,  # Use text mode for easier reading
-        bufsize=1   # Line buffered
     )
-    
-    # Allow p1 to receive a SIGPIPE if p2 exits
-    p1.stdout.close()
-    
-    return p1, p2
-
-def speak_text(piper_process, mpv_process, text):
-    print(f"\nSpeaking: {text}")
     
     # Send text to piper
     print("Sending text to Piper...")
@@ -50,6 +44,7 @@ def speak_text(piper_process, mpv_process, text):
     piper_process.stdin.flush()
 
     print("Waiting for Piper to finish...")
+    total_audio_duration = 0
     # Wait for Piper to finish generating
     while True:
         line = piper_process.stderr.readline().decode()
@@ -58,35 +53,63 @@ def speak_text(piper_process, mpv_process, text):
             break
         print(f"Piper: {line.strip()}")
         if "Real-time factor" in line:
+            # extract the total cumulative duration from the line
+            total_audio_duration = float(line.split("audio=")[1].split(" ")[0])
+            # Calculate actual duration for this phrase
+            current_phrase_duration = total_audio_duration - previous_total_duration
+            print(f"Total cumulative duration: {total_audio_duration} seconds")
+            print(f"Current phrase duration: {current_phrase_duration} seconds")
             print("Found completion signal!")
             break
     
-    # Wait for MPV to finish playing
+    # Wait for MPV to finish playing the current phrase duration
     print("Waiting for playback to complete...")
-    while True:
+    start_time = time.time()
+    while time.time() - start_time < current_phrase_duration:
         # Check MPV's stderr for status
         line = mpv_process.stderr.readline()
-        print(f"MPV err: {line.strip()}")
-        if "ended" in line.strip():
-            print("Playback complete!")
-            break
-        
+        if any(signal in line for signal in ["status: ", "EOF", "Audio device underrun detected"]):
+            if "status: " in line:
+                # extract the number from the line
+                status = float(line.split("status: ")[1])
+                if status < 0.5:
+                    print(f"Playback complete! by {line.strip()}")
+                    break
+            else:
+                print(f"Playback complete! by {line.strip()}")
+                break
         time.sleep(0.1)  # Small sleep to prevent busy waiting
 
-print("Initializing processes...")
-piper_process, mpv_process = init_piper()
+    try:
+        mpv_process.terminate()
+        mpv_process.wait(timeout=2)
+        print("MPV process stopped")
+    except Exception as e:
+        print(f"Error stopping MPV process: {e}")
+        try:
+            mpv_process.kill()
+        except:
+            pass
+    mpv_process = None
+    
+    return total_audio_duration  # Return the total duration for the next call
+
+print("Initializing piper process...")
+piper_process = init_piper()
 
 try:
     # Test multiple phrases
     phrases = [
-        "Hello! This is a test of the first phrase.",
+        "Ten.",
         "This is the second phrase, using the same Piper process.",
-        "And finally, this is the third phrase."
+        "This is the third phrase.",
+        "One"
     ]
     
+    cumulative_duration = 0
     for i, phrase in enumerate(phrases, 1):
         print(f"\nPhrase {i} of {len(phrases)}")
-        speak_text(piper_process, mpv_process, phrase)
+        cumulative_duration = speak_text(piper_process, phrase, cumulative_duration)
         
 finally:
     # Clean up
@@ -99,11 +122,8 @@ finally:
     try:
         piper_process.terminate()
         piper_process.wait(timeout=2)
-        mpv_process.terminate()
-        mpv_process.wait(timeout=2)
     except:
         piper_process.kill()
-        mpv_process.kill()
     print("Done!")
 
 
