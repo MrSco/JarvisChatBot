@@ -241,12 +241,12 @@ class TextToSpeechService:
                     line = mpv_process.stderr.readline()
                     logger.info(f"MPV stderr: {line.strip()}")
                     if any(signal in line for signal in ["ended", "EOF"]):
-                        logger.info("Playback complete!")
+                        logger.info(f"Playback complete! by {line.strip()}")
                         break
                     line = mpv_process.stdout.readline()
                     logger.info(f"MPV stdout: {line.strip()}")
                     if any(signal in line for signal in ["ended", "EOF", "Exiting..."]):
-                        logger.info("Playback complete!")
+                        logger.info(f"Playback complete! by {line.strip()}")
                         break
                     time.sleep(0.1)  # Small sleep to prevent busy waiting
 
