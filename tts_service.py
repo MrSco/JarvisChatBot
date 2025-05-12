@@ -97,8 +97,6 @@ class TextToSpeechService:
                 except:
                     pass
             self.piper_process = None
-            # Reset cumulative duration when cleaning up process
-            self.piper_cumulative_duration = 0.0
 
     def remove_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', '', text)
@@ -210,8 +208,7 @@ class TextToSpeechService:
                     stdin=self.piper_process.stdout,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    text=True,  # Use text mode for easier reading
-                    bufsize=1   # Line buffered
+                    text=True  # Use text mode for easier reading
                 )
 
                 # Send text to piper
@@ -220,7 +217,6 @@ class TextToSpeechService:
                 self.piper_process.stdin.flush()
 
                 # Wait for Piper to finish generating
-                total_audio_duration = 0
                 while True:
                     line = self.piper_process.stderr.readline().decode()
                     if not line:
@@ -229,15 +225,12 @@ class TextToSpeechService:
                     logger.info(f"Piper: {line.strip()}")
                     if "Real-time factor" in line:
                         # extract the duration from the line
-                        duration = float(line.split("audio=")[1].split(" ")[0])
+                        duration = float(line.split("audio=")[1].split(" ")[0].split("e")[0])
                         # Calculate actual duration for this phrase
                         logger.info(f"Audio duration: {duration} seconds")
                         logger.info("Found completion signal!")
                         break
-                
-                # Update the cumulative duration
-                self.piper_cumulative_duration = total_audio_duration
-                
+
                 # Wait for MPV to finish playing
                 logger.info("Waiting for playback to complete...")
                 start_time = time.time()
