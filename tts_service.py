@@ -38,10 +38,6 @@ class TextToSpeechService:
                 
         # Piper binary process (only used on RPi)
         self.piper_process = None
-        self.piper_time_between_chunks = config.get("piper_time_between_chunks", 1)
-        self.piper_output_file = None
-        # Track cumulative duration for Piper
-        self.piper_cumulative_duration = 0.0
         
         # Start appropriate Piper service based on platform
         if self.tts_engine == "piper":
@@ -92,7 +88,7 @@ class TextToSpeechService:
         if self.piper_process:
             try:
                 self.piper_process.terminate()
-                self.piper_process.wait(timeout=5)
+                self.piper_process.wait(timeout=2)
                 logger.info("Piper binary stopped")
             except Exception as e:
                 logger.info(f"Error stopping Piper binary: {e}")
@@ -189,16 +185,10 @@ class TextToSpeechService:
             
             logger.info(f"{self.assistant_name}: {text}")
             
-            text = text.strip()
-            if not text or text in [".", "..", "...", '"']:
-                return
-            
             # Use Piper binary
             if not self.piper_process or self.piper_process.poll() is not None:
                 if not self._start_piper_binary():
                     raise Exception("Failed to start Piper binary")
-                # Reset cumulative duration when starting new process
-                self.piper_cumulative_duration = 0.0
             
             try:
                 # start mpv process
@@ -238,12 +228,10 @@ class TextToSpeechService:
                         break
                     logger.info(f"Piper: {line.strip()}")
                     if "Real-time factor" in line:
-                        # extract the total cumulative duration from the line
-                        total_audio_duration = float(line.split("audio=")[1].split(" ")[0])
+                        # extract the duration from the line
+                        duration = float(line.split("audio=")[1].split(" ")[0])
                         # Calculate actual duration for this phrase
-                        current_phrase_duration = total_audio_duration - self.piper_cumulative_duration
-                        logger.info(f"Total cumulative duration: {total_audio_duration} seconds")
-                        logger.info(f"Current phrase duration: {current_phrase_duration} seconds")
+                        logger.info(f"Audio duration: {duration} seconds")
                         logger.info("Found completion signal!")
                         break
                 
@@ -253,7 +241,7 @@ class TextToSpeechService:
                 # Wait for MPV to finish playing
                 logger.info("Waiting for playback to complete...")
                 start_time = time.time()
-                while time.time() - start_time < current_phrase_duration:
+                while (time.time() - start_time) < duration:
                     # Check MPV's stderr for status
                     line = mpv_process.stderr.readline()
                     #logger.info(f"MPV stderr: {line.strip()}")
@@ -277,8 +265,6 @@ class TextToSpeechService:
             except BrokenPipeError:
                 logger.info("Pipe broken, restarting Piper process")
                 self._cleanup_piper_binary()
-                # Reset cumulative duration when restarting process
-                self.piper_cumulative_duration = 0.0
                 if not self._start_piper_binary():
                     raise Exception("Failed to restart Piper binary")
                 raise  # Re-raise to retry the operation

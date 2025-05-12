@@ -16,7 +16,7 @@ def init_piper():
     
     return p1
 
-def speak_text(piper_process, text, previous_total_duration=0):
+def speak_text(piper_process, text):
     print(f"\nSpeaking: {text}")
 
     # Start mpv process that will stay running
@@ -54,20 +54,20 @@ def speak_text(piper_process, text, previous_total_duration=0):
             print("Piper stderr closed unexpectedly")
             break
         print(f"Piper: {line.strip()}")
+                    
         if "Real-time factor" in line:
-            # extract the total cumulative duration from the line and round down to nearest half second
-            total_audio_duration = round(float(line.split("audio=")[1].split(" ")[0].split("e")[0]) * 2) / 2
-            # Calculate actual duration for this phrase
-            current_phrase_duration = total_audio_duration - previous_total_duration
-            print(f"Total cumulative duration: {total_audio_duration} seconds")
-            print(f"Current phrase duration: {current_phrase_duration} seconds")
+            # extract the duration from the line 
+            raw_duration = float(line.split("audio=")[1].split(" ")[0].split("e")[0])
+            print(f"Raw audio duration: {raw_duration} seconds")
             print("Found completion signal!")
             break
     
     # Wait for MPV to finish playing the current phrase duration
     print("Waiting for playback to complete...")
     start_time = time.time()
-    while time.time() - start_time < current_phrase_duration:
+    while (time.time() - start_time) < raw_duration:
+        print(f"Time elapsed: {time.time() - start_time} seconds")
+        print(f"Current phrase duration: {raw_duration} seconds")
         # Check MPV's stderr for status
         line = mpv_process.stderr.readline()
         if any(signal in line for signal in ["EOF", "Audio device underrun detected"]):
@@ -86,8 +86,6 @@ def speak_text(piper_process, text, previous_total_duration=0):
         except:
             pass
     mpv_process = None
-    
-    return total_audio_duration  # Return the total duration for the next call
 
 print("Initializing piper process...")
 piper_process = init_piper()
@@ -104,7 +102,7 @@ try:
     cumulative_duration = 0
     for i, phrase in enumerate(phrases, 1):
         print(f"\nPhrase {i} of {len(phrases)}")
-        cumulative_duration = speak_text(piper_process, phrase, cumulative_duration)
+        speak_text(piper_process, phrase)
         
 finally:
     # Clean up
