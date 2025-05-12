@@ -46,7 +46,6 @@ def speak_text(piper_process, text):
     piper_process.stdin.flush()
 
     print("Waiting for Piper to finish...")
-    total_audio_duration = 0
     # Wait for Piper to finish generating
     while True:
         line = piper_process.stderr.readline().decode()
@@ -63,14 +62,14 @@ def speak_text(piper_process, text):
             break
     
     # Wait for MPV to finish playing the current phrase duration
-    print("Waiting for playback to complete...")
+    print(f"Waiting for playback to complete...")
     start_time = time.time()
-    while (time.time() - start_time) < raw_duration:
-        print(f"Time elapsed: {time.time() - start_time} seconds")
-        print(f"Current phrase duration: {raw_duration} seconds")
+    while True:        
         # Check MPV's stderr for status
         line = mpv_process.stderr.readline()
-        if any(signal in line for signal in ["EOF", "Audio device underrun detected"]):
+        #print(f"MPV stderr: {line.strip()}")
+        if any(signal in line for signal in ["(100%)","EOF", "Audio device underrun detected"]):
+            print(f"Time elapsed: {time.time() - start_time} seconds")
             print(f"Playback complete! by {line.strip()}")
             break
         time.sleep(0.1)  # Small sleep to prevent busy waiting
@@ -93,13 +92,12 @@ piper_process = init_piper()
 try:
     # Test multiple phrases
     phrases = [
-        "Ten.",
+        "Ten",
         "This is the second phrase, using the same Piper process.",
         "This is the third phrase.",
-        "One"
+        "Four"
     ]
     
-    cumulative_duration = 0
     for i, phrase in enumerate(phrases, 1):
         print(f"\nPhrase {i} of {len(phrases)}")
         speak_text(piper_process, phrase)

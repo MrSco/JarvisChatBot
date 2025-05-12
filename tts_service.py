@@ -225,21 +225,22 @@ class TextToSpeechService:
                     logger.info(f"Piper: {line.strip()}")
                     if "Real-time factor" in line:
                         # extract the duration from the line
-                        duration = float(line.split("audio=")[1].split(" ")[0].split("e")[0])
+                        #duration = float(line.split("audio=")[1].split(" ")[0].split("e")[0])
                         # Calculate actual duration for this phrase
-                        logger.info(f"Audio duration: {duration} seconds")
+                        #logger.info(f"Audio duration: {duration} seconds")
                         logger.info("Found completion signal!")
                         break
 
                 # Wait for MPV to finish playing
                 logger.info("Waiting for playback to complete...")
                 start_time = time.time()
-                while (time.time() - start_time) < duration:
+                while True:        
                     # Check MPV's stderr for status
                     line = mpv_process.stderr.readline()
-                    #logger.info(f"MPV stderr: {line.strip()}")
-                    if any(signal in line for signal in ["EOF", "Audio device underrun detected"]):
-                        logger.info(f"Playback complete! by {line.strip()}")
+                    #print(f"MPV stderr: {line.strip()}")
+                    if any(signal in line for signal in ["(100%)","EOF", "Audio device underrun detected"]):
+                        print(f"Time elapsed: {time.time() - start_time} seconds")
+                        print(f"Playback complete! by {line.strip()}")
                         break
                     time.sleep(0.1)  # Small sleep to prevent busy waiting
 
