@@ -257,7 +257,7 @@ class TextToSpeechService:
                     # Check MPV's stderr for status
                     line = self.mpv_process.stderr.readline()
                     logger.info(f"MPV stderr: {line.strip()}")
-                    if any(signal in line for signal in ["ended", "EOF"]):
+                    if any(signal in line for signal in ["ended", "EOF", "Audio device underrun detected"]):
                         logger.info("Playback complete!")
                         break
                     line = self.mpv_process.stdout.readline()
