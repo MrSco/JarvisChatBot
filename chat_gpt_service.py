@@ -585,26 +585,32 @@ class ChatGPTService:
             self.append2log(f"{self.assistant_name}: ", True)
             
             def process_sentence(current_sentence):
-                # Handle ellipses first
-                if '...' in current_sentence or '. . .' in current_sentence:
-                    # Replace spaced ellipsis with standard ellipsis
-                    current_sentence = current_sentence.replace('. . .', '...')
-                    # Find position of ellipsis
-                    ellipsis_pos = current_sentence.find('...')
-                    # Only split if there's a sentence ending after the ellipsis
-                    after_ellipsis = current_sentence[ellipsis_pos + 3:]
-                    if any(ending in after_ellipsis for ending in sentence_endings):
-                        # Find the next sentence ending after ellipsis
-                        ending_positions = [after_ellipsis.find(ending) for ending in sentence_endings if ending in after_ellipsis]
-                        next_end = min([pos for pos in ending_positions if pos >= 0])
-                        if next_end >= 0:
-                            complete = current_sentence[:ellipsis_pos + 3 + next_end + 1]
-                            remainder = current_sentence[ellipsis_pos + 3 + next_end + 1:]
-                            if len(complete.strip()) > 1:  # More than just punctuation
+                # First check for regular sentence endings
+                for ending in sentence_endings:
+                    pos = current_sentence.find(ending)
+                    if pos >= 0:
+                        # Make sure this isn't part of an ellipsis
+                        if not (ending == '.' and 
+                              (pos + 2 < len(current_sentence) and current_sentence[pos:pos+3] == '...' or
+                               pos > 0 and current_sentence[pos-2:pos+1] == '...')):
+                            complete = current_sentence[:pos+1].strip()
+                            remainder = current_sentence[pos+1:].lstrip()
+                            if len(complete) > 1:  # More than just punctuation
                                 self.append2log(complete, True)
                                 logger.info(f"Complete sentence: {complete}")
                                 return complete, remainder
-                return None, current_sentence
+                
+                # Handle ellipsis as a sentence ending
+                ellipsis_pos = current_sentence.find('...')
+                if ellipsis_pos >= 0:
+                    complete = current_sentence[:ellipsis_pos + 3].strip()
+                    remainder = current_sentence[ellipsis_pos + 3:].lstrip()
+                    if len(complete) > 1:  # More than just punctuation
+                        self.append2log(complete, True)
+                        logger.info(f"Complete sentence: {complete}")
+                        return complete, remainder
+                
+                return None, current_sentence.lstrip()  # Also strip any leading whitespace from incomplete sentences
             
             if self.ai_service == "google":
                 # Process Google Gemini response stream
