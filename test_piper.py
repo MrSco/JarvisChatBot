@@ -55,8 +55,8 @@ def speak_text(piper_process, text, previous_total_duration=0):
             break
         print(f"Piper: {line.strip()}")
         if "Real-time factor" in line:
-            # extract the total cumulative duration from the line
-            total_audio_duration = float(line.split("audio=")[1].split(" ")[0])
+            # extract the total cumulative duration from the line and round down to nearest half second
+            total_audio_duration = round(float(line.split("audio=")[1].split(" ")[0].split("e")[0]) * 2) / 2
             # Calculate actual duration for this phrase
             current_phrase_duration = total_audio_duration - previous_total_duration
             print(f"Total cumulative duration: {total_audio_duration} seconds")
