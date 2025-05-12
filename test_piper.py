@@ -31,7 +31,7 @@ def speak_text(piper_process, text, previous_total_duration=0):
             '--demuxer-rawaudio-channels=1',
             '--audio-channels=mono',
             '--audio-samplerate=22050',
-            '--ao=alsa' if is_rpi else ''
+            '--ao=alsa' if is_rpi else '',
             '-'
         ],
         stdin=piper_process.stdout,
