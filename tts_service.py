@@ -76,34 +76,7 @@ class TextToSpeechService:
                 stderr=subprocess.PIPE
             )
             
-            # Start mpv process that will stay running
-            logger.info("Starting MPV process...")
-            self.mpv_process = subprocess.Popen(
-                [
-                    'mpv',
-                    '--no-video',
-                    '--demuxer=rawaudio',
-                    '--demuxer-rawaudio-rate=22050',
-                    '--demuxer-rawaudio-format=s16le',
-                    '--demuxer-rawaudio-channels=1',
-                    '--audio-channels=mono',
-                    '--audio-samplerate=22050',
-                    '--term-status-msg=status: ${=time-pos}',  # Output current playback position
-                    '--term-playing-msg=started',              # Message when playback starts
-                    '--term-status-msg=ended',                 # Message when playback ends
-                    '-'
-                ],
-                stdin=self.piper_process.stdout,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,  # Use text mode for easier reading
-                bufsize=1   # Line buffered
-            )
-            
-            # Allow piper to receive a SIGPIPE if mpv exits
-            self.piper_process.stdout.close()
-            
-            logger.info("Piper and MPV processes started successfully")
+            logger.info("Piper process started successfully")
             return True
             
         except Exception as e:
@@ -125,20 +98,7 @@ class TextToSpeechService:
                     self.piper_process.kill()
                 except:
                     pass
-            self.piper_process = None
-        
-        if hasattr(self, 'mpv_process') and self.mpv_process:
-            try:
-                self.mpv_process.terminate()
-                self.mpv_process.wait(timeout=2)
-                logger.info("MPV process stopped")
-            except Exception as e:
-                logger.error(f"Error stopping MPV process: {e}")
-                try:
-                    self.mpv_process.kill()
-                except:
-                    pass
-            self.mpv_process = None
+            self.piper_process = None        
 
     def remove_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', '', text)
@@ -235,6 +195,29 @@ class TextToSpeechService:
                     raise Exception("Failed to start Piper binary")
             
             try:
+                # start mpv process
+                mpv_process = subprocess.Popen(
+                    [
+                        'mpv',
+                        '--no-video',
+                        '--demuxer=rawaudio',
+                        '--demuxer-rawaudio-rate=22050',
+                        '--demuxer-rawaudio-format=s16le',
+                        '--demuxer-rawaudio-channels=1',
+                        '--audio-channels=mono',
+                        '--audio-samplerate=22050',
+                        '--term-status-msg=status: ${=time-pos}',  # Output current playback position
+                        '--term-playing-msg=started',              # Message when playback starts
+                        '--term-status-msg=ended',                 # Message when playback ends
+                        '-'
+                    ],
+                    stdin=self.piper_process.stdout,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,  # Use text mode for easier reading
+                    bufsize=1   # Line buffered
+                )
+
                 # Send text to piper
                 logger.info("Sending text to Piper...")
                 self.piper_process.stdin.write(f"{text}\n".encode())
@@ -255,17 +238,29 @@ class TextToSpeechService:
                 logger.info("Waiting for playback to complete...")
                 while True:
                     # Check MPV's stderr for status
-                    line = self.mpv_process.stderr.readline()
+                    line = mpv_process.stderr.readline()
                     logger.info(f"MPV stderr: {line.strip()}")
-                    if any(signal in line for signal in ["ended", "EOF", "Audio device underrun detected"]):
+                    if any(signal in line for signal in ["ended", "EOF"]):
                         logger.info("Playback complete!")
                         break
-                    line = self.mpv_process.stdout.readline()
+                    line = mpv_process.stdout.readline()
                     logger.info(f"MPV stdout: {line.strip()}")
                     if any(signal in line for signal in ["ended", "EOF", "Exiting..."]):
                         logger.info("Playback complete!")
                         break
                     time.sleep(0.1)  # Small sleep to prevent busy waiting
+
+                try:
+                    mpv_process.terminate()
+                    mpv_process.wait(timeout=2)
+                    logger.info("MPV process stopped")
+                except Exception as e:
+                    logger.error(f"Error stopping MPV process: {e}")
+                    try:
+                        mpv_process.kill()
+                    except:
+                        pass
+                mpv_process = None
 
             except BrokenPipeError:
                 logger.warning("Pipe broken, restarting Piper process")
