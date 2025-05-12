@@ -1,12 +1,14 @@
 import subprocess
-import os
 import time
+import platform
+
+is_rpi = platform.system() == "Linux"  # Check if running on RPi
 
 def init_piper():
     print("Starting Piper process...")
     # Start piper process with raw output
     p1 = subprocess.Popen(
-        ['./piper/piper.exe', '--model', 'piper_models/jarvis.onnx', '--output-raw'],
+        ['./piper/piper' if is_rpi else './piper/piper.exe', '--model', 'piper_models/jarvis.onnx', '--output-raw'],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
@@ -29,7 +31,7 @@ def speak_text(piper_process, text, previous_total_duration=0):
                 '--demuxer-rawaudio-channels=1',
                 '--audio-channels=mono',
                 '--audio-samplerate=22050',
-                '--term-status-msg=status: ${=playtime-remaining}\\n',  # Output current playtime-remaining
+                'ao=alsa' if is_rpi else ''
             '-'
         ],
         stdin=piper_process.stdout,
@@ -68,16 +70,9 @@ def speak_text(piper_process, text, previous_total_duration=0):
     while time.time() - start_time < current_phrase_duration:
         # Check MPV's stderr for status
         line = mpv_process.stderr.readline()
-        if any(signal in line for signal in ["status: ", "EOF", "Audio device underrun detected"]):
-            if "status: " in line:
-                # extract the number from the line
-                status = float(line.split("status: ")[1])
-                if status < 0.5:
-                    print(f"Playback complete! by {line.strip()}")
-                    break
-            else:
-                print(f"Playback complete! by {line.strip()}")
-                break
+        if any(signal in line for signal in ["EOF", "Audio device underrun detected"]):
+            print(f"Playback complete! by {line.strip()}")
+            break
         time.sleep(0.1)  # Small sleep to prevent busy waiting
 
     try:
