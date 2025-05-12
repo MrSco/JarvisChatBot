@@ -26,12 +26,12 @@ def speak_text(piper_process, text, previous_total_duration=0):
             'mpv',
             '--no-video',
             '--demuxer=rawaudio',
-                '--demuxer-rawaudio-rate=22050',
-                '--demuxer-rawaudio-format=s16le',
-                '--demuxer-rawaudio-channels=1',
-                '--audio-channels=mono',
-                '--audio-samplerate=22050',
-                'ao=alsa' if is_rpi else ''
+            '--demuxer-rawaudio-rate=22050',
+            '--demuxer-rawaudio-format=s16le',
+            '--demuxer-rawaudio-channels=1',
+            '--audio-channels=mono',
+            '--audio-samplerate=22050',
+            '--ao=alsa' if is_rpi else ''
             '-'
         ],
         stdin=piper_process.stdout,
