@@ -581,50 +581,55 @@ class ChatGPTService:
         def text_iterator():
             response_full_text = ""
             sentence = ""
-            sentence_endings = {'.', '!', '?'}
+            sentence_endings = {'.', '!', '?'}  # Remove ellipses from endings set
             self.append2log(f"{self.assistant_name}: ", True)
+            
+            def process_sentence(current_sentence):
+                # Handle ellipses first
+                if '...' in current_sentence or '. . .' in current_sentence:
+                    # Replace spaced ellipsis with standard ellipsis
+                    current_sentence = current_sentence.replace('. . .', '...')
+                    # Find position of ellipsis
+                    ellipsis_pos = current_sentence.find('...')
+                    # Only split if there's a sentence ending after the ellipsis
+                    after_ellipsis = current_sentence[ellipsis_pos + 3:]
+                    if any(ending in after_ellipsis for ending in sentence_endings):
+                        # Find the next sentence ending after ellipsis
+                        ending_positions = [after_ellipsis.find(ending) for ending in sentence_endings if ending in after_ellipsis]
+                        next_end = min([pos for pos in ending_positions if pos >= 0])
+                        if next_end >= 0:
+                            complete = current_sentence[:ellipsis_pos + 3 + next_end + 1]
+                            remainder = current_sentence[ellipsis_pos + 3 + next_end + 1:]
+                            if len(complete.strip()) > 1:  # More than just punctuation
+                                self.append2log(complete, True)
+                                logger.info(f"Complete sentence: {complete}")
+                                return complete, remainder
+                return None, current_sentence
             
             if self.ai_service == "google":
                 # Process Google Gemini response stream
                 for chunk in response:
                     if hasattr(chunk, 'text') and chunk.text:
-                        text_content = chunk.text
+                        text_content = chunk.text.strip('"')
                         sentence += text_content
                         response_full_text += text_content
                         
-                        # Check if we have a complete sentence
-                        if any(ending in sentence for ending in sentence_endings):
-                            # Find the first sentence ending (not the last)
-                            ending_positions = [sentence.find(ending) for ending in sentence_endings if ending in sentence]
-                            first_end = min([pos for pos in ending_positions if pos >= 0])
-                            if first_end >= 0:
-                                complete_sentence = sentence[:first_end+1]
-                                remainder = sentence[first_end+1:]
-                                self.append2log(complete_sentence, True)
-                                logger.info(f"Complete sentence: {complete_sentence}")
-                                yield complete_sentence
-                                sentence = remainder
+                        complete, sentence = process_sentence(sentence)
+                        if complete:
+                            yield complete
             else:
                 # Process OpenAI/Groq response stream
                 for chunk in response:
                     delta = chunk.choices[0].delta
                     if delta.content:
-                        sentence += delta.content
-                        response_full_text += delta.content
+                        text_content = delta.content.strip('"')
+                        sentence += text_content
+                        response_full_text += text_content
                         
-                        # Check if we have a complete sentence
-                        if any(ending in sentence for ending in sentence_endings):
-                            # Find the first sentence ending (not the last)
-                            ending_positions = [sentence.find(ending) for ending in sentence_endings if ending in sentence]
-                            first_end = min([pos for pos in ending_positions if pos >= 0])
-                            if first_end >= 0:
-                                complete_sentence = sentence[:first_end+1]
-                                remainder = sentence[first_end+1:]
-                                self.append2log(complete_sentence, True)
-                                logger.info(f"Complete sentence: {complete_sentence}")
-                                yield complete_sentence
-                                sentence = remainder
-                                
+                        complete, sentence = process_sentence(sentence)
+                        if complete:
+                            yield complete
+            
             # Yield any remaining text after the loop ends
             if sentence:
                 self.append2log(sentence)
