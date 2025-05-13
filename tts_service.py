@@ -13,6 +13,7 @@ import time
 import platform
 import threading
 import queue
+import sounddevice
 
 logger = logging.getLogger(__name__)
 

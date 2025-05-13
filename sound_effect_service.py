@@ -75,7 +75,7 @@ class SoundEffectService:
 
     def get_sound_path(self, sound_name, assistant_name):
         useAssistantSounds = assistant_name if not sound_name in self.generic_sound_names else ''
-        usePiperSounds = 'piper' if useAssistantSounds != '' and self.tts_engine == 'piper' else ''
+        usePiperSounds = 'piper' if useAssistantSounds != '' and (self.tts_engine == 'piper' or (self.tts_engine == 'elevenlabs' and not os.path.exists(os.path.join(sounds_dir, useAssistantSounds, f"{sound_name}.wav")))) else ''
         return os.path.join(sounds_dir, usePiperSounds, useAssistantSounds, f"{sound_name}.wav")
 
     def wait_for_sound_to_finish(self):
