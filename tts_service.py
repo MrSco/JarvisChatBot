@@ -114,6 +114,7 @@ class TextToSpeechService:
                 '--demuxer-rawaudio-channels=1',
                 '--audio-channels=mono',
                 '--audio-samplerate=22050',
+                '--audio-buffer=0.1',
             ]
             if self.is_rpi:
                 mpv_args.append('--ao=alsa')

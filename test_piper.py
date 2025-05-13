@@ -30,6 +30,7 @@ def init_mpv(piper_process):
             '--demuxer-rawaudio-channels=1',
             '--audio-channels=mono',
             '--audio-samplerate=22050',
+            '--audio-buffer=0.1',
             '--ao=alsa' if is_rpi else '',
             '-'
         ],
@@ -78,6 +79,10 @@ def speak_text(piper_process, mpv_process, text):
             if percentage == "100":
                 print("Playback likely complete")
                 break
+
+        if time.time() - start_time > 30:
+            print("Timeout waiting for playback")
+            break
             
         time.sleep(0.01)  # Small sleep to prevent busy waiting
 
