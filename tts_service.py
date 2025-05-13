@@ -334,9 +334,9 @@ class TextToSpeechService:
                                 try:
                                     percentage = int(line.split("(")[1].split(")")[0].split("%")[0].strip())
                                     if percentage > last_percentage:  # Only print if percentage increased
-                                        logger.info(f"Current percentage: {percentage}")
+                                        #logger.info(f"Current percentage: {percentage}")
                                         last_percentage = percentage
-                                    if percentage == 100:
+                                    if percentage > 90:
                                         logger.info("Playback complete")
                                         time.sleep(0.1)
                                         break
