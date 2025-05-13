@@ -163,9 +163,25 @@ class TextToSpeechService:
                 except:
                     pass
             self.piper_process = None
-
+    
     def remove_non_ascii(self, text):
-        return re.sub(r'[^\x00-\x7F]+', '', text)
+        """Clean up text before sending to TTS by removing markdown and special characters."""
+        # Remove markdown formatting
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)  # Remove *emphasis*
+        text = re.sub(r'_([^_]+)_', r'\1', text)    # Remove _emphasis_
+        text = re.sub(r'\`([^`]+)\`', r'\1', text)  # Remove `code`
+        text = re.sub(r'\[([^\]]+)\]', r'\1', text) # Remove [text]
+        text = re.sub(r'\(([^)]+)\)', r'\1', text)  # Remove (text)
+        
+        # Remove other special characters that might cause issues
+        text = text.replace('\\', '')  # Remove backslashes
+        text = text.replace('|', 'or')  # Replace | with 'or'
+        text = text.replace('&', 'and') # Replace & with 'and'
+        
+        # Remove non-ASCII characters
+        text = re.sub(r'[^\x00-\x7F]+', '', text)
+        
+        return text.strip()
 
     def speak(self, text):
         textToSpeak = text
