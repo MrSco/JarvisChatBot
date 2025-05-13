@@ -183,12 +183,18 @@ class TextToSpeechService:
             
             logger.info(f"{self.assistant_name}: {text}")
             
+            # Create a temporary SoundEffectService for loading sound
+            loading_sound = SoundEffectService()
+            
             # Use Piper binary
             if not self.piper_process or self.piper_process.poll() is not None:
                 if not self._start_piper_binary():
                     raise Exception("Failed to start Piper binary")
             
             try:
+                # Start loading sound before generation
+                loading_sound.play_loop("loading")
+                
                 # start mpv process
                 mpv_args = [
                     'mpv',
@@ -235,6 +241,10 @@ class TextToSpeechService:
                         break
                 
                 piper_finish_time = time.time()
+                
+                # Stop loading sound before playback
+                loading_sound.stop_sound()
+                
                 # Add padding if needed to ensure 0.5s gap since Piper finished
                 time_since_generation = piper_finish_time - piper_start_time
                 print(f"Time since generation: {time_since_generation:.2f} seconds")
