@@ -2,6 +2,7 @@ import re
 import subprocess
 import time
 import platform
+import json  # Add json import for parsing MPV output
 
 is_rpi = platform.system() == "Linux"  # Check if running on RPi
 
@@ -33,13 +34,12 @@ def speak_text(piper_process, text):
             '--audio-channels=mono',
             '--audio-samplerate=22050',
             '--ao=alsa' if is_rpi else '',
-            '--term-status-msg=time-remaining/full: ${time-remaining/full}',
             '-'
         ],
         stdin=piper_process.stdout,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True,  # Use text mode for easier reading
+        text=True,
     )
     
     # Send text to piper
@@ -48,8 +48,6 @@ def speak_text(piper_process, text):
     piper_process.stdin.flush()
 
     print("Waiting for Piper to finish...")
-    piper_start_time = time.time()
-    piper_finish_time = None
     # Wait for Piper to finish generating
     while True:
         line = piper_process.stderr.readline().decode()
@@ -59,54 +57,28 @@ def speak_text(piper_process, text):
         print(f"Piper: {line.strip()}")
                     
         if "Real-time factor" in line:
-            # extract the duration from the line 
-            raw_duration = float(line.split("audio=")[1].split(" ")[0].split("e")[0])
-            print(f"Raw audio duration: {raw_duration} seconds")
             print("Found completion signal!")
             break
-    piper_finish_time = time.time()
-    # Add padding if needed to ensure 0.5s gap since Piper finished
-    time_since_generation = piper_finish_time - piper_start_time
-    print(f"Time since generation: {time_since_generation:.2f} seconds")
-    if time_since_generation < 0.5:
-        padding_needed = 0.5 - time_since_generation
-        print(f"Adding {padding_needed:.2f}s pause before playback")
-        time.sleep(padding_needed)
     
-    # Wait for MPV to finish playing the current phrase duration
+    # Wait for MPV to finish playing the current phrase
     print(f"Starting playback...")
     start_time = time.time()
-    initial_duration = None  # To store the first time remaining estimate
 
     while True:        
         # Check MPV's stderr for status
         line = mpv_process.stderr.readline()
-        print(f"MPV stderr: {line.strip()}")
+        line = line.strip()
+        print(f"MPV stderr: {line}")
         
-        # parse out the time remaining
-        time_remaining = re.search(r'time-remaining/full: (-?\d{2}:\d{2}:\d{2}\.\d{3})', line)
-        if time_remaining:
-            # Convert HH:MM:SS.mmm format to seconds, handling negative values. negative means its definitely done playing and we can break
-            ts = time_remaining.group(1)
-            is_negative = ts.startswith('-')
-            if is_negative:
-                break
-            h, m, s = ts.split(':')
-            total_seconds = float(h) * 3600 + float(m) * 60 + float(s)
-            print(f"Time remaining: {total_seconds} seconds")
-            
-            # Capture initial duration estimate
-            if initial_duration is None:
-                initial_duration = total_seconds
-                print(f"Initial duration estimate: {initial_duration} seconds")
-            
-            # Break if time remaining is very low or if we've exceeded the initial estimate
-            if total_seconds <= 0.1 or (initial_duration and (time.time() - start_time) >= initial_duration + 0.5):
-                print(f"Time elapsed: {time.time() - start_time} seconds")
-                print(f"Playback complete! by {line.strip()}")
+        # parse out percentage from mpv status line 'MPV stderr: A: 00:00:05 / 00:00:05 (100%)'
+        if "%)" in line:
+            percentage = line.split("(")[1].split(")")[0].split("%")[0].strip()
+            print(f"Current percentage: {percentage}")
+            if percentage == "100":
+                print("Playback likely complete")
                 break
             
-        time.sleep(0.1)  # Small sleep to prevent busy waiting
+        time.sleep(0.01)  # Small sleep to prevent busy waiting
 
     try:
         mpv_process.terminate()

@@ -35,6 +35,11 @@ class TextToSpeechService:
         # Piper TTS settings
         self.piper_voice = config.get("assistant", 'jarvis')
         self.piper_models_dir = "piper_models"
+        # LED service client
+        self.led_service = None
+        if self.is_rpi:
+            from led_service import LEDServiceClient
+            self.led_service = LEDServiceClient()
                 
         # Piper binary process (only used on RPi)
         self.piper_process = None
@@ -42,6 +47,14 @@ class TextToSpeechService:
         # Start appropriate Piper service based on platform
         if self.tts_engine == "piper":
             self._start_piper_binary()
+
+    def handle_led_event(self, event):
+        if self.led_service is not None:
+            self.led_service.handle_event(event)
+        else:
+            if event == "Running":
+                return
+            logger.info(f"LED event: {event}")
 
     def _start_piper_binary(self):
         """Start the Piper binary process for RPi"""
@@ -183,17 +196,14 @@ class TextToSpeechService:
             
             logger.info(f"{self.assistant_name}: {text}")
             
-            # Create a temporary SoundEffectService for loading sound
-            loading_sound = SoundEffectService()
-            
             # Use Piper binary
             if not self.piper_process or self.piper_process.poll() is not None:
                 if not self._start_piper_binary():
                     raise Exception("Failed to start Piper binary")
             
             try:
-                # Start loading sound before generation
-                loading_sound.play_loop("loading")
+                # Set LED to orange to indicate processing
+                self.handle_led_event("Processing")
                 
                 # start mpv process
                 mpv_args = [
@@ -205,7 +215,6 @@ class TextToSpeechService:
                     '--demuxer-rawaudio-channels=1',
                     '--audio-channels=mono',
                     '--audio-samplerate=22050',
-                    '--term-status-msg=time-remaining/full: ${time-remaining/full}',
                 ]
                 if self.is_rpi:
                     mpv_args.append('--ao=alsa')
@@ -223,9 +232,6 @@ class TextToSpeechService:
                 self.piper_process.stdin.write(f"{text}\n".encode())
                 self.piper_process.stdin.flush()
 
-                piper_start_time = time.time()
-                piper_finish_time = piper_start_time
-
                 # Wait for Piper to finish generating
                 while True:
                     line = self.piper_process.stderr.readline().decode()
@@ -234,59 +240,30 @@ class TextToSpeechService:
                         break
                     logger.info(f"Piper: {line.strip()}")
                     if "Real-time factor" in line:
-                        # extract the duration from the line
-                        raw_duration = float(line.split("audio=")[1].split(" ")[0].split("e")[0])
-                        logger.info(f"Raw audio duration: {raw_duration} seconds")
                         logger.info("Found completion signal!")
                         break
-                
-                piper_finish_time = time.time()
-                
-                # Stop loading sound before playback
-                loading_sound.stop_sound()
-                
-                # Add padding if needed to ensure 0.5s gap since Piper finished
-                time_since_generation = piper_finish_time - piper_start_time
-                print(f"Time since generation: {time_since_generation:.2f} seconds")
-                if time_since_generation < 0.5:
-                    padding_needed = 0.5 - time_since_generation
-                    print(f"Adding {padding_needed:.2f}s pause before playback")
-                    time.sleep(padding_needed)
+                                
+                # Set LED back to VoiceStarted (yellow) for playback
+                self.handle_led_event("VoiceStarted")
 
                 # Wait for MPV to finish playing
                 logger.info("Waiting for playback to complete...")
-                start_time = time.time()
-                initial_duration = None  # To store the first time remaining estimate
 
                 while True:        
                     # Check MPV's stderr for status
                     line = mpv_process.stderr.readline()
-                    #logger.info(f"MPV stderr: {line.strip()}")
+                    line = line.strip()
+                    #print(f"MPV stderr: {line}")
                     
-                    # parse out the time remaining
-                    time_remaining = re.search(r'time-remaining/full: (-?\d{2}:\d{2}:\d{2}\.\d{3})', line)
-                    if time_remaining:
-                        # Convert HH:MM:SS.mmm format to seconds, handling negative values. negative means its definitely done playing and we can break
-                        ts = time_remaining.group(1)
-                        is_negative = ts.startswith('-')
-                        if is_negative:
+                    # parse out percentage from mpv status line 'MPV stderr: A: 00:00:05 / 00:00:05 (100%)'
+                    if "%)" in line:
+                        percentage = line.split("(")[1].split(")")[0].split("%")[0].strip()
+                        print(f"Current percentage: {percentage}")
+                        if percentage == "100":
+                            print("Playback likely complete")
                             break
-                        h, m, s = ts.split(':')
-                        total_seconds = float(h) * 3600 + float(m) * 60 + float(s)
-                        #logger.info(f"Time remaining: {total_seconds} seconds")
                         
-                        # Capture initial duration estimate
-                        if initial_duration is None:
-                            initial_duration = total_seconds
-                            logger.info(f"Initial duration estimate: {initial_duration} seconds")
-                        
-                        # Break if time remaining is very low or if we've exceeded the initial estimate
-                        if total_seconds <= 0.1 or (initial_duration and (time.time() - start_time) >= initial_duration + 0.5):
-                            logger.info(f"Time elapsed: {time.time() - start_time} seconds")
-                            logger.info(f"Playback complete! by {line.strip()}")
-                            break
-                    
-                    time.sleep(0.1)  # Small sleep to prevent busy waiting
+                    time.sleep(0.01)  # Small sleep to prevent busy waiting
 
                 try:
                     mpv_process.terminate()
