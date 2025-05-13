@@ -600,15 +600,23 @@ class ChatGPTService:
                                 logger.info(f"Complete sentence: {complete}")
                                 return complete, remainder
                 
-                # Handle ellipsis as a sentence ending
+                # Handle ellipsis as a sentence ending only if:
+                # 1. It's followed by a space or end of string
+                # 2. It's not just standalone ellipsis
                 ellipsis_pos = current_sentence.find('...')
                 if ellipsis_pos >= 0:
-                    complete = current_sentence[:ellipsis_pos + 3].strip()
-                    remainder = current_sentence[ellipsis_pos + 3:].lstrip()
-                    if len(complete) > 1:  # More than just punctuation
-                        self.append2log(complete, True)
-                        logger.info(f"Complete sentence: {complete}")
-                        return complete, remainder
+                    # Check if there's content before the ellipsis
+                    has_content_before = ellipsis_pos > 0 and not current_sentence[:ellipsis_pos].isspace()
+                    # Check if it's at the end or followed by space
+                    is_at_end = ellipsis_pos + 3 >= len(current_sentence) or current_sentence[ellipsis_pos + 3].isspace()
+                    
+                    if has_content_before and is_at_end:
+                        complete = current_sentence[:ellipsis_pos + 3].strip()
+                        remainder = current_sentence[ellipsis_pos + 3:].lstrip()
+                        if len(complete) > 3:  # More than just the ellipsis
+                            self.append2log(complete, True)
+                            logger.info(f"Complete sentence: {complete}")
+                            return complete, remainder
                 
                 return None, current_sentence.lstrip()  # Also strip any leading whitespace from incomplete sentences
             
