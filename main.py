@@ -366,12 +366,10 @@ class WakeWordDetector:
             socketio.emit('music_active', {'status': 'ready'})
             logger.info("Music active. Pausing chatbot vad...")
         else:
-            was_awoken = self.is_awoken
             self.is_awoken = False
             time.sleep(0.1)
             socketio.emit('chatbot_ready', {'status': 'ready'})
-            if was_awoken:
-                logger.info(f"Listening for '{assistant['wake_word']}'...")
+            logger.info(f"Listening for '{assistant['wake_word']}'...")
 
     def process_audio(self):
         self.handle_led_event("VoiceStarted")
