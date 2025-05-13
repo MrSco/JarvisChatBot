@@ -281,7 +281,7 @@ class TextToSpeechService:
                 logger.info("Waiting for playback to complete...")
 
                 start_time = time.time()
-                while True:        
+                while time.time() - start_time > 30:        
                     # Check MPV's stderr for status
                     line = self.mpv_process.stderr.readline()
                     line = line.strip()
@@ -290,12 +290,8 @@ class TextToSpeechService:
                     if "%)" in line:
                         percentage = line.split("(")[1].split(")")[0].split("%")[0].strip()
                         if percentage == "100":
-                            print("Playback complete")
+                            logger.info("Playback complete")
                             break
-
-                    if time.time() - start_time > 30:
-                        logger.info("Timeout waiting for playback")
-                        break
                         
                     time.sleep(0.01)  # Small sleep to prevent busy waiting
 

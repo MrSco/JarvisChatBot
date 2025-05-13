@@ -66,7 +66,7 @@ def speak_text(piper_process, mpv_process, text):
     print(f"Starting playback...")
     start_time = time.time()
 
-    while True:        
+    while time.time() - start_time > 30:        
         # Check MPV's stderr for status
         line = mpv_process.stderr.readline()
         line = line.strip()
@@ -79,10 +79,6 @@ def speak_text(piper_process, mpv_process, text):
             if percentage == "100":
                 print("Playback likely complete")
                 break
-
-        if time.time() - start_time > 30:
-            print("Timeout waiting for playback")
-            break
             
         time.sleep(0.01)  # Small sleep to prevent busy waiting
 
