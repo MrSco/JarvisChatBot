@@ -1161,7 +1161,6 @@ def runApp():
     if is_rpi and config["use_shairport-sync"]:
         shairport_handler = ShairportSyncHandler(detector, radio_player)
     app.config['detector'] = detector  # Attach detector to the Flask app config    
-    loading_sound.stop_sound()
     detector.run()
     logger.info("Detector exited.")
 
