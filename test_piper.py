@@ -3,6 +3,10 @@ import subprocess
 import time
 import platform
 import json  # Add json import for parsing MPV output
+import threading
+import queue
+import select
+import os
 
 is_rpi = platform.system() == "Linux"  # Check if running on RPi
 
@@ -30,7 +34,6 @@ def init_mpv(piper_process):
             '--demuxer-rawaudio-channels=1',
             '--audio-channels=mono',
             '--audio-samplerate=22050',
-            '--audio-buffer=0.1',
             '--ao=alsa' if is_rpi else '',
             '-'
         ],
@@ -40,6 +43,26 @@ def init_mpv(piper_process):
         text=True,
     )
     return mpv_process
+
+def mpv_stderr_reader(mpv_process, queue, stop_event):
+    """Read MPV stderr output in a separate thread"""
+    while not stop_event.is_set():
+        try:
+            line = mpv_process.stderr.readline()
+            if not line:
+                time.sleep(0.01)  # Small sleep if no data
+                continue
+                
+            # Split the line by any status updates (they start with 'A: ')
+            parts = line.strip().split('A: ')
+            for part in parts:
+                if part:  # Skip empty parts
+                    if not part.startswith('A: '):
+                        part = 'A: ' + part
+                    queue.put(part)
+        except Exception as e:
+            print(f"Error reading MPV stderr: {e}")
+            time.sleep(0.01)
 
 def speak_text(piper_process, mpv_process, text):
     print(f"\nSpeaking: {text}")
@@ -62,25 +85,61 @@ def speak_text(piper_process, mpv_process, text):
             print("Found completion signal!")
             break
     
+    # Set up MPV stderr reading thread
+    mpv_queue = queue.Queue()
+    stop_event = threading.Event()
+    stderr_thread = threading.Thread(
+        target=mpv_stderr_reader,
+        args=(mpv_process, mpv_queue, stop_event),
+        daemon=True
+    )
+    stderr_thread.start()
+    
     # Wait for MPV to finish playing the current phrase
     print(f"Starting playback...")
     start_time = time.time()
-
-    while time.time() - start_time > 30:        
-        # Check MPV's stderr for status
-        line = mpv_process.stderr.readline()
-        line = line.strip()
-        print(f"MPV stderr: {line}")
-        
-        # parse out percentage from mpv status line 'MPV stderr: A: 00:00:05 / 00:00:05 (100%)'
-        if "%)" in line:
-            percentage = line.split("(")[1].split(")")[0].split("%")[0].strip()
-            print(f"Current percentage: {percentage}")
-            if percentage == "100":
-                print("Playback likely complete")
+    last_percentage = 0
+    
+    try:
+        while True:
+            # Check if we've exceeded timeout (30 seconds)
+            if time.time() - start_time > 30:
+                print("Timeout reached waiting for playback")
                 break
-            
-        time.sleep(0.01)  # Small sleep to prevent busy waiting
+                
+            try:
+                # Try to get a line from the queue with a timeout
+                line = mpv_queue.get(timeout=0.01)
+                if not line.strip():  # Skip empty lines
+                    continue
+                    
+                print(f"MPV stderr: {line}")
+                
+                # parse out percentage from mpv status line
+                if "%)" in line:
+                    try:
+                        percentage = int(line.split("(")[1].split(")")[0].split("%")[0].strip())
+                        if percentage > last_percentage:  # Only print if percentage increased
+                            print(f"Current percentage: {percentage}")
+                            last_percentage = percentage
+                        if percentage == 100:
+                            print("Playback complete")
+                            # Wait a small amount to ensure audio is fully played
+                            time.sleep(0.1)
+                            break
+                    except (IndexError, ValueError) as e:
+                        print(f"Error parsing percentage: {e}")
+                        continue
+            except queue.Empty:
+                # No output available, continue waiting
+                continue
+                
+            time.sleep(0.01)  # Small sleep to prevent busy waiting
+    finally:
+        # Signal the reader thread to stop
+        stop_event.set()
+        # Wait a brief moment for the thread to finish
+        stderr_thread.join(timeout=0.5)
 
 print("Initializing piper process...")
 piper_process = init_piper()
@@ -94,7 +153,7 @@ try:
         "This is the second phrase, using the same Piper process.",
         "This is the third phrase.",
         "Four",
-        "And finally, here is a really long phrase that should take more than 5 seconds to play. Good luck!"
+        "And finally, here is a really long phrase that should take more than 5 seconds to play. Good luck, you're gonna need it. I'd buy that for a dollar!"
     ]
     
     for i, phrase in enumerate(phrases, 1):

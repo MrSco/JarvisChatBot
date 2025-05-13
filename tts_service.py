@@ -11,6 +11,8 @@ from sound_effect_service import SoundEffectService
 import logging
 import time
 import platform
+import threading
+import queue
 
 logger = logging.getLogger(__name__)
 
@@ -240,6 +242,26 @@ class TextToSpeechService:
             logger.info(f"Failed to use gTTS for speech: {e}")
             self._cleanup_audio()
 
+    def mpv_stderr_reader(self, mpv_process, queue, stop_event):
+        """Read MPV stderr output in a separate thread"""
+        while not stop_event.is_set():
+            try:
+                line = mpv_process.stderr.readline()
+                if not line:
+                    time.sleep(0.01)  # Small sleep if no data
+                    continue
+                
+                # Split the line by any status updates (they start with 'A: ')
+                parts = line.strip().split('A: ')
+                for part in parts:
+                    if part:  # Skip empty parts
+                        if not part.startswith('A: '):
+                            part = 'A: ' + part
+                        queue.put(part)
+            except Exception as e:
+                logger.info(f"Error reading MPV stderr: {e}")
+                time.sleep(0.01)
+
     def speak_with_piper(self, text):
         try:
             if self.sound_effect is not None:
@@ -277,23 +299,60 @@ class TextToSpeechService:
                 # Set LED back to VoiceStarted (yellow) for playback
                 self.handle_led_event("VoiceStarted")
 
+                # Set up MPV stderr reading thread
+                mpv_queue = queue.Queue()
+                stop_event = threading.Event()
+                stderr_thread = threading.Thread(
+                    target=self.mpv_stderr_reader,
+                    args=(self.mpv_process, mpv_queue, stop_event),
+                    daemon=True
+                )
+                stderr_thread.start()
+
                 # Wait for MPV to finish playing
                 logger.info("Waiting for playback to complete...")
-
                 start_time = time.time()
-                while time.time() - start_time > 30:        
-                    # Check MPV's stderr for status
-                    line = self.mpv_process.stderr.readline()
-                    line = line.strip()
-                    
-                    # parse out percentage from mpv status line 'MPV stderr: A: 00:00:05 / 00:00:05 (100%)'
-                    if "%)" in line:
-                        percentage = line.split("(")[1].split(")")[0].split("%")[0].strip()
-                        if percentage == "100":
-                            logger.info("Playback complete")
+                last_percentage = 0
+
+                try:
+                    while True:
+                        # Check if we've exceeded timeout (10 seconds)
+                        if time.time() - start_time > 10:
+                            logger.info("Timeout reached waiting for playback")
                             break
                         
-                    time.sleep(0.01)  # Small sleep to prevent busy waiting
+                        try:
+                            # Try to get a line from the queue with a timeout
+                            line = mpv_queue.get(timeout=0.01)
+                            if not line.strip():  # Skip empty lines
+                                continue
+                            
+                            #logger.info(f"MPV stderr: {line}")
+                            
+                            # parse out percentage from mpv status line
+                            if "%)" in line:
+                                try:
+                                    percentage = int(line.split("(")[1].split(")")[0].split("%")[0].strip())
+                                    if percentage > last_percentage:  # Only print if percentage increased
+                                        logger.info(f"Current percentage: {percentage}")
+                                        last_percentage = percentage
+                                    if percentage == 100:
+                                        logger.info("Playback complete")
+                                        time.sleep(0.1)
+                                        break
+                                except (IndexError, ValueError) as e:
+                                    logger.info(f"Error parsing percentage: {e}")
+                                    continue
+                        except queue.Empty:
+                            # No output available, continue waiting
+                            continue
+                        
+                        time.sleep(0.01)  # Small sleep to prevent busy waiting
+                finally:
+                    # Signal the reader thread to stop
+                    stop_event.set()
+                    # Wait a brief moment for the thread to finish
+                    stderr_thread.join(timeout=0.5)
 
             except BrokenPipeError:
                 logger.info("Pipe broken, restarting processes")

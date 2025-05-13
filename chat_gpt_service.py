@@ -593,15 +593,19 @@ class ChatGPTService:
                         if not (ending == '.' and 
                               (pos + 2 < len(current_sentence) and current_sentence[pos:pos+3] == '...' or
                                pos > 0 and current_sentence[pos-2:pos+1] == '...')):
-                            # Look ahead for closing quotes after the sentence ending
-                            end_pos = pos + 1
-                            remaining = current_sentence[end_pos:]
-                            quote_pos = remaining.find('"')
-                            if quote_pos >= 0 and remaining[:quote_pos].isspace():
-                                end_pos = end_pos + quote_pos + 1
                             
-                            complete = current_sentence[:end_pos].strip()
-                            remainder = current_sentence[end_pos:].lstrip()
+                            # Count quotes before the sentence ending
+                            quotes_before = current_sentence[:pos+1].count('"')
+                            
+                            # If we have an odd number of quotes, look for the closing quote
+                            if quotes_before % 2 == 1:
+                                next_quote = current_sentence[pos+1:].find('"')
+                                if next_quote >= 0:
+                                    pos = pos + 1 + next_quote
+                            
+                            complete = current_sentence[:pos+1].strip()
+                            remainder = current_sentence[pos+1:].lstrip()
+                            
                             if len(complete) > 1:  # More than just punctuation
                                 self.append2log(complete, True)
                                 logger.info(f"Complete sentence: {complete}")
