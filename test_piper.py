@@ -18,10 +18,7 @@ def init_piper():
     
     return p1
 
-def speak_text(piper_process, text):
-    print(f"\nSpeaking: {text}")
-
-    # Start mpv process that will stay running
+def init_mpv(piper_process):
     print("Starting MPV process...")
     mpv_process = subprocess.Popen(
         [
@@ -41,6 +38,10 @@ def speak_text(piper_process, text):
         stderr=subprocess.PIPE,
         text=True,
     )
+    return mpv_process
+
+def speak_text(piper_process, mpv_process, text):
+    print(f"\nSpeaking: {text}")
     
     # Send text to piper
     print("Sending text to Piper...")
@@ -80,20 +81,10 @@ def speak_text(piper_process, text):
             
         time.sleep(0.01)  # Small sleep to prevent busy waiting
 
-    try:
-        mpv_process.terminate()
-        mpv_process.wait(timeout=2)
-        print("MPV process stopped")
-    except Exception as e:
-        print(f"Error stopping MPV process: {e}")
-        try:
-            mpv_process.kill()
-        except:
-            pass
-    mpv_process = None
-
 print("Initializing piper process...")
 piper_process = init_piper()
+print("Initializing MPV process...")
+mpv_process = init_mpv(piper_process)
 
 try:
     # Test multiple phrases
@@ -107,7 +98,7 @@ try:
     
     for i, phrase in enumerate(phrases, 1):
         print(f"\nPhrase {i} of {len(phrases)}")
-        speak_text(piper_process, phrase)
+        speak_text(piper_process, mpv_process, phrase)
         
 finally:
     # Clean up
@@ -117,6 +108,15 @@ finally:
             piper_process.stdin.close()
         except:
             pass
+    if mpv_process:
+        try:
+            mpv_process.terminate()
+            mpv_process.wait(timeout=2)
+        except:
+            try:
+                mpv_process.kill()
+            except:
+                pass
     try:
         piper_process.terminate()
         piper_process.wait(timeout=2)

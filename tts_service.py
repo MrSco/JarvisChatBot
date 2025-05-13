@@ -41,12 +41,14 @@ class TextToSpeechService:
             from led_service import LEDServiceClient
             self.led_service = LEDServiceClient()
                 
-        # Piper binary process (only used on RPi)
+        # Piper and MPV processes
         self.piper_process = None
+        self.mpv_process = None
         
         # Start appropriate Piper service based on platform
         if self.tts_engine == "piper":
             self._start_piper_binary()
+            self._start_mpv_process()
 
     def handle_led_event(self, event):
         if self.led_service is not None:
@@ -96,8 +98,56 @@ class TextToSpeechService:
             logger.info(f"Traceback: {traceback.format_exc()}")
             return False
 
+    def _start_mpv_process(self):
+        """Start the MPV process that will be reused"""
+        try:
+            if self.piper_process is None:
+                logger.info("Cannot start MPV without Piper process")
+                return False
+                
+            mpv_args = [
+                'mpv',
+                '--no-video',
+                '--demuxer=rawaudio',
+                '--demuxer-rawaudio-rate=22050',
+                '--demuxer-rawaudio-format=s16le',
+                '--demuxer-rawaudio-channels=1',
+                '--audio-channels=mono',
+                '--audio-samplerate=22050',
+            ]
+            if self.is_rpi:
+                mpv_args.append('--ao=alsa')
+            mpv_args.append('-')
+            
+            logger.info("Starting persistent MPV process...")
+            self.mpv_process = subprocess.Popen(
+                mpv_args,
+                stdin=self.piper_process.stdout,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            logger.info("MPV process started successfully")
+            return True
+        except Exception as e:
+            logger.info(f"Error starting MPV process: {e}")
+            return False
+
     def _cleanup_piper_binary(self):
-        """Clean up the Piper binary process"""
+        """Clean up the Piper binary process and MPV process"""
+        if self.mpv_process:
+            try:
+                self.mpv_process.terminate()
+                self.mpv_process.wait(timeout=2)
+                logger.info("MPV process stopped")
+            except Exception as e:
+                logger.info(f"Error stopping MPV process: {e}")
+                try:
+                    self.mpv_process.kill()
+                except:
+                    pass
+            self.mpv_process = None
+            
         if self.piper_process:
             try:
                 self.piper_process.terminate()
@@ -200,33 +250,13 @@ class TextToSpeechService:
             if not self.piper_process or self.piper_process.poll() is not None:
                 if not self._start_piper_binary():
                     raise Exception("Failed to start Piper binary")
+                if not self._start_mpv_process():
+                    raise Exception("Failed to start MPV process")
             
             try:
                 # Set LED to orange to indicate processing
                 self.handle_led_event("Processing")
                 
-                # start mpv process
-                mpv_args = [
-                    'mpv',
-                    '--no-video',
-                    '--demuxer=rawaudio',
-                    '--demuxer-rawaudio-rate=22050',
-                    '--demuxer-rawaudio-format=s16le',
-                    '--demuxer-rawaudio-channels=1',
-                    '--audio-channels=mono',
-                    '--audio-samplerate=22050',
-                ]
-                if self.is_rpi:
-                    mpv_args.append('--ao=alsa')
-                mpv_args.append('-')
-                mpv_process = subprocess.Popen(
-                    mpv_args,
-                    stdin=self.piper_process.stdout,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True
-                )
-
                 # Send text to piper
                 logger.info("Sending text to Piper...")
                 self.piper_process.stdin.write(f"{text}\n".encode())
@@ -251,37 +281,25 @@ class TextToSpeechService:
 
                 while True:        
                     # Check MPV's stderr for status
-                    line = mpv_process.stderr.readline()
+                    line = self.mpv_process.stderr.readline()
                     line = line.strip()
-                    #print(f"MPV stderr: {line}")
                     
                     # parse out percentage from mpv status line 'MPV stderr: A: 00:00:05 / 00:00:05 (100%)'
                     if "%)" in line:
                         percentage = line.split("(")[1].split(")")[0].split("%")[0].strip()
-                        print(f"Current percentage: {percentage}")
                         if percentage == "100":
-                            print("Playback likely complete")
+                            print("Playback complete")
                             break
                         
                     time.sleep(0.01)  # Small sleep to prevent busy waiting
 
-                try:
-                    mpv_process.terminate()
-                    mpv_process.wait(timeout=2)
-                    logger.info("MPV process stopped")
-                except Exception as e:
-                    logger.info(f"Error stopping MPV process: {e}")
-                    try:
-                        mpv_process.kill()
-                    except:
-                        pass
-                mpv_process = None
-
             except BrokenPipeError:
-                logger.info("Pipe broken, restarting Piper process")
-                self._cleanup_piper_binary()
+                logger.info("Pipe broken, restarting processes")
+                self._cleanup_piper_binary()  # This will also cleanup MPV
                 if not self._start_piper_binary():
                     raise Exception("Failed to restart Piper binary")
+                if not self._start_mpv_process():
+                    raise Exception("Failed to restart MPV process")
                 raise  # Re-raise to retry the operation
 
         except Exception as e:
