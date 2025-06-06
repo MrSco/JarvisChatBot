@@ -395,7 +395,7 @@ class WakeWordDetector:
                 
                 try:
                     # Skip audio processing if we're updating the assistant
-                    if self.is_updating:
+                    if self.is_updating or self.mic_stream is None or not self.mic_stream.is_active():
                         time.sleep(0.1)
                         continue
                         
