@@ -376,7 +376,7 @@ class WakeWordDetector:
         if self.mic_stream is not None and self.mic_stream.is_active():
             self.mic_stream.stop_stream()
             
-        if (assistant.get('elevenlabs_voice_id', "") == "" and self.tts_engine != "piper") or self.tts_engine == "piper" and assistant_name.lower() == "joshua":
+        if (assistant.get('elevenlabs_voice_id', "") == "" and self.tts_engine != "piper") or assistant_name.lower() == "joshua":
             self.speech.speak(f"{assistant_name} ready!")
         else:
             self.sound_effect.play("ready")
@@ -1102,7 +1102,7 @@ def update_configuration(settings_data=None, new_assistant_name=None):
                 detector.is_request_processing = False
                 
                 if new_assistant_name:
-                    if assistant.get('elevenlabs_voice_id', "") == "" and detector.tts_engine != "piper":
+                    if (assistant.get('elevenlabs_voice_id', "") == "" and detector.tts_engine != "piper") or (assistant_name.lower() == "joshua"):
                         detector.speech.speak(f"{assistant_name} ready!")
                     else:
                         detector.sound_effect.play("ready")
