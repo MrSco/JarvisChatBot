@@ -279,7 +279,7 @@ class ChatGPTService:
                     model=self.model,
                     contents=prompt,
                     config=types.GenerateContentConfig(
-                        response_modalities=['Text', 'Image']
+                        response_modalities=['Image']
                     )
                 )
                 
