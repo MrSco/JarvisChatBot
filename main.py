@@ -1057,6 +1057,8 @@ def update_configuration(settings_data=None, new_assistant_name=None):
         # Update detector services if it exists
         if detector is not None:
             detector.is_updating = True
+            # Give the main loop time to detect the updating flag
+            time.sleep(0.2)
             detector.tts_engine = config["tts_engine"]
             if assistant.get('elevenlabs_voice_id', "") == "":
                 detector.tts_engine = "piper"
