@@ -376,7 +376,7 @@ class WakeWordDetector:
         if self.mic_stream is not None and self.mic_stream.is_active():
             self.mic_stream.stop_stream()
             
-        if assistant.get('elevenlabs_voice_id', "") == "" and self.tts_engine != "piper":
+        if (assistant.get('elevenlabs_voice_id', "") == "" and self.tts_engine != "piper") or self.tts_engine == "piper" and assistant_name.lower() == "joshua":
             self.speech.speak(f"{assistant_name} ready!")
         else:
             self.sound_effect.play("ready")
