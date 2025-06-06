@@ -27,6 +27,8 @@ class TextToSpeechService:
         self.tts_engine = config.get("tts_engine", "pyttsx3")
         if self.elevenlabs_voice_id == "" and self.tts_engine == "elevenlabs":
             self.tts_engine = "piper"
+        if self.tts_engine == "piper" and self.assistant_name.lower() == "joshua":
+            self.tts_engine = "pyttsx3"
         self.language = config["language"]
         self.accent = config["assistant_dict"]["accent"]
         self.sound_effect = None
