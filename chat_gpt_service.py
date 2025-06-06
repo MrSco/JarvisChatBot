@@ -276,10 +276,10 @@ class ChatGPTService:
             if self.ai_service == "google":
                 # Use Gemini's image generation
                 response = self.llm.models.generate_content(
-                    model=self.model,
+                    model='gemini-2.0-flash-exp-image-generation',
                     contents=prompt,
                     config=types.GenerateContentConfig(
-                        response_modalities=['Image']
+                        response_modalities=['Text', 'Image']
                     )
                 )
                 
@@ -290,7 +290,7 @@ class ChatGPTService:
             elif self.ai_service == "openai":
                 # Use OpenAI's DALL-E
                 response = self.llm.images.generate(
-                    model=self.model,
+                    model='chatgpt-4o-latest',
                     prompt=prompt,
                     size="1024x1024",
                     quality="standard",
