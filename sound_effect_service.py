@@ -48,6 +48,8 @@ class SoundEffectService:
         self.rpi_playback_device = config.get("rpi_playback_device", "")
         self.assistant_name = config["assistant"]
         self.tts_engine = config.get("tts_engine", "elevenlabs")
+        if self.tts_engine == "piper" and self.assistant_name.lower() == "joshua":
+            self.tts_engine = "pyttsx3"
         self.is_looping = False
         self.loop_thread = None
         self.generic_sound_names = ["error", "awake", "done", "initializing", "loading", "halflifebutton", "alarm", "timer"]
