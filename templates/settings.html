@@ -18,9 +18,9 @@
         var piper_models_dir = "{{ config.get('piper_models_dir', './piper_models') }}";
         var image_storage = "{{ 'freeimage' if config['image_storage'] else 'local' }}";
         var freeimage_key = "{{ config['freeimage_key'] }}";
-        var max_threshold = "{{ config['max_threshold'] }}";
         var led_brightness = "{{ config['led_brightness'] }}";
-        var vad_threshold = "{{ config['vad_threshold'] }}";
+        var oww_threshold = "{{ config['oww_threshold'] }}";
+        var stt_threshold = "{{ config['stt_threshold'] }}";
         var available_models = JSON.parse('{{ config.get("available_models", {"openai": [], "groq": [], "google": []}) | tojson | safe }}');
     </script>
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
@@ -106,14 +106,15 @@
                 <label for="freeimage_key">FreeImage Key:</label>
                 <input id="freeimage_key" name="freeimage_key" type="password" value="{{ config['freeimage_key'] }}">
             </div>
-            <div class="vad_container">
-                <label for="thresholdSlider">Voice Threshold: </label>
-                <input type="range" id="thresholdSlider" name="vad_threshold" min="1" max="{{ config['max_threshold'] }}" value="{{ config['vad_threshold'] }}">
-                <span id="thresholdValue">{{ config['vad_threshold'] }}</span>
+            <div class="oww_threshold_container">
+                <label for="oww_threshold">Wake Word Threshold: </label>
+                <input type="range" id="oww_threshold" name="oww_threshold" min="0.1" max="1" step="0.1" value="{{ config['oww_threshold'] }}">
+                <span id="oww_thresholdValue">{{ config['oww_threshold'] }}</span>
             </div>
-            <div>
-                <label for="max_threshold">Max Threshold:</label>
-                <input type="number" id="max_threshold" name="max_threshold" value="{{ config['max_threshold'] }}">
+            <div class="stt_threshold_container">
+                <label for="stt_threshold">Speech to Text Threshold: </label>
+                <input type="range" id="stt_threshold" name="stt_threshold" min="200" max="5000" step="100" value="{{ config['stt_threshold'] }}">
+                <span id="stt_thresholdValue">{{ config['stt_threshold'] }}</span>
             </div>
             <div>
                 <label for="led_brightness">LED Brightness:</label>

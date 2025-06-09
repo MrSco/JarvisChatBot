@@ -89,9 +89,8 @@ config["old_assistant"] = config["assistant"]
 config["assistant_dict"] = assistant
 assistant_name = assistant["name"]
 assistant_acronym = assistant["acronym"]
-vad_threshold = config["vad_threshold"]
+oww_threshold = config["oww_threshold"]
 print_audio_level = config["print_audio_level"]
-max_threshold = config["max_threshold"]
 
 if not os.path.exists("chatlogs"):
     os.makedirs("chatlogs")
@@ -278,6 +277,7 @@ class WakeWordDetector:
         self.CHANNELS = 1
         self.RATE = 16000
         self.CHUNK = 1280  # Same as example default
+        self.oww_threshold = config["oww_threshold"]
         
         # Initialize openwakeword
         try:
@@ -406,8 +406,8 @@ class WakeWordDetector:
                     # Process with openwakeword
                     prediction = self.oww_model.predict(audio)
                     
-                    # set a variable to true if any of the predictions are above 0.5
-                    wake_word_detected = any(prediction[key] > 0.5 for key in prediction)
+                    # set a variable to true if any of the predictions are above the oww_threshold
+                    wake_word_detected = any(prediction[key] > self.oww_threshold for key in prediction)
                     
                     # Check if wake word was detected
                     if wake_word_detected and not self.is_request_processing:
@@ -1024,7 +1024,7 @@ def update_configuration(settings_data=None, new_assistant_name=None):
         if settings_data:
             logger.info(f"Updating settings with: {settings_data}")
             for key, value in settings_data.items():
-                config[key] = value if key not in ["vad_threshold", "max_threshold", "led_brightness"] else int(value)
+                config[key] = int(value) if key in ["stt_threshold", "led_brightness"] else (float(value) if key in ["oww_threshold"] else value)
             config_updated = True
 
         # Update assistant if new one specified

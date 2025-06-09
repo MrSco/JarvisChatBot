@@ -20,7 +20,7 @@ class InputListener:
         self.mic = sr.Microphone()
         #logger.debug("Microphone initialized")
         self.rec.dynamic_energy_threshold = config["dynamic_energy_threshold"]
-        self.rec.energy_threshold = config["vad_threshold"]
+        self.rec.energy_threshold = config["stt_threshold"]
         self.timeout = config["timeout"]
         self.phrase_time_limit = config["phrase_time_limit"]
         self.language = config["language"] + "-US"

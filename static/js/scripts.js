@@ -275,6 +275,8 @@ else if (location.toString().includes('/settings')) {
         var ai_serviceSelect = document.getElementById('ai_service');
         var tts_engineSelect = document.getElementById('tts_engine');
         var image_storageSelect = document.getElementById('image_storage');
+        var oww_thresholdSlider = document.getElementById('oww_threshold');
+        var stt_thresholdSlider = document.getElementById('stt_threshold');
         
         // Set the initial values
         openai_modelSelect.value = openai_model;
@@ -377,9 +379,15 @@ else if (location.toString().includes('/settings')) {
         tts_engineSelect.value = tts_engine || 'pyttsx3';
 
         // Update the threshold value when the slider is changed
-        thresholdSlider.addEventListener('input', function() {
-            vad_threshold = this.value;
-            thresholdValue.innerText = vad_threshold;
+        oww_thresholdSlider.addEventListener('input', function() {
+            oww_threshold = this.value;
+            oww_thresholdValue.innerText = oww_threshold;
+        });
+
+        // Update the threshold value when the slider is changed
+        stt_thresholdSlider.addEventListener('input', function() {
+            stt_threshold = this.value;
+            stt_thresholdValue.innerText = stt_threshold;
         });
 
         document.getElementById('settingsForm').addEventListener('submit', function(event) {
