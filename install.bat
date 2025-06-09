@@ -57,4 +57,7 @@ if not exist assistants.json (
     copy assistants.json.example assistants.json
 )
 
+:: create .setup_complete file
+echo Setup completed on %date% %time% > .setup_complete
+
 echo Setup completed successfully. You can now run the script with ./run.bat

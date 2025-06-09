@@ -26,6 +26,7 @@ from werkzeug.utils import secure_filename
 import requests
 from radio_player import RadioPlayer
 import sounddevice as sd
+import subprocess
 
 # Configure logging
 logging.basicConfig(
@@ -1191,7 +1192,46 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
+def run_first_time_setup():
+    """Run first-time setup steps on client machine"""
+    logger.info("Running first-time setup...")
+    
+    # Check if setup has already been run
+    setup_complete_file = os.path.join(script_dir, ".setup_complete")
+    if os.path.exists(setup_complete_file):
+        logger.info("Setup already completed, skipping...")
+        return True
+    
+    try:
+        # Only run on Windows
+        if platform.system() == 'Windows':
+            logger.info("Installing system dependencies...")
+            
+            # Install MPV and VLC via chocolatey
+            try:
+                subprocess.run(['choco', 'install', 'mpv', 'vlc', '-y'], 
+                             check=True, capture_output=True, text=True)
+                logger.info("MPV and VLC installed successfully via chocolatey")
+            except (subprocess.CalledProcessError, FileNotFoundError) as e:
+                logger.warning(f"Could not install MPV and VLC via chocolatey: {e}")
+                logger.warning("Please install MPV and VLC manually if needed")
+        
+        # Mark setup as complete
+        with open(setup_complete_file, 'w') as f:
+            f.write(f"Setup completed on {datetime.now().isoformat()}")
+        
+        logger.info("First-time setup completed!")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error during first-time setup: {e}")
+        return False
+
 if __name__ == "__main__":
+    # Run first-time setup if needed
+    if not run_first_time_setup():
+        logger.error("First-time setup failed. Some features may not work correctly.")
+    
     #wait for up to 10 seconds for internet connection
     for i in range(10):
         if check_internet_connection():

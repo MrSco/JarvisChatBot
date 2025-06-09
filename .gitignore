@@ -176,3 +176,6 @@ piper_models/vasco.onnx.json
 
 # sound lock files
 .sound_lock
+
+# setup complete file
+.setup_complete
