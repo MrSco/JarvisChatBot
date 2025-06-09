@@ -8,6 +8,7 @@ added_files = [
     ('templates', 'templates'), 
     ('sounds', 'sounds'),
     ('oww_models', 'oww_models'),
+    ('piper_models', 'piper_models'),
     ('config.json.example', '.'), 
     ('assistants.json.example', '.'),
     ('scheduled_task.xml', ','),
