@@ -158,6 +158,28 @@ h1, h1 select {
     font-weight: bold;
 }
 
+.system-message {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 5px;
+    padding: 8px 10px;
+    margin: 5px 0;
+    text-align: center;
+}
+
+.system {
+    font-style: italic;
+    color: #856404;
+    font-size: 14px;
+}
+
+.system-timestamp {
+    font-weight: bold;
+    color: #6c757d;
+    font-size: 12px;
+    margin-right: 8px;
+}
+
 .form-elements-container {
     display: flex;
     align-items: center; 

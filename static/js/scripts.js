@@ -95,7 +95,12 @@ function update_chat(data) {
     var ahref = null;
     var urlRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif))/i;
     var urlMatch = messageContent.match(urlRegex);
-    var continuingResponse = (urlMatch && messageContent.startsWith(urlMatch[0])) || (!messageContent.startsWith("You") && !messageContent.startsWith(assistant_name));
+    
+    // Check if this is a system message (starts and ends with ***)
+    var isSystemMessage = messageContent.startsWith('***') && messageContent.endsWith('***');
+    
+    var continuingResponse = (urlMatch && messageContent.startsWith(urlMatch[0])) || (!messageContent.startsWith("You") && !messageContent.startsWith(assistant_name) && !isSystemMessage && !messageContent.trim().startsWith('***'));
+    
     if(messageContent.startsWith('You') || urlMatch) {
         messageContent = messageContent.replace('You:', '<span class="you">You:</span>');
         // If the message contains an image URL, create a href with an img element inside
@@ -125,6 +130,33 @@ function update_chat(data) {
         if(messageContent.startsWith(assistant_name)) {
             newMessage.className = 'darkBg';
             messageContent = messageContent.replace(`${assistant_name}:`, `<span class="assistant_name">${assistant_name}:</span>`);
+        }
+        else if (isSystemMessage) {
+            newMessage.className = 'system-message';
+            // Remove the *** markers
+            messageContent = messageContent.replace(/^\*\*\*/, '').replace(/\*\*\*$/, '');
+            
+            // Check if message contains a timestamp in format [YYYY-MM-DD HH:MM:SS]
+            var timestampRegex = /^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s*/;
+            var timestampMatch = messageContent.match(timestampRegex);
+            
+            if (timestampMatch) {
+                var timestamp = timestampMatch[1];
+                var messageWithoutTimestamp = messageContent.replace(timestampRegex, '');
+                
+                // Format timestamp for display (convert to local time format)
+                var date = new Date(timestamp);
+                var formattedTime = date.toLocaleTimeString('en-US', { 
+                    hour12: true, 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                
+                messageContent = '<span class="system-timestamp">' + formattedTime + '</span> <span class="system">' + messageWithoutTimestamp + '</span>';
+            } else {
+                messageContent = '<span class="system">' + messageContent + '</span>';
+            }
         }
         newMessage.innerHTML = messageContent;
         if(ahref) {

@@ -411,7 +411,10 @@ class WakeWordDetector:
                     
                     # Check if wake word was detected
                     if wake_word_detected and not self.is_request_processing:
-                        logger.info(f"Wake word detected!")
+                        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        wake_msg = f"***[{timestamp}] Wake word detected! (Score:{prediction})***"
+                        logger.info(wake_msg)
+                        append2log(wake_msg)
                         
                         # Clean up audio stream before using microphone
                         self._cleanup_audio_stream()
@@ -898,10 +901,11 @@ def get_chat_log_for_date(dateStr):
     logger.info(f"Getting chat log for {filename}...")
     try:
         with open(filename, 'r', encoding='utf-8') as f:
-            # read a line until you reach the end or You: or assistant_name:
+            # read a line until you reach the end or You: or assistant_name: or system messages (***):
             chatlog = []
             for line in f:
-                if line.startswith("You: ") or line.startswith(f"{assistant_name}: "):
+                # Check if line starts with user, assistant, or system message markers
+                if line.startswith("You: ") or line.startswith(f"{assistant_name}: ") or (line.startswith("***") and line.rstrip().endswith("***")):
                     chatlog.append(line)
                 else:
                     if chatlog:
