@@ -1143,6 +1143,30 @@ def settings():
         return jsonify({"status": "error"}), 500
     return render_template('settings.html', config=config)
 
+@app.route('/play_radio', methods=['POST'])
+def play_radio():
+    global radio_player
+    if radio_player:
+        data = request.get_json()
+        logger.info(f"Received data: {data}")
+        if data and data.get('radio') == 'kid':
+            stream_url = config["kids_radio_stream_url"]
+        else:
+            stream_url = config["radio_stream_url"]
+        radio_player.start(stream_url)
+        if radio_player.running:
+            return jsonify({"status": "done"}), 200
+    return jsonify({"status": "error"}), 500
+
+@app.route('/stop_radio', methods=['POST'])
+def stop_radio():
+    global radio_player
+    if radio_player:
+        radio_player.stop()
+        if not radio_player.running:
+            return jsonify({"status": "done"}), 200
+    return jsonify({"status": "error"}), 500
+
 @socketio.on('change_assistant')
 def change_assistant(data):
     new_assistant = data.get('assistant')
