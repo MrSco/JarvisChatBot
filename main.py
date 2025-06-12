@@ -90,7 +90,6 @@ config["old_assistant"] = config["assistant"]
 config["assistant_dict"] = assistant
 assistant_name = assistant["name"]
 assistant_acronym = assistant["acronym"]
-oww_threshold = config["oww_threshold"]
 print_audio_level = config["print_audio_level"]
 
 if not os.path.exists("chatlogs"):
@@ -1086,6 +1085,7 @@ def update_configuration(settings_data=None, new_assistant_name=None):
                     logger.info(f"Updated openwakeword with wake word: {assistant['wake_word']}")
                 
                 # Update other detector services
+                detector.oww_threshold = config["oww_threshold"]
                 detector.listener = None
                 detector.listener = InputListener(config)
                 detector.listener.handle_led_event = detector.handle_led_event
