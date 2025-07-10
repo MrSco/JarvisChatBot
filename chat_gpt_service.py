@@ -350,6 +350,8 @@ class ChatGPTService:
             self.history[0]["content"] = self.system_prompt.replace("{today}", str(date.today())) \
                 .replace("{theCurrentTime}", current_time) \
                 .replace("{weather_info}", self.weather_info)
+        # print system prompt
+        logger.info(f"System prompt: {self.history[0]['content']}")
         
         # Check if this is a DuneWeaver request when URL is configured
         if self.duneweaver and self.duneweaver.dw_prompt and self.duneweaver.is_duneweaver_request(request):
