@@ -512,13 +512,15 @@ class ChatGPTService:
             self.history = [self.history[0]] + self.history[-4:]
         result = None
         try:
-            #logger.debug(self.history)
             logger.info(f"Sending to {self.ai_service} {modelToUse}...")
             if self.ai_service == "google":
                 if self.history and self.history[0]["role"] == "system":
                     system_prompt = self.history[0]["content"]
                 else:
-                    system_prompt = self.system_prompt
+                    # Apply the same replacements as done earlier in the method
+                    system_prompt = self.system_prompt.replace("{today}", str(date.today())) \
+                        .replace("{theCurrentTime}", current_time) \
+                        .replace("{weather_info}", self.weather_info)
                 # Use the Gemini API according to documentation
                 if image is not None:
                     # For image inputs

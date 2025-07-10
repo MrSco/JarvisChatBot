@@ -255,6 +255,8 @@ class WakeWordDetector:
         self.tts_engine = config["tts_engine"]
         if assistant.get('elevenlabs_voice_id', "") == "":
             self.tts_engine = "piper"
+        if assistant_name.lower() == "joshua":
+            self.tts_engine = "pyttsx3"
         self.chat_gpt_service = ChatGPTService(config)
         # local ip address
         self.chat_gpt_service.host = get_local_ip()
@@ -376,7 +378,7 @@ class WakeWordDetector:
         if self.mic_stream is not None and self.mic_stream.is_active():
             self.mic_stream.stop_stream()
             
-        if (assistant.get('elevenlabs_voice_id', "") == "" and self.tts_engine != "piper") or assistant_name.lower() == "joshua":
+        if assistant.get('elevenlabs_voice_id', "") == "" and self.tts_engine != "piper":
             self.speech.speak(f"{assistant_name} ready!")
         else:
             self.sound_effect.play("ready")
@@ -1066,6 +1068,8 @@ def update_configuration(settings_data=None, new_assistant_name=None):
             detector.tts_engine = config["tts_engine"]
             if assistant.get('elevenlabs_voice_id', "") == "":
                 detector.tts_engine = "piper"
+            if assistant_name.lower() == "joshua":
+                detector.tts_engine = "pyttsx3"
             try:
                 detector._cleanup_audio_stream()
                 
@@ -1109,7 +1113,7 @@ def update_configuration(settings_data=None, new_assistant_name=None):
                 detector.is_request_processing = False
                 
                 if new_assistant_name:
-                    if (assistant.get('elevenlabs_voice_id', "") == "" and detector.tts_engine != "piper") or (assistant_name.lower() == "joshua"):
+                    if assistant.get('elevenlabs_voice_id', "") == "" and detector.tts_engine != "piper":
                         detector.speech.speak(f"{assistant_name} ready!")
                     else:
                         detector.sound_effect.play("ready")
