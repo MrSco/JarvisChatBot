@@ -90,6 +90,14 @@ config["old_assistant"] = config["assistant"]
 config["assistant_dict"] = assistant
 assistant_name = assistant["name"]
 assistant_acronym = assistant["acronym"]
+
+# --- NEW: Load oww_threshold from assistant config if present ---
+if "oww_threshold" in assistant:
+    config["oww_threshold"] = assistant["oww_threshold"]
+    logger.info(f"Loaded oww_threshold {assistant['oww_threshold']} from assistant {assistant_name}")
+else:
+    logger.info(f"No oww_threshold found in assistant {assistant_name}, using config default {config['oww_threshold']}")
+
 print_audio_level = config["print_audio_level"]
 
 if not os.path.exists("chatlogs"):
@@ -1026,11 +1034,19 @@ def update_configuration(settings_data=None, new_assistant_name=None):
     
     try:
         config_updated = False
+        assistants_updated = False
+
         # Update config with new settings if provided
         if settings_data:
             logger.info(f"Updating settings with: {settings_data}")
             for key, value in settings_data.items():
                 config[key] = int(value) if key in ["stt_threshold", "led_brightness"] else (float(value) if key in ["oww_threshold"] else value)
+                if key == "oww_threshold":
+                    assistant_key = config["assistant"]
+                    if assistant_key in assistants:
+                        assistants[assistant_key]["oww_threshold"] = float(value)
+                        assistants_updated = True
+                        logger.info(f"Updated oww_threshold to {value} for assistant {assistant_key}")
             config_updated = True
 
         # Update assistant if new one specified
@@ -1043,6 +1059,7 @@ def update_configuration(settings_data=None, new_assistant_name=None):
             assistant = assistants[new_assistant_name]
             assistant_name = assistant["name"]
             assistant_acronym = assistant["acronym"]
+            config["oww_threshold"] = assistant["oww_threshold"]
             chatlog_filename = getChatFilename(str(date.today()))
             config_updated = True
             logger.info(f"Assistant changed from {old_assistant} to {new_assistant_name}")
@@ -1052,6 +1069,11 @@ def update_configuration(settings_data=None, new_assistant_name=None):
             with open(config_file, 'w') as f:
                 json.dump(config, f, indent=4)
             logger.info("Settings saved to config.json")
+
+        if assistants_updated:
+            with open(assistants_file, 'w') as f:
+                json.dump(assistants, f, indent=4)
+            logger.info("Assistant settings saved to assistants.json")
 
         # Update services with new configuration
         logger.info("Updating services with new configuration...")

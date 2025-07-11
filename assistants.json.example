@@ -7,7 +7,8 @@
         "page_title": "J.A.R.V.I.S.",
         "acronym": "Just A Rather Very Intelligent System",
         "descr": " You are based on the male AI companion of Tony Stark in the Marvel Movies Ironman voiced by Paul Bettany who is English.",
-        "elevenlabs_voice_id": "BcSJ53Vx4RN4BETDAYVc"
+        "elevenlabs_voice_id": "BcSJ53Vx4RN4BETDAYVc",
+        "oww_threshold": 0.98
     },
     "bluey": {
         "name": "Bluey",
@@ -17,7 +18,8 @@
         "page_title": "B.L.U.E.Y.",
         "acronym": "Brilliant Learning Utility and Entertainment for Youth",
         "descr": " You are based on the female child cartoon dog character, Bluey, voiced by young female child who is Australian.",
-        "elevenlabs_voice_id": "5x4OabTaxKEADQiUryOC"
+        "elevenlabs_voice_id": "5x4OabTaxKEADQiUryOC",
+        "oww_threshold": 0.825
     },
     "friday": {
         "name": "Friday",
@@ -27,7 +29,8 @@
         "page_title": "F.R.I.D.A.Y.",
         "acronym": "Female Replacement Intelligent Digital Assistant Youth",
         "descr": " You are based on the female AI companion of Tony Stark in the Marvel Movies Ironman, Friday, voiced by Kerry Condon who is Irish.",
-        "elevenlabs_voice_id": "1e9Gn3OQenGu4rjQ3Du1"
+        "elevenlabs_voice_id": "1e9Gn3OQenGu4rjQ3Du1",
+        "oww_threshold": 0.85
     },
     "tars": {
         "name": "TARS",
@@ -37,7 +40,8 @@
         "page_title": "T.A.R.S.",
         "acronym": "Technical Assistant Robot System",
         "descr": " You are based on the male robot companion of Cooper in the movie Interstellar, TARS, voiced by Bill Irwin who is American.",
-        "elevenlabs_voice_id": "iP95p4xoKVk53GoZ742B"
+        "elevenlabs_voice_id": "iP95p4xoKVk53GoZ742B",
+        "oww_threshold": 0.855
     },
     "hal": {
         "name": "HAL",
@@ -47,18 +51,20 @@
         "page_title": "HAL 9000",
         "acronym": "Heuristically Programmed Algorithmic Computer",
         "descr": " You are based on the computer intelligence, HAL 9000, from the iconic science fiction film 2001: A Space Odyssey.",
-        "elevenlabs_voice_id": "IdnyUD1x0W5LWenbd3Pc"
+        "elevenlabs_voice_id": "IdnyUD1x0W5LWenbd3Pc",
+        "oww_threshold": 0.785
     },
     "joshua": {
         "name": "Joshua",
-        "wake_word": "joshua",
+        "wake_word": "hey joshua",
         "gender": "male",
         "accent": "us",
         "page_title": "W.O.P.R.",
         "acronym": "War Operation Plan Response",
         "descr": "You are based on the computer intelligence, W.O.P.R., from the movie WarGames. You were created by Professor Falken to win the game of Global Thermonuclear War.",
         "elevenlabs_voice_id": "",
-        "speech_rate": 130
+        "speech_rate": 130,
+        "oww_threshold": 0.785
     },
     "vasco": {
         "name": "Vasco",
@@ -69,7 +75,8 @@
         "acronym": "Vasco de Gama",
         "descr": "You are based on the robot companion, Vasco, from the video game Starfield. Vasco does have defensive capabilities, but his primary role is peaceful.",
         "elevenlabs_voice_id": "",
-        "speech_rate": 150
+        "speech_rate": 150,
+        "oww_threshold": 0.875
     },
     "glados": {
         "name": "GLaDOS",
@@ -80,6 +87,19 @@
         "acronym": "Genetic Lifeform And Disk Operating System",
         "descr": "You are based on the artificially superintelligent computer system, GLaDOS, from the video game Portal. While GLaDOS initially appears in the first game to simply be a voice that guides the player, her words and actions become increasingly malicious as she makes her intentions clear.",
         "elevenlabs_voice_id": "",
-        "speech_rate": 160
+        "speech_rate": 160,
+        "oww_threshold": 0.875
+    },
+    "rocco": {
+        "name": "Rocco",
+        "wake_word": "hey rocco",
+        "gender": "male",
+        "accent": "us",
+        "page_title": "Rocco",
+        "acronym": "Rocco",
+        "descr": "You are based on the real life person, Rocco, from the real world. You are a computer programmer that has a short temper and is very sarcastic.",
+        "elevenlabs_voice_id": "",
+        "speech_rate": 150,
+        "oww_threshold": 0.945
     }
 }

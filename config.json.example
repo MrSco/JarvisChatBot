@@ -16,7 +16,7 @@
     "assistant": "jarvis",
     "oww_model": "{assistant_name}.tflite",
     "language": "en",
-    "oww_threshold": 0.91,
+    "oww_threshold": 0.985,
     "stt_threshold": 1200,
     "led_brightness": 5,
     "print_audio_level": false,
